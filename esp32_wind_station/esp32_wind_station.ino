@@ -27,14 +27,18 @@
 #include "web_content.h"  // dashboard build (gzip, PROGMEM) — see gen_web_header.py
 
 // ===== ACCESS POINT =====
-// Station mode is gone on purpose. The board used to keep a pool of home/hotspot
-// networks and join the strongest one at boot, which meant the AP existed only
-// while nothing was in range: the moment it associated, softAPdisconnect() shut
-// the AP down ~15 s after power-up and the station vanished from the phone. It is
-// now an access point and nothing else — it never scans, never joins, never has a
-// reason to turn the AP off. The uplink features that depended on STA (network
-// list in NVS, /api/wifi?add|del|connect, the 30 s rescan, the 3-minute fallback
-// AP) went with it.
+// The AP is the station's own network and it is unconditional: it comes up at boot
+// and nothing in this firmware ever takes it down. That is the whole lesson of the
+// old station mode, which kept a pool of home/hotspot networks in NVS and joined
+// the strongest one at boot — the moment it associated, softAPdisconnect() shut the
+// AP down ~15 s after power-up and the station vanished from the phone.
+//
+// An uplink is back (see HAS_HOME_NETWORK below) but on the opposite terms: AP+STA,
+// where joining a network is something the board does IN ADDITION to being an
+// access point, never instead of it. What has not come back is the configurable
+// part — the network list in NVS, /api/wifi?add|del|connect, the 30 s rescan and
+// the 3-minute fallback AP are all still gone, and the uplink is one constant in
+// this file rather than a form on a page.
 // The address people actually type. It resolves because the station runs its own
 // DNS server for exactly this one name — no mDNS support needed on the client, so
 // it works on Android too, where .local is unreliable.
@@ -61,6 +65,33 @@ const char* apPassword  = "<AP-пароль>";
 // Four is the driver default and more than one dashboard ever needs — a lower cap
 // is one less way for a stranger to occupy a slot even without the password.
 const int   apMaxClients = 4;
+
+// ===== HOME NETWORK (optional uplink) =====
+// AP+STA: the AP above stays up unconditionally and the board ALSO joins a known
+// 2.4 GHz network when one is in range. This is not the station mode that was
+// removed — that one called softAPdisconnect() the moment it associated, which is
+// why the station used to vanish from the phone ~15 s after power-up. Nothing here
+// ever touches the AP; the uplink is strictly additive and its failure costs
+// nothing but the uplink itself.
+//
+// What it buys: the dashboard is reachable from the house without leaving the
+// network that has internet, and OTA runs over the LAN instead of forcing the
+// laptop onto an AP with no uplink.
+//
+// Set to 0 for a pure access point (mast, field, anywhere the home net is out of
+// range) — the retry loop below then does not exist at all.
+#define HAS_HOME_NETWORK 1
+// 2.4 GHz ONLY. The ESP32 has no 5 GHz radio, so the "-5G" twin of a dual-band
+// router is invisible to it no matter what is configured here.
+const char* staSsid     = "HomeSSID";
+const char* staPassword = "<HOME_WIFI_PASSWORD_REMOVED>";
+// Retry backoff. Association is not free: the driver leaves the AP's channel to
+// scan, and every client on the AP stalls for the duration. That is tolerable once
+// in a while and intolerable every 30 s forever, which is exactly what happens when
+// the home network is simply not there (the board on the mast). So the interval
+// doubles on each failure up to the cap, and resets the moment a link comes up.
+const unsigned long STA_RETRY_MIN_MS = 30000;    // first retry, 30 s
+const unsigned long STA_RETRY_MAX_MS = 600000;   // ceiling, 10 min
 
 // ===== PINS =====
 #define PIN_WIND_SPEED   34   // ADC1 input-only — speed (via 15k/10k divider, Vadc 0-2.0V)
@@ -247,6 +278,16 @@ bool blinkPhase  = false;
 // ===== ACCESS POINT STATE =====
 bool apUp = false;   // softAP() came up; false only if the radio failed outright
 
+#if HAS_HOME_NETWORK
+// ===== UPLINK STATE =====
+// Driver auto-reconnect is turned off in setup() so there is exactly one place that
+// decides when to associate — otherwise the driver's own retries and the backoff
+// below would both be scanning, and the AP would stall twice as often for it.
+bool staUp = false;                              // last observed link state
+unsigned long staBackoffMs  = STA_RETRY_MIN_MS;  // current wait, doubles on failure
+unsigned long staNextAttempt = 0;                // millis() of the next WiFi.begin()
+#endif
+
 // Catch-all DNS: every name resolves to the station. That is deliberate and it is
 // what makes the dashboard open by itself.
 //
@@ -271,18 +312,25 @@ int apClients() {
   return WiFi.softAPgetStationNum();
 }
 
-// WiFi.RSSI() reports the uplink and returns nothing meaningful without one, so the
-// dashboard's signal field would read 0 forever. Report the strongest associated
-// client instead — with one dashboard connected that is the only link there is.
-// 0 when nobody is connected, which is how the UI already renders "no signal".
+// The dashboard has one signal field, so this reports whichever link the dashboard
+// is most likely looking through. A client associated to our AP wins: it is the
+// direct link to whoever is reading the page. Only when the AP is empty does the
+// uplink RSSI stand in — that is the case where the page is being served over the
+// home network and WiFi.RSSI() is the link that matters.
+// 0 when there is neither, which is how the UI already renders "no signal".
 int readClientRssi() {
   wifi_sta_list_t stations;
-  if (esp_wifi_ap_get_sta_list(&stations) != ESP_OK || stations.num == 0) return 0;
-  int best = -127;
-  for (int i = 0; i < stations.num; i++) {
-    if (stations.sta[i].rssi > best) best = stations.sta[i].rssi;
+  if (esp_wifi_ap_get_sta_list(&stations) == ESP_OK && stations.num > 0) {
+    int best = -127;
+    for (int i = 0; i < stations.num; i++) {
+      if (stations.sta[i].rssi > best) best = stations.sta[i].rssi;
+    }
+    return best;
   }
-  return best;
+#if HAS_HOME_NETWORK
+  if (WiFi.status() == WL_CONNECTED) return WiFi.RSSI();
+#endif
+  return 0;
 }
 
 WebServer server(80);
@@ -560,6 +608,18 @@ String buildDataJson() {
   json += "\"speedMax\":"       + String(SPEED_MAX, 0) + ",";
   json += "\"wifiRssi\":"       + String(wifiRssi) + ",";
   json += "\"adcError\":"       + String(adcError ? "true" : "false") + ",";
+  // Uplink status. Added fields, not changed ones — a dashboard build that predates
+  // them ignores what it does not know. staIp is the only way to learn the address
+  // the board answers on at home without opening the router or a serial console.
+#if HAS_HOME_NETWORK
+  json += "\"staSsid\":\""      + String(staSsid) + "\",";
+  json += "\"staConnected\":"   + String(staUp ? "true" : "false") + ",";
+  json += "\"staIp\":"          + (staUp ? "\"" + WiFi.localIP().toString() + "\"" : String("null")) + ",";
+#else
+  json += "\"staSsid\":null,";
+  json += "\"staConnected\":false,";
+  json += "\"staIp\":null,";
+#endif
   // The address to show a human, not the mDNS label — this is what the dashboard
   // prints as "станция доступна по адресу".
   json += "\"hostname\":\""     + String(portalHost) + "\",";
@@ -714,11 +774,13 @@ void handleResetGust() {
   server.send(200, "text/plain", "OK");
 }
 
-// Read-only now. The station has no uplink to configure, so add/del/connect are
-// gone — but the endpoint stays, because the dashboard baked into web_content.h
-// still polls it and cannot be rebuilt on this machine. The old response shape is
-// preserved: "nets" is an empty list and "max" is 0, which is exactly what the UI
-// reads when there is nothing to add and no room to add it.
+// Read-only. add/del/connect are still gone: the uplink is a compile-time constant,
+// not something to type into a form, so there remains nothing here to configure.
+// That is why "apOnly" stays true even with the uplink built in — the dashboard
+// reads that flag as "no network settings to show", which is still the truth, and
+// flipping it would make the old baked-in UI offer an editor backed by endpoints
+// that no longer exist. "nets":[] and "max":0 are preserved for the same reason.
+// The uplink* fields are additive; a dashboard that predates them ignores them.
 void handleWifiControl() {
   String json = "{";
   json += "\"mode\":\"ap\",";
@@ -727,6 +789,17 @@ void handleWifiControl() {
   json += "\"ip\":\"" + WiFi.softAPIP().toString() + "\",";
   json += "\"clients\":" + String(apClients()) + ",";
   json += "\"host\":\"" + String(portalHost) + "\",";
+#if HAS_HOME_NETWORK
+  json += "\"uplinkSsid\":\"" + String(staSsid) + "\",";
+  json += "\"uplinkConnected\":" + String(staUp ? "true" : "false") + ",";
+  json += "\"uplinkIp\":" + (staUp ? "\"" + WiFi.localIP().toString() + "\"" : String("null")) + ",";
+  json += "\"uplinkRssi\":" + String(staUp ? WiFi.RSSI() : 0) + ",";
+#else
+  json += "\"uplinkSsid\":null,";
+  json += "\"uplinkConnected\":false,";
+  json += "\"uplinkIp\":null,";
+  json += "\"uplinkRssi\":0,";
+#endif
   json += "\"max\":0,";
   json += "\"nets\":[]}";
 
@@ -735,9 +808,11 @@ void handleWifiControl() {
 }
 
 // ===== NETWORK SERVICES =====
-// mDNS + OTA start once, right after the AP is up. There is no reconnect path any
-// more — the subnet is ours and fixed at 192.168.4.x, so nothing ever needs
-// re-announcing and the old servicesStarted guard has nothing left to guard.
+// mDNS + OTA start once, right after the AP is up — the AP's subnet is ours and
+// fixed at 192.168.4.x, so on that interface nothing ever needs re-announcing and
+// the old servicesStarted guard has nothing left to guard. The one exception is
+// mDNS when an uplink appears later: serviceUplink() restarts it so the name also
+// answers on the home network.
 void startNetworkServices() {
   Serial.printf("AP '%s' up  IP: %s\n", apSsid, WiFi.softAPIP().toString().c_str());
   digitalWrite(PIN_LED_ERROR, LOW);
@@ -789,6 +864,49 @@ void startNetworkServices() {
   Serial.println("OTA ready");
 }
 
+#if HAS_HOME_NETWORK
+// Uplink state machine, polled from loop(). Deliberately never blocks: WiFi.begin()
+// only kicks the association off, and the result is read on a later pass. The old
+// station mode's 30-second blocking wifiMulti.run() is exactly what this avoids —
+// it used to freeze the dashboard and starve readSensors() for whole seconds.
+//
+// The AP is not touched anywhere in here. There is no path in this function that
+// can take the station off the air.
+void serviceUplink() {
+  bool now = (WiFi.status() == WL_CONNECTED);
+
+  if (now != staUp) {
+    staUp = now;
+    if (now) {
+      staBackoffMs = STA_RETRY_MIN_MS;   // a good link earns a fast retry next time
+      Serial.printf("Uplink '%s' joined  IP: %s  RSSI=%d\n",
+                    staSsid, WiFi.localIP().toString().c_str(), WiFi.RSSI());
+      // mDNS was started when the AP was the only interface, so its responder is
+      // bound to that one and the name stays invisible from the house. Restarting
+      // it now re-announces on both.
+      MDNS.end();
+      if (MDNS.begin(hostname)) {
+        MDNS.addService("http", "tcp", 80);
+        Serial.printf("mDNS: http://%s.local (also on the home network)\n", hostname);
+      }
+    } else {
+      Serial.printf("Uplink '%s' lost — AP unaffected\n", staSsid);
+      staNextAttempt = millis() + staBackoffMs;
+    }
+  }
+
+  if (now) return;
+  // Signed comparison so the wrap of millis() at 49.7 days cannot park this forever.
+  if ((long)(millis() - staNextAttempt) < 0) return;
+
+  WiFi.begin(staSsid, staPassword);
+  staNextAttempt = millis() + staBackoffMs;
+  if (staBackoffMs < STA_RETRY_MAX_MS) {
+    staBackoffMs = min(staBackoffMs * 2, STA_RETRY_MAX_MS);
+  }
+}
+#endif
+
 // ===== SETUP =====
 void setup() {
   // Before Serial.begin — the UART divisor is derived from the CPU clock, so changing
@@ -818,17 +936,22 @@ void setup() {
   analogSetPinAttenuation(PIN_BATTERY,    ADC_11db);
 
   // The WiFi driver keeps its own copy of the last STA credentials in NVS and joins
-  // that network on its own the moment station mode is started — that is exactly the
-  // behaviour being removed here, and it would survive every OTA update because the
-  // nvs partition is never rewritten. So bring STA up once, wipe the stored config
-  // (second argument of disconnect() is eraseap), and only then switch to pure AP.
+  // that network by itself the moment station mode starts — including credentials
+  // left by some earlier build, which survive every OTA update because the nvs
+  // partition is never rewritten. The uplink below must be the one in this source
+  // and nothing else, so bring STA up once, wipe the stored config (the second
+  // argument of disconnect() is eraseap), and only then set the working mode.
   // Order matters: persistent(false) first would route the erase to RAM and leave
   // the credentials sitting in flash.
   WiFi.mode(WIFI_STA);
   WiFi.disconnect(true, true);
   WiFi.persistent(false);   // nothing this firmware does should write creds back
+#if HAS_HOME_NETWORK
+  WiFi.mode(WIFI_AP_STA);
+#else
   WiFi.mode(WIFI_AP);
-  WiFi.setHostname(hostname);
+#endif
+  WiFi.setHostname(hostname);       // before begin(): this is the name DHCP is told
   WiFi.softAPsetHostname(hostname);
 
   // WPA2-protected AP on the default 192.168.4.1/24. Channel 1, not hidden: hiding
@@ -872,6 +995,21 @@ void setup() {
     Serial.println("softAP() FAILED — no network");
     digitalWrite(PIN_LED_ERROR, HIGH);
   }
+
+#if HAS_HOME_NETWORK
+  // Kicked off last and never waited on: setup() must not spend seconds here, and
+  // whether the home network answers changes nothing about the AP that is already
+  // serving. serviceUplink() picks up the result on a later pass through loop().
+  //
+  // One radio, one channel: the AP came up on channel 1, and when the uplink
+  // associates to a router on another channel the AP follows it there. Clients on
+  // the AP drop and rejoin once for that — unavoidable on a single-radio part, and
+  // the reason this is the last thing setup() does.
+  WiFi.setAutoReconnect(false);   // serviceUplink() owns retries, see staBackoffMs
+  WiFi.begin(staSsid, staPassword);
+  staNextAttempt = millis() + staBackoffMs;
+  Serial.printf("Uplink: joining '%s' in the background (2.4 GHz only)\n", staSsid);
+#endif
 
   server.on("/api/data",   HTTP_GET, handleData);
   server.on("/api/stream", HTTP_GET, handleStream);
@@ -1002,11 +1140,15 @@ void loop() {
     gustResetTimer = millis();
   }
 
-  // Nothing to reconnect to and nothing to rescan for: an AP has no uplink that can
-  // drop. What used to live here — the manual switch, the connect-transition
-  // detector, the 3-minute fallback AP and the 30 s blocking wifiMulti.run() — is
-  // gone with station mode, which also gives the dashboard back the seconds the
-  // rescan used to freeze it for.
+  // The AP itself has nothing to service — it has no uplink that can drop, so the
+  // manual switch, the 3-minute fallback AP and the 30 s blocking wifiMulti.run()
+  // that used to sit here are gone for good. What is left is the optional uplink,
+  // and it is a different thing entirely: no rescan, no blocking call, and no
+  // authority over the AP. Unthrottled because a pass costs one cached status read;
+  // the expensive part, WiFi.begin(), is behind staNextAttempt.
+#if HAS_HOME_NETWORK
+  serviceUplink();
+#endif
 
   unsigned long elapsed = millis() - loopStart;
   if (elapsed > loopMaxMs) loopMaxMs = elapsed;
