@@ -1,0 +1,241 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 920" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <pattern id="hA" patternUnits="userSpaceOnUse" width="17" height="18" x="88" y="298">
+      <circle cx="0" cy="0" r="2.1" fill="#b9b09a"/>
+    </pattern>
+    <pattern id="hB" patternUnits="userSpaceOnUse" width="17" height="18" x="88" y="406">
+      <circle cx="0" cy="0" r="2.1" fill="#b9b09a"/>
+    </pattern>
+    <pattern id="r1" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="246">
+      <circle cx="0" cy="4" r="2.1" fill="#c9a9a0"/>
+    </pattern>
+    <pattern id="r2" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="258">
+      <circle cx="0" cy="4" r="2.1" fill="#a0aac9"/>
+    </pattern>
+    <pattern id="r3" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="502">
+      <circle cx="0" cy="4" r="2.1" fill="#a0aac9"/>
+    </pattern>
+    <pattern id="r4" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="514">
+      <circle cx="0" cy="4" r="2.1" fill="#c9a9a0"/>
+    </pattern>
+  </defs>
+
+  <rect x="0" y="0" width="1180" height="920" fill="#ffffff"/>
+
+  <text x="30" y="38" font-size="24" font-weight="700" fill="#1a1a1a">Метеостанция ветра — текущее состояние на breadboard (задачи 01–03)</text>
+  <text x="30" y="62" font-size="15" fill="#666">Вид макетки: реальные дырки, компоненты и провода в конкретные отверстия. ESP32 — точная распиновка DOIT DevKit V1 (30-pin), пины с двух сторон.</text>
+
+  <!-- Legend -->
+  <g font-size="14" fill="#333">
+    <rect x="30" y="82" width="18" height="14" fill="#d23b2e"/><text x="54" y="94">«+» питание</text>
+    <rect x="160" y="82" width="18" height="14" fill="#1a1a1a"/><text x="184" y="94">GND / «−»</text>
+    <line x1="290" y1="89" x2="322" y2="89" stroke="#2a7de1" stroke-width="4"/><text x="330" y="94">провод GPIO→LED</text>
+    <circle cx="500" cy="89" r="5" fill="#d23b2e"/><circle cx="512" cy="89" r="5" fill="#111"/><text x="522" y="94">точка мультиметра</text>
+    <rect x="670" y="82" width="18" height="14" fill="#6aa9e0"/><text x="694" y="94">АЦП-пины (шаг 06)</text>
+    <rect x="850" y="82" width="18" height="14" fill="#e8c14a"/><text x="874" y="94">пин не задействован</text>
+  </g>
+
+  <!-- ===== BREADBOARD ===== -->
+  <rect x="74" y="232" width="1004" height="298" rx="12" fill="#f4f0e6" stroke="#d8d2c0" stroke-width="2"/>
+  <rect x="78" y="242" width="992" height="2" fill="#d23b2e"/>
+  <rect x="78" y="270" width="992" height="2" fill="#2a5bd7"/>
+  <rect x="78" y="490" width="992" height="2" fill="#2a5bd7"/>
+  <rect x="78" y="524" width="992" height="2" fill="#d23b2e"/>
+  <text x="60" y="254" font-size="13" fill="#d23b2e" font-weight="700">+</text>
+  <text x="60" y="266" font-size="13" fill="#2a5bd7" font-weight="700">−</text>
+  <text x="60" y="510" font-size="13" fill="#2a5bd7" font-weight="700">−</text>
+  <text x="60" y="522" font-size="13" fill="#d23b2e" font-weight="700">+</text>
+
+  <rect x="80" y="246" width="986" height="8" fill="url(#r1)"/>
+  <rect x="80" y="258" width="986" height="8" fill="url(#r2)"/>
+  <rect x="80" y="290" width="986" height="88" fill="url(#hA)"/>
+  <rect x="80" y="398" width="986" height="88" fill="url(#hB)"/>
+  <rect x="80" y="502" width="986" height="8" fill="url(#r3)"/>
+  <rect x="80" y="514" width="986" height="8" fill="url(#r4)"/>
+  <rect x="74" y="380" width="1004" height="16" fill="#e9e3d3"/>
+
+  <g font-size="11" fill="#999">
+    <text x="66" y="302">a</text><text x="66" y="320">b</text><text x="66" y="338">c</text><text x="66" y="356">d</text><text x="66" y="374">e</text>
+    <text x="66" y="410">f</text><text x="66" y="428">g</text><text x="66" y="446">h</text><text x="66" y="464">i</text><text x="66" y="482">j</text>
+  </g>
+  <g font-size="10" fill="#aaa" text-anchor="middle">
+    <text x="411" y="286">20</text><text x="496" y="286">25</text><text x="581" y="286">30</text><text x="666" y="286">35</text>
+    <text x="751" y="286">40</text><text x="836" y="286">45</text><text x="921" y="286">50</text><text x="1006" y="286">55</text>
+  </g>
+
+  <!-- ===== JUMPERS (arc over board, like real wires) ===== -->
+  <g fill="none" stroke-width="3.4" stroke-linecap="round">
+    <path d="M190 311 C 190 240, 411 240, 411 298" stroke="#34c24a"/>
+    <path d="M173 311 C 173 238, 547 238, 547 298" stroke="#e0a81a"/>
+    <path d="M156 311 C 156 234, 683 234, 683 298" stroke="#e8873a"/>
+    <path d="M207 311 C 207 246, 819 246, 819 298" stroke="#2a7de1"/>
+    <path d="M224 311 C 224 250, 955 250, 955 298" stroke="#cfcfcf" stroke-width="3.8"/>
+    <path d="M105 311 L 105 262" stroke="#1a1a1a"/>
+  </g>
+  <g stroke="#1a1a1a" stroke-width="3" stroke-linecap="round">
+    <line x1="479" y1="298" x2="479" y2="262"/>
+    <line x1="615" y1="298" x2="615" y2="262"/>
+    <line x1="751" y1="298" x2="751" y2="262"/>
+    <line x1="887" y1="298" x2="887" y2="262"/>
+    <line x1="1023" y1="298" x2="1023" y2="262"/>
+  </g>
+
+  <!-- ===== RESISTORS 220R ===== -->
+  <g>
+    <line x1="411" y1="298" x2="445" y2="298" stroke="#9a8f6a" stroke-width="2"/><rect x="418" y="292" width="20" height="12" rx="2" fill="#d9c79c" stroke="#9a8f6a"/><rect x="421" y="292" width="2.5" height="12" fill="#c00"/><rect x="425" y="292" width="2.5" height="12" fill="#c00"/><rect x="429" y="292" width="2.5" height="12" fill="#7a4a12"/>
+    <line x1="547" y1="298" x2="581" y2="298" stroke="#9a8f6a" stroke-width="2"/><rect x="554" y="292" width="20" height="12" rx="2" fill="#d9c79c" stroke="#9a8f6a"/><rect x="557" y="292" width="2.5" height="12" fill="#c00"/><rect x="561" y="292" width="2.5" height="12" fill="#c00"/><rect x="565" y="292" width="2.5" height="12" fill="#7a4a12"/>
+    <line x1="683" y1="298" x2="717" y2="298" stroke="#9a8f6a" stroke-width="2"/><rect x="690" y="292" width="20" height="12" rx="2" fill="#d9c79c" stroke="#9a8f6a"/><rect x="693" y="292" width="2.5" height="12" fill="#c00"/><rect x="697" y="292" width="2.5" height="12" fill="#c00"/><rect x="701" y="292" width="2.5" height="12" fill="#7a4a12"/>
+    <line x1="819" y1="298" x2="853" y2="298" stroke="#9a8f6a" stroke-width="2"/><rect x="826" y="292" width="20" height="12" rx="2" fill="#d9c79c" stroke="#9a8f6a"/><rect x="829" y="292" width="2.5" height="12" fill="#c00"/><rect x="833" y="292" width="2.5" height="12" fill="#c00"/><rect x="837" y="292" width="2.5" height="12" fill="#7a4a12"/>
+    <line x1="955" y1="298" x2="989" y2="298" stroke="#9a8f6a" stroke-width="2"/><rect x="962" y="292" width="20" height="12" rx="2" fill="#d9c79c" stroke="#9a8f6a"/><rect x="965" y="292" width="2.5" height="12" fill="#c00"/><rect x="969" y="292" width="2.5" height="12" fill="#c00"/><rect x="973" y="292" width="2.5" height="12" fill="#7a4a12"/>
+  </g>
+
+  <!-- ===== LEDs ===== -->
+  <g stroke-width="2">
+    <line x1="445" y1="316" x2="458" y2="313" stroke="#888"/><line x1="479" y1="316" x2="466" y2="313" stroke="#888"/>
+    <circle cx="462" cy="306" r="9" fill="#34c24a" stroke="#1c7a2e"/><text x="440" y="320" font-size="10" fill="#c00">+</text>
+    <line x1="581" y1="316" x2="594" y2="313" stroke="#888"/><line x1="615" y1="316" x2="602" y2="313" stroke="#888"/>
+    <circle cx="598" cy="306" r="9" fill="#f2c21a" stroke="#a6821a"/><text x="576" y="320" font-size="10" fill="#c00">+</text>
+    <line x1="717" y1="316" x2="730" y2="313" stroke="#888"/><line x1="751" y1="316" x2="738" y2="313" stroke="#888"/>
+    <circle cx="734" cy="306" r="9" fill="#e23b2e" stroke="#8f1f16"/><text x="712" y="320" font-size="10" fill="#c00">+</text>
+    <line x1="853" y1="316" x2="866" y2="313" stroke="#888"/><line x1="887" y1="316" x2="874" y2="313" stroke="#888"/>
+    <circle cx="870" cy="306" r="9" fill="#34c24a" stroke="#1c7a2e"/><text x="848" y="320" font-size="10" fill="#c00">+</text>
+    <line x1="989" y1="316" x2="1002" y2="313" stroke="#888"/><line x1="1023" y1="316" x2="1010" y2="313" stroke="#888"/>
+    <circle cx="1006" cy="306" r="9" fill="#e23b2e" stroke="#8f1f16"/><text x="984" y="320" font-size="10" fill="#c00">+</text>
+  </g>
+  <g font-size="11" fill="#444" text-anchor="middle">
+    <text x="462" y="346">GPIO26</text><text x="462" y="359" fill="#1c7a2e">зел «OK»</text>
+    <text x="598" y="346">GPIO27</text><text x="598" y="359" fill="#a6821a">жёлт «&gt;5»</text>
+    <text x="734" y="346">GPIO14</text><text x="734" y="359" fill="#8f1f16">красн «&gt;15»</text>
+    <text x="870" y="346">GPIO25</text><text x="870" y="359" fill="#1c7a2e">зел «WiFi»</text>
+    <text x="1006" y="346">GPIO33</text><text x="1006" y="359" fill="#8f1f16">красн «ошибка»</text>
+  </g>
+  <circle cx="431" cy="292" r="5" fill="#d23b2e"/><circle cx="443" cy="292" r="5" fill="#111"/>
+  <text x="452" y="284" font-size="10" fill="#333">≈3.3В при вкл.</text>
+
+  <!-- ===== ESP32 module (horizontal, pins both sides, real DOIT V1 30-pin) ===== -->
+  <rect x="54" y="388" width="26" height="18" rx="3" fill="#b8b8b8" stroke="#888"/>
+  <text x="34" y="382" font-size="10" fill="#666">USB-C</text>
+  <rect x="80" y="316" width="262" height="160" rx="8" fill="#1f1f22" stroke="#000"/>
+  <text x="150" y="360" font-size="15" fill="#f2f2f2" font-weight="700">ESP32 DevKit V1</text>
+  <text x="150" y="378" font-size="11" fill="#9fd">задачи 01–03 ✓ · питание по USB</text>
+  <text x="150" y="452" font-size="10" fill="#9aa">распиновка: DOIT DevKit V1 · 30 pin</text>
+
+  <!-- top pin pads (row b), left->right: VIN GND 13 12 14 27 26 25 33 32 35 34 VN VP EN -->
+  <g stroke="#444">
+    <rect x="82"  y="311" width="12" height="10" rx="2" fill="#d23b2e"/>
+    <rect x="99"  y="311" width="12" height="10" rx="2" fill="#999"/>
+    <rect x="116" y="311" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="133" y="311" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="150" y="311" width="12" height="10" rx="2" fill="#e8873a"/>
+    <rect x="167" y="311" width="12" height="10" rx="2" fill="#e0a81a"/>
+    <rect x="184" y="311" width="12" height="10" rx="2" fill="#34c24a"/>
+    <rect x="201" y="311" width="12" height="10" rx="2" fill="#2a7de1"/>
+    <rect x="218" y="311" width="12" height="10" rx="2" fill="#cfcfcf"/>
+    <rect x="235" y="311" width="12" height="10" rx="2" fill="#6aa9e0"/>
+    <rect x="252" y="311" width="12" height="10" rx="2" fill="#6aa9e0"/>
+    <rect x="269" y="311" width="12" height="10" rx="2" fill="#6aa9e0"/>
+    <rect x="286" y="311" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="303" y="311" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="320" y="311" width="12" height="10" rx="2" fill="#e8c14a"/>
+  </g>
+  <g font-size="7.5" fill="#333" text-anchor="middle">
+    <text x="88" y="308">VIN</text><text x="105" y="308">GND</text><text x="122" y="308">13</text><text x="139" y="308">12</text>
+    <text x="156" y="308">14</text><text x="173" y="308">27</text><text x="190" y="308">26</text><text x="207" y="308">25</text>
+    <text x="224" y="308">33</text><text x="241" y="308">32</text><text x="258" y="308">35</text><text x="275" y="308">34</text>
+    <text x="292" y="308">VN</text><text x="309" y="308">VP</text><text x="326" y="308">EN</text>
+  </g>
+
+  <!-- bottom pin pads (row j), left->right: 3V3 15 2 0 4 16 17 5 18 19 21 RX TX 22 23 -->
+  <g stroke="#444">
+    <rect x="82"  y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="99"  y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="116" y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="133" y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="150" y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="167" y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="184" y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="201" y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="218" y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="235" y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="252" y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="269" y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="286" y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="303" y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+    <rect x="320" y="471" width="12" height="10" rx="2" fill="#e8c14a"/>
+  </g>
+  <g font-size="7.5" fill="#555" text-anchor="middle">
+    <text x="88" y="493">3V3</text><text x="105" y="493">15</text><text x="122" y="493">2</text><text x="139" y="493">0</text>
+    <text x="156" y="493">4</text><text x="173" y="493">16</text><text x="190" y="493">17</text><text x="207" y="493">5</text>
+    <text x="224" y="493">18</text><text x="241" y="493">19</text><text x="258" y="493">21</text><text x="275" y="493">RX</text>
+    <text x="292" y="493">TX</text><text x="309" y="493">22</text><text x="326" y="493">23</text>
+  </g>
+
+  <!-- ADC callout -->
+  <rect x="234" y="323" width="47" height="1.6" fill="#6aa9e0"/>
+  <text x="257" y="510" font-size="9.5" fill="#3a7bbf" text-anchor="middle">↑ 34/35/32 — АЦП (скорость/направление/батарея), шаг 06</text>
+
+  <!-- ===== Wiring table ===== -->
+  <text x="30" y="580" font-size="16" font-weight="700" fill="#1a1a1a">Монтаж (что куда):</text>
+  <g font-size="13.5" fill="#333">
+    <text x="30" y="606">• GPIO26 → 220Ω → анод зел. LED «OK»;  катод → шина «−»</text>
+    <text x="30" y="628">• GPIO27 → 220Ω → анод жёлт. LED «&gt;5 м/с»;  катод → «−»</text>
+    <text x="30" y="650">• GPIO14 → 220Ω → анод красн. LED «&gt;15 м/с»;  катод → «−»</text>
+    <text x="30" y="672">• GPIO25 → 220Ω → анод зел. LED «WiFi»;  катод → «−»</text>
+    <text x="30" y="694">• GPIO33 → 220Ω → анод красн. LED «ошибка»;  катод → «−»</text>
+    <text x="30" y="716">• GND ESP32 → шина «−» (общий минус для всех катодов)</text>
+    <text x="30" y="738" fill="#b3541e">• Длинная ножка LED = анод (к резистору), короткая = катод (в «−»)</text>
+  </g>
+  <text x="30" y="768" font-size="12.5" fill="#888">Все использованные пины (VIN, GND, 26, 27, 14, 25, 33) — на ВЕРХНЕМ ряду ESP32 (USB слева).</text>
+
+  <text x="30" y="790" font-size="12.5" fill="#888">Порядок/цвет LED сверь со своей платой — подгоним один-в-один по фото.</text>
+
+  <!-- ===== Battery pack: 2 holders in PARALLEL ===== -->
+  <rect x="575" y="700" width="595" height="205" rx="12" fill="#f4f0e6" stroke="#d8d2c0" stroke-width="2"/>
+  <text x="591" y="726" font-size="14" font-weight="700" fill="#1a1a1a">2×18650 LG HG2 · ПАРАЛЛЕЛЬ (задача 03 ✓)</text>
+  <text x="591" y="744" font-size="11.5" fill="#666">оба «+» вместе, оба «−» вместе · пакет ~3.95В, 6000 мАч</text>
+
+  <!-- holder 1 -->
+  <rect x="690" y="768" width="290" height="40" rx="20" fill="#eceadf" stroke="#c7c1ae"/>
+  <rect x="704" y="775" width="262" height="26" rx="13" fill="#333"/>
+  <text x="716" y="793" font-size="10" fill="#eee">18650 · 3.96В  (холдер 1)</text>
+  <rect x="672" y="778" width="16" height="20" rx="2" fill="#555"/>
+  <rect x="982" y="778" width="16" height="20" rx="2" fill="#d23b2e"/>
+  <text x="680" y="766" font-size="14" font-weight="700" fill="#1a1a1a" text-anchor="middle">−</text>
+  <text x="990" y="766" font-size="14" font-weight="700" fill="#d23b2e" text-anchor="middle">+</text>
+
+  <!-- holder 2 -->
+  <rect x="690" y="838" width="290" height="40" rx="20" fill="#eceadf" stroke="#c7c1ae"/>
+  <rect x="704" y="845" width="262" height="26" rx="13" fill="#333"/>
+  <text x="716" y="863" font-size="10" fill="#eee">18650 · 3.96В  (холдер 2)</text>
+  <rect x="672" y="848" width="16" height="20" rx="2" fill="#555"/>
+  <rect x="982" y="848" width="16" height="20" rx="2" fill="#d23b2e"/>
+  <text x="680" y="834" font-size="14" font-weight="700" fill="#1a1a1a" text-anchor="middle">−</text>
+  <text x="990" y="834" font-size="14" font-weight="700" fill="#d23b2e" text-anchor="middle">+</text>
+
+  <!-- minus bus (left): both "−" together -->
+  <path d="M672 788 L642 788 L642 858 L672 858" fill="none" stroke="#1a1a1a" stroke-width="4"/>
+  <path d="M642 823 L600 823" fill="none" stroke="#1a1a1a" stroke-width="4"/>
+  <circle cx="642" cy="788" r="4" fill="#1a1a1a"/><circle cx="642" cy="858" r="4" fill="#1a1a1a"/>
+  <text x="620" y="812" font-size="11.5" font-weight="700" fill="#1a1a1a" text-anchor="middle">«−» пакета</text>
+
+  <!-- plus bus (right): both "+" together -->
+  <path d="M998 788 L1028 788 L1028 858 L998 858" fill="none" stroke="#d23b2e" stroke-width="4"/>
+  <path d="M1028 823 L1090 823" fill="none" stroke="#d23b2e" stroke-width="4"/>
+  <circle cx="1028" cy="788" r="4" fill="#d23b2e"/><circle cx="1028" cy="858" r="4" fill="#d23b2e"/>
+  <text x="1062" y="812" font-size="11.5" font-weight="700" fill="#d23b2e" text-anchor="middle">«+» пакета</text>
+
+  <text x="591" y="893" font-size="11" fill="#b3541e">→ «+» и «−» пакета пойдут на TP4056 в задаче 04. Сейчас к ESP32 НЕ подключено.</text>
+
+  <!-- ghost link: batteries -> board, NOT yet connected -->
+  <path d="M880 700 L880 536" fill="none" stroke="#c0392b" stroke-width="3" stroke-dasharray="9 7" opacity="0.75"/>
+  <circle cx="880" cy="620" r="15" fill="#fff" stroke="#c0392b" stroke-width="3"/>
+  <line x1="871" y1="611" x2="889" y2="629" stroke="#c0392b" stroke-width="3"/>
+  <line x1="889" y1="611" x2="871" y2="629" stroke="#c0392b" stroke-width="3"/>
+  <text x="905" y="600" font-size="12.5" font-weight="700" fill="#c0392b">Проводов сюда пока НЕТ — и это правильно.</text>
+  <text x="905" y="620" font-size="11.5" fill="#8a4b3f">Батарею НЕЛЬЗЯ вести напрямую на макетку:</text>
+  <text x="905" y="638" font-size="11.5" fill="#8a4b3f">3.95В на VIN → ESP32 уйдёт в brownout.</text>
+  <text x="905" y="660" font-size="11.5" fill="#2a7de1">Задача 04: пакет → PTC → TP4056 → Boost#2 (5.14В)</text>
+  <text x="905" y="678" font-size="11.5" fill="#2a7de1">→ Schottky → шина 4.7В → SW1 → VIN.</text>
+
+  <text x="591" y="762" font-size="11.5" fill="#888">Сейчас ESP32 питается по USB. Пакет просто собран и лежит рядом.</text>
+</svg>

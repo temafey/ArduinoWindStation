@@ -1,0 +1,11 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "WindStation")(type "KiCad")(uri "${KIPRJMOD}/WindStation.pretty")(options "")(descr "Project footprints (ESP32 DevKit V1 30-pin)"))
+  (lib (name "Resistor_THT")(type "KiCad")(uri "C:/Program Files/KiCad/10.0/share/kicad/footprints/Resistor_THT.pretty")(options "")(descr "THT resistors"))
+  (lib (name "Capacitor_THT")(type "KiCad")(uri "C:/Program Files/KiCad/10.0/share/kicad/footprints/Capacitor_THT.pretty")(options "")(descr "THT capacitors"))
+  (lib (name "Diode_THT")(type "KiCad")(uri "C:/Program Files/KiCad/10.0/share/kicad/footprints/Diode_THT.pretty")(options "")(descr "THT diodes"))
+  (lib (name "LED_THT")(type "KiCad")(uri "C:/Program Files/KiCad/10.0/share/kicad/footprints/LED_THT.pretty")(options "")(descr "THT LEDs"))
+  (lib (name "Fuse")(type "KiCad")(uri "C:/Program Files/KiCad/10.0/share/kicad/footprints/Fuse.pretty")(options "")(descr "Fuses / PPTC"))
+  (lib (name "Battery")(type "KiCad")(uri "C:/Program Files/KiCad/10.0/share/kicad/footprints/Battery.pretty")(options "")(descr "Battery holders"))
+  (lib (name "Connector_PinHeader_2.54mm")(type "KiCad")(uri "C:/Program Files/KiCad/10.0/share/kicad/footprints/Connector_PinHeader_2.54mm.pretty")(options "")(descr "2.54mm pin headers"))
+)

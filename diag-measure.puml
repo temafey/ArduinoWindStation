@@ -1,0 +1,180 @@
+@startuml diag-measure
+' ============================================================================
+'  Метеостанция ветра — диагностика: где мерить мультиметром
+'  Электрическая топология силовой шины diode-OR (04) + делитель батареи (05)
+'  Портирование diag-measure.html в PlantUML (нетлист вместо вида макетки).
+'  Физическую раскладку макетки PlantUML не рисует — здесь сохранены УЗЛЫ и связи.
+' ============================================================================
+skinparam backgroundColor #FFFDF8
+skinparam defaultFontName "Segoe UI"
+skinparam shadowing false
+skinparam ArrowColor #4d5158
+skinparam componentStyle rectangle
+hide stereotype
+
+skinparam component {
+  BorderColor    #d8d2c0
+  BackgroundColor #ffffff
+  FontColor      #1b1d21
+}
+skinparam rectangle {
+  BorderColor    #d8d2c0
+  BackgroundColor #f4f0e6
+  FontColor      #1b1d21
+  FontColor<<dark>>   #eceae5
+  BorderColor<<dark>> #000000
+}
+
+title Где мерить мультиметром — силовая шина (04) + делитель батареи (05)
+
+legend top left
+  |= цвет |= смысл |
+  | <back:#c9372c>   </back> | «+» / шина / красный щуп |
+  | <back:#1f2126>   </back> | GND «−» / чёрный щуп |
+  | <back:#8e44ad>   </back> | «−» батареи → B− (НЕ на рельс!) |
+  | <back:#e58f2a>   </back> | сигнал: узел X → GPIO32 |
+endlegend
+
+' ---------- ИСТОЧНИКИ ----------
+rectangle "USB-C 5В адаптер\n(панельный разъём)" as USB #eceadf {
+  portout "+5В" as USB_P
+  portout "GND" as USB_G
+}
+
+rectangle "TP4056\nType-C · заряд + защита DW01" as TP <<dark>> #17181c {
+  port "IN+" as TP_IN_P
+  port "IN−" as TP_IN_N
+  port "B+"  as TP_BP
+  port "B−"  as TP_BN
+  port "OUT+" as TP_OUT_P
+  port "OUT−" as TP_OUT_N
+}
+rectangle "2×18650 LG HG2\nПАРАЛЛЕЛЬ · ~3.95В · 6000 мАч" as BAT #eceadf {
+  portout "+ пакета" as BAT_P
+  portout "− пакета" as BAT_N
+}
+
+component "Mini Boost · MT3608\n→ 5.14 В (задача 02 ✓)" as BOOST
+component "F1 · PTC 2A" as F1
+component "D1 · 1N5819\n(полоска→шина)" as D1
+component "D2 · 1N5819\n(полоска→шина)" as D2
+component "SW1\nклавишный выкл." as SW1
+
+' ---------- ШИНЫ / УЗЛЫ ----------
+rectangle "«+» ШИНА  (нижний рельс)\n4.6–4.8 В" as BUS #f0e2d6
+rectangle "«+» LOAD  (верхний рельс)" as LOAD #f0e2d6
+rectangle "GND  «−» рельс\n(чёрный щуп сюда)" as GND <<dark>> #2e323a
+
+' ---------- ESP32 ----------
+rectangle "ESP32 DevKit V1\n(DOIT 30-pin)" as ESP <<dark>> #1f1f22 {
+  port "VIN"    as ESP_VIN
+  port "GPIO32" as ESP_32
+  port "GND"    as ESP_G
+}
+
+' ---------- ДЕЛИТЕЛЬ БАТАРЕИ (задача 05) ----------
+component "R5 · 100k" as R5
+component "R6 · 100k" as R6
+component "C5 · 100нФ" as C5
+component "C1 · 1000µF\n(полярный)" as C1
+component "C2 · 100нФ" as C2
+
+' Ключевые узлы делителя как отдельные точки (это и есть точки замера)
+rectangle "TP_B+  · кол.46\nобщий узел: B+ / выход F1 / верх делителя" as TPB #d9f0e0
+rectangle "узел X · кол.48\n(= пин GPIO32)" as NODEX #fff5f4
+
+' ============================================================================
+'  СВЯЗИ (нетлист). Подписи рёбер = кол.NN и напряжения.
+' ============================================================================
+
+' --- вход 5В: адаптер + заряд TP4056, узел кол.22 ---
+USB_P   --> TP_IN_P : "кол.22 · +5В"
+USB_G   --> GND     : "GND"
+TP_IN_N --> GND
+
+' --- diode-OR ветвь адаптера ---
+TP_IN_P --> D1 : "кол.22 (анод)"
+D1 --> BUS : "кол.25 (катод) → шина"
+
+' --- батарея → защита/заряд ---
+BAT_P --> F1  : "кол.44"
+F1    --> TPB : "кол.46"
+TPB   --> TP_BP
+BAT_N --> TP_BN #8e44ad : "«−» → B− (своя перемычка!)"
+
+' --- заряженная батарея → boost → diode-OR ветвь ---
+TP_OUT_P --> BOOST  : "OUT+ → IN+"
+BOOST    --> D2     : "кол.30 (анод) · 5.14В"
+D2       --> BUS    : "кол.33 (катод) → шина"
+
+' --- земля вспомогательных выводов ---
+TP_OUT_N --> GND
+BOOST     --> GND : "IN−/OUT−"
+
+' --- буферный конденсатор на шине ---
+C1 --> BUS : "«+» кол.38"
+C1 --> GND : "«−» кол.40"
+
+' --- шина → выключатель → LOAD → ESP32 ---
+BUS  --> SW1  : "«+» шина"
+SW1  --> LOAD : "→ «+» LOAD"
+LOAD --> ESP_VIN
+C2 --> LOAD : "кол.17"
+C2 --> GND  : "кол.19"
+ESP_G --> GND
+
+' --- делитель батареи (задача 05) ---
+TPB   --> R5    : "верх делителя"
+R5    --> NODEX : "кол.46 → кол.48"
+NODEX --> R6
+R6    --> GND   : "кол.50 → «−» рельс"
+NODEX --> C5    : "кол.48"
+C5    --> GND   : "кол.50"
+NODEX --> ESP_32 #e58f2a : "оранжевый: узел X → GPIO32"
+
+' ============================================================================
+'  ТОЧКИ ЗАМЕРА  ① ② GND
+' ============================================================================
+note right of NODEX #fff5f4
+  <b><color:#c0392b>① узел X · кол.48  (= GPIO32)</color></b>
+  красный щуп сюда.
+  Ждём <b>~1.99 В и РОВНО</b> (не пляшет).
+  --
+  Ровно, но API "battery" скачет → дело в
+  <b>C5 / импедансе</b>: припаять C5 узел X ↔ GND.
+  Пляшет / не 1.99 → плохой контакт R5/R6/C5.
+end note
+
+note right of TPB #d9f0e0
+  <b><color:#2e7d4f>② TP_B+ · кол.46</color></b>
+  красный щуп сюда.
+  Ждём <b>~3.98 В</b> (= банкам).
+  Меньше → плохой контакт <b>батарея → кол.46</b>.
+end note
+
+note bottom of GND
+  <b>GND</b> — чёрный щуп всегда сюда.
+  Любая дырка «−» (нижний) рельса.
+  Мультиметр в позицию <b>V⎓</b> (автодиапазон).
+end note
+
+' ============================================================================
+'  ПРЕДУПРЕЖДЕНИЯ (load-bearing из assembly-доки)
+' ============================================================================
+note as WARN #fbf7ec
+  <b><color:#8e44ad>⚠ Минус батареи → на пад B− TP4056 своей перемычкой,</color></b>
+  НЕ на общий «−» рельс — иначе защита DW01 отключается.
+  --
+  <b><color:#c0392b>⚠ Верх делителя (R5) — на TP_B+ (кол.46, ПОСЛЕ F1),</color></b>
+  НЕ на «+» рельс. Иначе API покажет 4.7В шины, а не батарею.
+  --
+  <b><color:#c0392b>⚠ Рельсы 830-макетки разрезаны посередине</color></b>
+  — 4 перемычки-моста. Полоска (катод) обоих диодов — к шине.
+  --
+  <b><color:#2a6fd1>Проверка:</color></b> http://192.168.1.223/api/data →
+  "battery" ≈ 3.95, "batteryPercent" ≈ 64%.
+  battery=0.00 → R5 не дошёл до кол.46.
+  battery≈9.xx → R6 не на GND (кол.50). Скачет → нет C5.
+end note
+
+@enduml

@@ -1,0 +1,37 @@
+/* Минимальный ресет под дашборд. Здесь намеренно почти ничего нет: всё
+   оформление живёт инлайн-стилями в wind-dashboard.jsx, чтобы не разъезжаться
+   с логикой (свечение и цвета зависят от настроек и считаются в JS).
+
+   Раньше на этом месте лежала рыба из шаблона Vite, и она мешала: #root задавал
+   ширину 1126px с боковыми рамками и text-align: center, а :root — белый фон в
+   светлой системной теме. Дашборд обязан быть чёрным во весь экран независимо
+   от темы устройства. */
+
+/* antialiased, а не subpixel: белое свечение по чёрному фону на мелком моно-тексте
+   даёт цветную кайму вокруг букв, которая читается как грязь. */
+:root {
+  color-scheme: dark;
+  background: #000;
+  color: #fff;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  min-height: 100%;
+}
+
+#root {
+  min-height: 100svh;
+  background: #000;
+}
+
+* {
+  box-sizing: border-box;
+}

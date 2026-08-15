@@ -1,0 +1,226 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1400" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <pattern id="hA" patternUnits="userSpaceOnUse" width="17" height="18" x="88" y="298"><circle cx="0" cy="0" r="2.1" fill="#b9b09a"/></pattern>
+    <pattern id="hB" patternUnits="userSpaceOnUse" width="17" height="18" x="88" y="406"><circle cx="0" cy="0" r="2.1" fill="#b9b09a"/></pattern>
+    <pattern id="r1" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="246"><circle cx="0" cy="4" r="2.1" fill="#c9a9a0"/></pattern>
+    <pattern id="r2" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="258"><circle cx="0" cy="4" r="2.1" fill="#a0aac9"/></pattern>
+    <pattern id="r3" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="502"><circle cx="0" cy="4" r="2.1" fill="#c9a9a0"/></pattern>
+    <pattern id="r4" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="514"><circle cx="0" cy="4" r="2.1" fill="#a0aac9"/></pattern>
+  </defs>
+  <rect x="0" y="0" width="1400" height="1400" fill="#ffffff"/>
+  <text x="30" y="38" font-size="25" font-weight="700" fill="#1a1a1a">Задача 04 — Силовая шина (diode-OR): вид макетки</text>
+  <text x="30" y="63" font-size="14.5" fill="#666">НИЖНИЙ «+» рельс = ШИНА 4.7В (до тумблера).  ВЕРХНИЙ «+» рельс = LOAD (после тумблера) → VIN ESP32.  Оба «−» рельса = общий GND.</text>
+  <g font-size="13.5" fill="#333"><line x1="30" y1="87" x2="62" y2="87" stroke="#d23b2e" stroke-width="4"/><text x="70" y="92">«+» / шина</text><line x1="168.0" y1="87" x2="200.0" y2="87" stroke="#1a1a1a" stroke-width="4"/><text x="208.0" y="92">GND «−»</text><rect x="284.4" y="79" width="18" height="14" fill="#ddd"/><text x="308.4" y="92">уже собрано (01–03)</text><circle cx="476.2" cy="87" r="5" fill="#d23b2e"/><circle cx="488.2" cy="87" r="5" fill="#111"/><text x="498.2" y="92">мультиметр</text></g>
+  <!-- BREADBOARD (стандарт) -->
+  <rect x="74" y="232" width="1004" height="298" rx="12" fill="#f4f0e6" stroke="#d8d2c0" stroke-width="2"/>
+  <rect x="78" y="242" width="992" height="2" fill="#d23b2e"/>
+  <rect x="78" y="270" width="992" height="2" fill="#2a5bd7"/>
+  <rect x="78" y="498" width="992" height="2" fill="#d23b2e"/>
+  <rect x="78" y="526" width="992" height="2" fill="#2a5bd7"/>
+  <text x="60" y="254" font-size="13" fill="#d23b2e" font-weight="700">+</text>
+  <text x="60" y="266" font-size="13" fill="#2a5bd7" font-weight="700">−</text>
+  <text x="60" y="510" font-size="13" fill="#d23b2e" font-weight="700">+</text>
+  <text x="60" y="524" font-size="13" fill="#2a5bd7" font-weight="700">−</text>
+  <rect x="80" y="246" width="986" height="8" fill="url(#r1)"/>
+  <rect x="80" y="258" width="986" height="8" fill="url(#r2)"/>
+  <rect x="80" y="290" width="986" height="88" fill="url(#hA)"/>
+  <rect x="80" y="398" width="986" height="88" fill="url(#hB)"/>
+  <rect x="80" y="502" width="986" height="8" fill="url(#r3)"/>
+  <rect x="80" y="514" width="986" height="8" fill="url(#r4)"/>
+  <rect x="74" y="380" width="1004" height="16" fill="#e9e3d3"/>
+  <g font-size="11" fill="#999">
+    <text x="66" y="302">a</text><text x="66" y="320">b</text><text x="66" y="338">c</text><text x="66" y="356">d</text><text x="66" y="374">e</text>
+    <text x="66" y="410">f</text><text x="66" y="428">g</text><text x="66" y="446">h</text><text x="66" y="464">i</text><text x="66" y="482">j</text>
+  </g>
+  <g font-size="10" fill="#aaa" text-anchor="middle">
+    <text x="411" y="286">20</text><text x="496" y="286">25</text><text x="581" y="286">30</text><text x="666" y="286">35</text>
+    <text x="751" y="286">40</text><text x="836" y="286">45</text><text x="921" y="286">50</text><text x="1006" y="286">55</text>
+  </g>
+  <rect x="602" y="244" width="16" height="26" fill="#f4f0e6"/>
+  <rect x="602" y="500" width="16" height="26" fill="#f4f0e6"/>
+  <line x1="610" y1="240" x2="610" y2="274" stroke="#c0392b" stroke-width="1.6" stroke-dasharray="3 3"/>
+  <line x1="610" y1="496" x2="610" y2="530" stroke="#c0392b" stroke-width="1.6" stroke-dasharray="3 3"/>
+  <text x="610" y="236" font-size="9.5" fill="#c0392b" text-anchor="middle" font-weight="700">разрез ↕</text>
+  <text x="610" y="540" font-size="9.5" fill="#c0392b" text-anchor="middle" font-weight="700">разрез ↕</text>
+  <path d="M581 250 C 581 224, 649 224, 649 250" fill="none" stroke="#d23b2e" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M564 262 C 564 210, 666 210, 666 262" fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
+  <path d="M581 502 C 581 548, 649 548, 649 502" fill="none" stroke="#d23b2e" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M564 514 C 564 566, 666 566, 666 514" fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
+  <g fill="#d23b2e"><circle cx="581" cy="250" r="3.5"/><circle cx="649" cy="250" r="3.5"/><circle cx="581" cy="502" r="3.5"/><circle cx="649" cy="502" r="3.5"/></g>
+  <g fill="#1a1a1a"><circle cx="564" cy="262" r="3.5"/><circle cx="666" cy="262" r="3.5"/><circle cx="564" cy="514" r="3.5"/><circle cx="666" cy="514" r="3.5"/></g>
+  <text x="700" y="205" font-size="10.5" fill="#c0392b" font-weight="700">4 перемычки-моста через разрез</text>
+  <text x="700" y="219" font-size="9.5" fill="#8a4b3f">(по одной на каждый рельс: «+»/«−», верх/низ)</text>
+  <text x="1086" y="254" font-size="12" font-weight="700" fill="#d23b2e">«+» LOAD</text>
+  <text x="1086" y="267" font-size="11" fill="#2a5bd7">«−» GND</text>
+  <text x="1086" y="510" font-size="12" font-weight="700" fill="#d23b2e">«+» ШИНА</text>
+  <text x="1086" y="523" font-size="11" fill="#2a5bd7">«−» GND</text>
+  <g fill="rgba(42,111,209,.09)" stroke="#2a6fd1" stroke-opacity=".38" stroke-dasharray="4 3">
+    <rect x="353" y="291" width="14" height="86" rx="7"/><rect x="387" y="291" width="14" height="86" rx="7"/>
+    <rect x="438" y="399" width="14" height="86" rx="7"/><rect x="489" y="399" width="14" height="86" rx="7"/>
+    <rect x="574" y="399" width="14" height="86" rx="7"/><rect x="625" y="399" width="14" height="86" rx="7"/>
+    <rect x="710" y="399" width="14" height="86" rx="7"/><rect x="744" y="399" width="14" height="86" rx="7"/>
+    <rect x="812" y="399" width="14" height="86" rx="7"/><rect x="846" y="399" width="14" height="86" rx="7"/>
+  </g>
+  <g font-size="10" font-weight="700" fill="#2a6fd1" text-anchor="middle">
+    <text x="360" y="288">17</text><text x="394" y="288">19</text>
+    <text x="445" y="396">22</text><text x="496" y="396">25</text><text x="581" y="396">30</text><text x="632" y="396">33</text>
+    <text x="717" y="396">38</text><text x="751" y="396">40</text><text x="819" y="396">44</text><text x="853" y="396">46</text>
+  </g>
+  <g opacity="0.32">
+    <g fill="none" stroke-width="3.4" stroke-linecap="round">
+      <path d="M190 311 C 190 240, 411 240, 411 298" stroke="#34c24a"/>
+      <path d="M173 311 C 173 238, 547 238, 547 298" stroke="#e0a81a"/>
+      <path d="M156 311 C 156 234, 683 234, 683 298" stroke="#e8873a"/>
+      <path d="M207 311 C 207 246, 819 246, 819 298" stroke="#2a7de1"/>
+      <path d="M224 311 C 224 250, 955 250, 955 298" stroke="#cfcfcf"/>
+    </g>
+    <g stroke="#1a1a1a" stroke-width="3">
+      <line x1="479" y1="298" x2="479" y2="262"/><line x1="615" y1="298" x2="615" y2="262"/>
+      <line x1="751" y1="298" x2="751" y2="262"/><line x1="887" y1="298" x2="887" y2="262"/><line x1="1023" y1="298" x2="1023" y2="262"/>
+    </g>
+    <g>
+      <line x1="411" y1="298" x2="445" y2="298" stroke="#9a8f6a" stroke-width="2"/><rect x="418" y="292" width="20" height="12" rx="2" fill="#d9c79c" stroke="#9a8f6a"/>
+      <line x1="547" y1="298" x2="581" y2="298" stroke="#9a8f6a" stroke-width="2"/><rect x="554" y="292" width="20" height="12" rx="2" fill="#d9c79c" stroke="#9a8f6a"/>
+      <line x1="683" y1="298" x2="717" y2="298" stroke="#9a8f6a" stroke-width="2"/><rect x="690" y="292" width="20" height="12" rx="2" fill="#d9c79c" stroke="#9a8f6a"/>
+      <line x1="819" y1="298" x2="853" y2="298" stroke="#9a8f6a" stroke-width="2"/><rect x="826" y="292" width="20" height="12" rx="2" fill="#d9c79c" stroke="#9a8f6a"/>
+      <line x1="955" y1="298" x2="989" y2="298" stroke="#9a8f6a" stroke-width="2"/><rect x="962" y="292" width="20" height="12" rx="2" fill="#d9c79c" stroke="#9a8f6a"/>
+    </g>
+    <circle cx="462" cy="306" r="9" fill="#34c24a" stroke="#1c7a2e"/><circle cx="598" cy="306" r="9" fill="#f2c21a" stroke="#a6821a"/>
+    <circle cx="734" cy="306" r="9" fill="#e23b2e" stroke="#8f1f16"/><circle cx="870" cy="306" r="9" fill="#34c24a" stroke="#1c7a2e"/>
+    <circle cx="1006" cy="306" r="9" fill="#e23b2e" stroke="#8f1f16"/>
+    <text x="700" y="250" font-size="11" fill="#666">LEDs (задача 01) — контекст</text>
+  </g>
+  <!-- ESP32 DevKit V1 (стандарт, DOIT 30-pin) -->
+  <rect x="54" y="388" width="26" height="18" rx="3" fill="#b8b8b8" stroke="#888"/>
+  <text x="34" y="382" font-size="10" fill="#666">USB-C</text>
+  <rect x="80" y="316" width="262" height="160" rx="8" fill="#1f1f22" stroke="#000"/>
+  <text x="150" y="360" font-size="15" fill="#f2f2f2" font-weight="700">ESP32 DevKit V1</text>
+  <text x="150" y="378" font-size="11" fill="#9fd">питание с VIN (эта задача)</text>
+  <text x="150" y="452" font-size="10" fill="#9aa">распиновка: DOIT DevKit V1 · 30 pin</text>
+  <g stroke="#444"><rect x="82" y="311" width="12" height="10" rx="2" fill="#d23b2e"/><rect x="99" y="311" width="12" height="10" rx="2" fill="#999"/><rect x="116" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="133" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="150" y="311" width="12" height="10" rx="2" fill="#e8873a"/><rect x="167" y="311" width="12" height="10" rx="2" fill="#e0a81a"/><rect x="184" y="311" width="12" height="10" rx="2" fill="#34c24a"/><rect x="201" y="311" width="12" height="10" rx="2" fill="#2a7de1"/><rect x="218" y="311" width="12" height="10" rx="2" fill="#cfcfcf"/><rect x="235" y="311" width="12" height="10" rx="2" fill="#6aa9e0"/><rect x="252" y="311" width="12" height="10" rx="2" fill="#6aa9e0"/><rect x="269" y="311" width="12" height="10" rx="2" fill="#6aa9e0"/><rect x="286" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="303" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="320" y="311" width="12" height="10" rx="2" fill="#e8c14a"/></g>
+  <g font-size="7.5" fill="#333" text-anchor="middle"><text x="88" y="308">VIN</text><text x="105" y="308">GND</text><text x="122" y="308">13</text><text x="139" y="308">12</text><text x="156" y="308">14</text><text x="173" y="308">27</text><text x="190" y="308">26</text><text x="207" y="308">25</text><text x="224" y="308">33</text><text x="241" y="308">32</text><text x="258" y="308">35</text><text x="275" y="308">34</text><text x="292" y="308">VN</text><text x="309" y="308">VP</text><text x="326" y="308">EN</text></g>
+  <g stroke="#444"><rect x="82" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="99" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="116" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="133" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="150" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="167" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="184" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="201" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="218" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="235" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="252" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="269" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="286" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="303" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="320" y="471" width="12" height="10" rx="2" fill="#e8c14a"/></g>
+  <g font-size="7.5" fill="#555" text-anchor="middle"><text x="88" y="493">3V3</text><text x="105" y="493">15</text><text x="122" y="493">2</text><text x="139" y="493">0</text><text x="156" y="493">4</text><text x="173" y="493">16</text><text x="190" y="493">17</text><text x="207" y="493">5</text><text x="224" y="493">18</text><text x="241" y="493">19</text><text x="258" y="493">21</text><text x="275" y="493">RX</text><text x="292" y="493">TX</text><text x="309" y="493">22</text><text x="326" y="493">23</text></g>
+  <rect x="80" y="309" width="16" height="14" rx="3" fill="none" stroke="#e58f2a" stroke-width="2.4"/>
+  <line x1="105" y1="311" x2="105" y2="262" stroke="#1a1a1a" stroke-width="3.4" stroke-linecap="round"/>
+  <circle cx="105" cy="262" r="4" fill="#1a1a1a"/>
+  <line x1="88" y1="311" x2="88" y2="250" stroke="#d23b2e" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="88" cy="250" r="4.5" fill="#d23b2e"/>
+  <line x1="360" y1="352" x2="372" y2="352" stroke="#9a8f6a" stroke-width="2.2"/><line x1="382" y1="352" x2="394" y2="352" stroke="#9a8f6a" stroke-width="2.2"/><path d="M372 348 Q 377 340 382 348 L382 356 Q 377 364 372 356 Z" fill="#e8b84b" stroke="#a8862c"/><text x="377" y="355" font-size="8" fill="#4a3a10" text-anchor="middle">104</text><circle cx="360" cy="352" r="3.2" fill="#333"/><circle cx="394" cy="352" r="3.2" fill="#333"/><text x="377" y="371" font-size="10" fill="#8a6d3b" text-anchor="middle">C2 100нФ</text>
+  <line x1="360" y1="298" x2="360" y2="250" stroke="#d23b2e" stroke-width="3.4" stroke-linecap="round"/><circle cx="360" cy="250" r="4" fill="#d23b2e"/><circle cx="360" cy="298" r="3.5" fill="#d23b2e"/>
+  <line x1="394" y1="298" x2="394" y2="262" stroke="#1a1a1a" stroke-width="3.4" stroke-linecap="round"/><circle cx="394" cy="262" r="4" fill="#1a1a1a"/><circle cx="394" cy="298" r="3.5" fill="#1a1a1a"/>
+  <line x1="445" y1="424" x2="461" y2="424" stroke="#8d8d8d" stroke-width="2.4"/><line x1="483" y1="424" x2="496" y2="424" stroke="#8d8d8d" stroke-width="2.4"/><rect x="461" y="414" width="22" height="20" rx="3" fill="#2b2b2b" stroke="#111"/><rect x="478" y="414" width="5" height="20" fill="#eaeaea"/><circle cx="445" cy="424" r="3.4" fill="#333"/><circle cx="496" cy="424" r="3.4" fill="#333"/><text x="472" y="410" font-size="10.5" font-weight="700" fill="#8a6d3b" text-anchor="middle">D1 · 1N5819</text>
+  <text x="440" y="450" font-size="9" fill="#c0392b">полоска (катод) ▶ к шине</text>
+  <line x1="581" y1="424" x2="597" y2="424" stroke="#8d8d8d" stroke-width="2.4"/><line x1="619" y1="424" x2="632" y2="424" stroke="#8d8d8d" stroke-width="2.4"/><rect x="597" y="414" width="22" height="20" rx="3" fill="#2b2b2b" stroke="#111"/><rect x="614" y="414" width="5" height="20" fill="#eaeaea"/><circle cx="581" cy="424" r="3.4" fill="#333"/><circle cx="632" cy="424" r="3.4" fill="#333"/><text x="608" y="410" font-size="10.5" font-weight="700" fill="#8a6d3b" text-anchor="middle">D2 · 1N5819</text>
+  <line x1="717" y1="424" x2="717" y2="414" stroke="#8d8d8d" stroke-width="2.4"/><line x1="751" y1="424" x2="751" y2="414" stroke="#8d8d8d" stroke-width="2.4"/><rect x="713" y="376" width="42" height="38" rx="7" fill="#2b3a55" stroke="#16233a"/><rect x="740" y="376" width="15" height="38" fill="#9aa9c2" opacity="0.6"/><text x="732" y="400" font-size="8.5" fill="#fff" text-anchor="middle">1000µF</text><circle cx="717" cy="424" r="3.4" fill="#333"/><circle cx="751" cy="424" r="3.4" fill="#333"/><text x="717" y="370" font-size="13" font-weight="700" fill="#d23b2e" text-anchor="middle">+</text><text x="751" y="370" font-size="13" font-weight="700" fill="#1a1a1a" text-anchor="middle">−</text>
+  <text x="734" y="452" font-size="9" fill="#c0392b" text-anchor="middle">длинная ножка = «+»</text>
+  <g><line x1="819" y1="424" x2="824" y2="414" stroke="#8d8d8d" stroke-width="2.4"/><line x1="853" y1="424" x2="848" y2="414" stroke="#8d8d8d" stroke-width="2.4"/><rect x="820" y="386" width="34" height="28" rx="12" fill="#e3c74a" stroke="#a8862c"/><text x="836" y="404" font-size="8" fill="#4a3a10" text-anchor="middle">PTC</text><circle cx="819" cy="424" r="3.4" fill="#333"/><circle cx="853" cy="424" r="3.4" fill="#333"/><text x="836" y="378" font-size="10" font-weight="700" fill="#8a6d3b" text-anchor="middle">F1 · PTC 2A</text></g>
+  <text x="880" y="450" font-size="9" fill="#2a6fd1">TP_B+ → делитель (задача 05)</text>
+  <g stroke-linecap="round">
+    <line x1="496" y1="478" x2="496" y2="506" stroke="#d23b2e" stroke-width="3.8"/><circle cx="496" cy="478" r="3.5" fill="#d23b2e"/><circle cx="496" cy="506" r="4" fill="#d23b2e"/>
+    <line x1="632" y1="478" x2="632" y2="506" stroke="#d23b2e" stroke-width="3.8"/><circle cx="632" cy="478" r="3.5" fill="#d23b2e"/><circle cx="632" cy="506" r="4" fill="#d23b2e"/>
+    <line x1="717" y1="478" x2="717" y2="506" stroke="#d23b2e" stroke-width="3.8"/><circle cx="717" cy="478" r="3.5" fill="#d23b2e"/><circle cx="717" cy="506" r="4" fill="#d23b2e"/>
+    <line x1="751" y1="478" x2="751" y2="518" stroke="#1a1a1a" stroke-width="3.6"/><circle cx="751" cy="478" r="3.5" fill="#1a1a1a"/><circle cx="751" cy="518" r="4" fill="#1a1a1a"/>
+  </g>
+  <path d="M1040 262 C 1108 262, 1108 518, 1040 518" fill="none" stroke="#1a1a1a" stroke-width="3.6"/>
+  <circle cx="1040" cy="262" r="4" fill="#1a1a1a"/><circle cx="1040" cy="518" r="4" fill="#1a1a1a"/>
+  <text x="1118" y="394" font-size="10.5" fill="#555">общий GND</text>
+  <rect x="1190" y="326" width="150" height="80" rx="9" fill="#17181c" stroke="#3a3d43" stroke-width="1.6"/><rect x="1194" y="330" width="142" height="72" rx="7" fill="none" stroke="#000" stroke-opacity="0.4"/><rect x="1232" y="340" width="92" height="52" rx="6" fill="#c62f24" stroke="#7a1a12"/><rect x="1232" y="340" width="92" height="26" rx="6" fill="#e0443a"/><circle cx="1260" cy="366.0" r="5.5" fill="none" stroke="#fff" stroke-width="1.8"/><rect x="1291" y="360" width="2.6" height="12" fill="#fff"/><rect x="1182" y="339" width="12" height="10" rx="2" fill="#c2c7cf" stroke="#7d828a"/><circle cx="1190" cy="344" r="2.4" fill="#0b0b0d"/><text x="1199" y="347" font-size="8" fill="#9aa0a8">LOAD</text><rect x="1182" y="385" width="12" height="10" rx="2" fill="#c2c7cf" stroke="#7d828a"/><circle cx="1190" cy="390" r="2.4" fill="#0b0b0d"/><text x="1199" y="393" font-size="8" fill="#9aa0a8">ШИНА</text><text x="1265.0" y="318" font-size="13" font-weight="700" fill="#1a1a1a" text-anchor="middle">SW1</text><text x="1265.0" y="422" font-size="10" fill="#666" text-anchor="middle">клавишный выключатель · на проводах</text>
+  <path d="M1006 506 C 1130 506, 1150 400, 1190 390" fill="none" stroke="#d23b2e" stroke-width="3.8"/>
+  <circle cx="1006" cy="506" r="4" fill="#d23b2e"/>
+  <text x="1044" y="480" font-size="9.5" fill="#c0392b">от ШИНЫ</text>
+  <path d="M1006 250 C 1130 250, 1150 335, 1190 344" fill="none" stroke="#d23b2e" stroke-width="3.8"/>
+  <circle cx="1006" cy="250" r="4" fill="#d23b2e"/>
+  <text x="1040" y="240" font-size="9.5" fill="#c0392b">на LOAD</text>
+  <circle cx="930" cy="506" r="5" fill="#d23b2e"/><circle cx="942" cy="506" r="5" fill="#111"/>
+  <text x="952" y="497" font-size="10" fill="#333">ШИНА: 4.6–4.8В</text>
+  <circle cx="660" cy="250" r="5" fill="#d23b2e"/><circle cx="672" cy="250" r="5" fill="#111"/>
+  <text x="682" y="244" font-size="10" fill="#333">LOAD: 4.6–4.8В (SW1 вкл)</text>
+  <g fill="none" stroke-linecap="round">
+    <path d="M605 650 C 605 572, 468 560, 445 478" stroke="#d23b2e" stroke-width="3.6"/>
+    <path d="M120 650 C 120 556, 388 546, 445 460" stroke="#d23b2e" stroke-width="3.4"/>
+    <path d="M276 650 C 276 582, 838 592, 853 478" stroke="#d23b2e" stroke-width="3.2"/>
+    <path d="M300 650 C 322 616, 356 616, 378 650" stroke="#d23b2e" stroke-width="3.6"/>
+    <path d="M486 650 C 486 574, 575 560, 581 478" stroke="#d23b2e" stroke-width="3.4"/>
+    <path d="M148 650 C 141 596, 155 566, 148 526" stroke="#1a1a1a" stroke-width="3"/>
+    <path d="M228 650 C 221 596, 235 566, 228 526" stroke="#1a1a1a" stroke-width="3"/>
+    <path d="M406 650 C 399 596, 413 566, 406 526" stroke="#1a1a1a" stroke-width="3"/>
+    <path d="M514 650 C 507 596, 521 566, 514 526" stroke="#1a1a1a" stroke-width="3"/>
+    <path d="M675 650 C 668 600, 682 560, 675 526" stroke="#1a1a1a" stroke-width="3"/>
+  </g>
+  <g fill="#d23b2e"><circle cx="445" cy="478" r="4"/><circle cx="445" cy="460" r="4"/><circle cx="581" cy="478" r="4"/><circle cx="819" cy="478" r="4"/><circle cx="853" cy="478" r="4"/></g>
+  <g fill="#1a1a1a"><circle cx="148" cy="526" r="4"/><circle cx="228" cy="526" r="4"/><circle cx="406" cy="526" r="4"/><circle cx="514" cy="526" r="4"/><circle cx="675" cy="526" r="4"/></g>
+  <rect x="90" y="650" width="220" height="150" rx="10" fill="#17181c" stroke="#33343b" stroke-width="1.6"/><rect x="94" y="654" width="212" height="142" rx="8" fill="none" stroke="#000" stroke-opacity="0.45"/><line x1="200" y1="676" x2="200" y2="774" stroke="#33343b" stroke-width="1" stroke-dasharray="3 3"/><text x="145" y="682" font-size="7.5" fill="#9aa0a8" text-anchor="middle">вход · заряд</text><text x="255" y="682" font-size="7.5" fill="#9aa0a8" text-anchor="middle">батарея · выход</text><rect x="132" y="698" width="10" height="7" rx="1.4" fill="#e23b2e" stroke="#7a1a12"/><rect x="148" y="698" width="10" height="7" rx="1.4" fill="#2a7de1" stroke="#16407a"/><text x="145" y="718" font-size="6.5" fill="#9aa0a8" text-anchor="middle">CHG·STBY</text><rect x="216" y="714" width="33" height="16" rx="2" fill="#0e0e11" stroke="#000"/><rect x="219" y="711" width="4" height="3" fill="#b8b8b8"/><rect x="219" y="730" width="4" height="3" fill="#b8b8b8"/><rect x="229" y="711" width="4" height="3" fill="#b8b8b8"/><rect x="229" y="730" width="4" height="3" fill="#b8b8b8"/><rect x="239" y="711" width="4" height="3" fill="#b8b8b8"/><rect x="239" y="730" width="4" height="3" fill="#b8b8b8"/><text x="232" y="725" font-size="6.5" fill="#cfd2d8" text-anchor="middle">4056</text><rect x="256" y="714" width="14" height="11" rx="1.5" fill="#0e0e11" stroke="#000"/><text x="263" y="736" font-size="6" fill="#9aa0a8" text-anchor="middle">DW01</text><rect x="184" y="785" width="32" height="20" rx="8" fill="#c2c7cf" stroke="#7d828a"/><rect x="191" y="790" width="18" height="10" rx="4" fill="#3a3d43"/><text x="200" y="782" font-size="7" fill="#9aa0a8" text-anchor="middle">USB-C</text><text x="145" y="770" font-size="13" font-weight="700" fill="#d9dbe0" text-anchor="middle">TP4056</text><text x="145" y="782" font-size="7" fill="#9aa0a8" text-anchor="middle">Type-C · заряд + защита</text><circle cx="120" cy="650" r="6" fill="#d23b2e" stroke="#efefef" stroke-width="1.3"/><circle cx="120" cy="650" r="2.3" fill="#0b0b0d"/><text x="120" y="665" font-size="8" font-weight="700" fill="#d9dbe0" text-anchor="middle">IN+</text><circle cx="148" cy="650" r="6" fill="#a7abb3" stroke="#efefef" stroke-width="1.3"/><circle cx="148" cy="650" r="2.3" fill="#0b0b0d"/><text x="148" y="665" font-size="8" font-weight="700" fill="#d9dbe0" text-anchor="middle">IN−</text><circle cx="228" cy="650" r="6" fill="#a7abb3" stroke="#efefef" stroke-width="1.3"/><circle cx="228" cy="650" r="2.3" fill="#0b0b0d"/><text x="228" y="665" font-size="8" font-weight="700" fill="#d9dbe0" text-anchor="middle">OUT−</text><circle cx="252" cy="650" r="6" fill="#8e44ad" stroke="#efefef" stroke-width="1.3"/><circle cx="252" cy="650" r="2.3" fill="#0b0b0d"/><text x="252" y="665" font-size="8" font-weight="700" fill="#d9dbe0" text-anchor="middle">B−</text><circle cx="276" cy="650" r="6" fill="#d23b2e" stroke="#efefef" stroke-width="1.3"/><circle cx="276" cy="650" r="2.3" fill="#0b0b0d"/><text x="276" y="665" font-size="8" font-weight="700" fill="#d9dbe0" text-anchor="middle">B+</text><circle cx="300" cy="650" r="6" fill="#d23b2e" stroke="#efefef" stroke-width="1.3"/><circle cx="300" cy="650" r="2.3" fill="#0b0b0d"/><text x="300" y="665" font-size="8" font-weight="700" fill="#d9dbe0" text-anchor="middle">OUT+</text>
+  <rect x="350" y="650" width="190" height="150" rx="10" fill="#17181c" stroke="#33343b" stroke-width="1.6"/><rect x="354" y="654" width="182" height="142" rx="8" fill="none" stroke="#000" stroke-opacity="0.45"/><circle cx="364" cy="786" r="4" fill="#0b0b0d" stroke="#c9a63a" stroke-width="1.4"/><circle cx="526" cy="786" r="4" fill="#0b0b0d" stroke="#c9a63a" stroke-width="1.4"/><text x="392" y="684" font-size="7.5" fill="#9aa0a8" text-anchor="middle">ВХОД</text><text x="500" y="684" font-size="7.5" fill="#9aa0a8" text-anchor="middle">ВЫХОД</text><line x1="445.0" y1="676" x2="445.0" y2="694" stroke="#33343b" stroke-width="1" stroke-dasharray="3 3"/><rect x="422" y="702" width="46" height="44" rx="8" fill="#1c1d21" stroke="#000"/><rect x="427" y="707" width="36" height="34" rx="6" fill="#26272c"/><circle cx="445.0" cy="724" r="11" fill="none" stroke="#3a3b40" stroke-width="5"/><text x="445.0" y="728" font-size="8" fill="#9aa0a8" text-anchor="middle">3R3</text><rect x="378" y="702" width="27" height="13" rx="2" fill="#0e0e11" stroke="#000"/><rect x="381" y="699" width="3.5" height="3" fill="#b8b8b8"/><rect x="381" y="715" width="3.5" height="3" fill="#b8b8b8"/><rect x="389" y="699" width="3.5" height="3" fill="#b8b8b8"/><rect x="389" y="715" width="3.5" height="3" fill="#b8b8b8"/><rect x="397" y="699" width="3.5" height="3" fill="#b8b8b8"/><rect x="397" y="715" width="3.5" height="3" fill="#b8b8b8"/><text x="391" y="712" font-size="6" fill="#cfd2d8" text-anchor="middle">MT3608</text><rect x="487" y="704" width="9" height="8" rx="1.5" fill="#0e0e11" stroke="#7d828a"/><rect x="502" y="704" width="9" height="8" rx="1.5" fill="#0e0e11" stroke="#7d828a"/><text x="491" y="722" font-size="6.5" fill="#9aa0a8" text-anchor="middle">A</text><text x="506" y="722" font-size="6.5" fill="#9aa0a8" text-anchor="middle">B</text><text x="445.0" y="784" font-size="13" font-weight="700" fill="#d9dbe0" text-anchor="middle">Mini Boost · MT3608</text><text x="445.0" y="796" font-size="8" fill="#9aa0a8" text-anchor="middle">→ 5.14 В · настроен (задача 02 ✓)</text><circle cx="378" cy="650" r="6" fill="#d23b2e" stroke="#efefef" stroke-width="1.3"/><circle cx="378" cy="650" r="2.3" fill="#0b0b0d"/><text x="378" y="665" font-size="8" font-weight="700" fill="#d9dbe0" text-anchor="middle">IN+</text><circle cx="406" cy="650" r="6" fill="#a7abb3" stroke="#efefef" stroke-width="1.3"/><circle cx="406" cy="650" r="2.3" fill="#0b0b0d"/><text x="406" y="665" font-size="8" font-weight="700" fill="#d9dbe0" text-anchor="middle">IN−</text><circle cx="486" cy="650" r="6" fill="#d23b2e" stroke="#efefef" stroke-width="1.3"/><circle cx="486" cy="650" r="2.3" fill="#0b0b0d"/><text x="486" y="665" font-size="8" font-weight="700" fill="#d9dbe0" text-anchor="middle">OUT+</text><circle cx="514" cy="650" r="6" fill="#a7abb3" stroke="#efefef" stroke-width="1.3"/><circle cx="514" cy="650" r="2.3" fill="#0b0b0d"/><text x="514" y="665" font-size="8" font-weight="700" fill="#d9dbe0" text-anchor="middle">OUT−</text>
+  <rect x="580" y="650" width="150" height="150" rx="10" fill="#f4f0e6" stroke="#d8d2c0" stroke-width="2"/><path d="M605 659 C 605 690, 637.0 692, 637.0 722" fill="none" stroke="#d23b2e" stroke-width="3" stroke-linecap="round"/><path d="M675 659 C 675 690, 673.0 692, 673.0 722" fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/><circle cx="655.0" cy="728" r="33" fill="#3a3d43"/><circle cx="655.0" cy="728" r="30" fill="#101114" stroke="#000"/><circle cx="655.0" cy="728" r="23" fill="#1a1b1f" stroke="#2c2d33"/><rect x="639.0" y="723" width="32" height="10" rx="5" fill="#c2c7cf" stroke="#7d828a"/><rect x="644.0" y="726" width="22" height="5" rx="2.5" fill="#3a3d43"/><text x="655.0" y="776" font-size="14" font-weight="700" fill="#1a1a1a" text-anchor="middle">USB-C 5 В</text><text x="655.0" y="790" font-size="8.5" fill="#666" text-anchor="middle">панельный разъём · пигтейл</text><circle cx="605" cy="650" r="6" fill="#d23b2e" stroke="#efefef" stroke-width="1.3"/><circle cx="605" cy="650" r="2.3" fill="#0b0b0d"/><text x="605" y="665" font-size="8" font-weight="700" fill="#333" text-anchor="middle">+5В</text><circle cx="675" cy="650" r="6" fill="#1a1a1a" stroke="#efefef" stroke-width="1.3"/><circle cx="675" cy="650" r="2.3" fill="#0b0b0d"/><text x="675" y="665" font-size="8" font-weight="700" fill="#333" text-anchor="middle">GND</text>
+  <circle cx="492" cy="610" r="4.5" fill="#d23b2e"/><circle cx="503" cy="610" r="4.5" fill="#111"/><text x="511" y="607" font-size="8.5" fill="#333">5.14В</text>
+  <!-- BATTERY PACK (стандарт) -->
+  <rect x="760" y="650" width="595" height="205" rx="12" fill="#f4f0e6" stroke="#d8d2c0" stroke-width="2"/>
+  <text x="776" y="676" font-size="14" font-weight="700" fill="#1a1a1a">2×18650 LG HG2 · ПАРАЛЛЕЛЬ (задача 03 ✓)</text>
+  <text x="776" y="694" font-size="11.5" fill="#666">оба «+» вместе, оба «−» вместе · пакет ~3.95В, 6000 мАч</text>
+  <rect x="875" y="718" width="290" height="40" rx="20" fill="#eceadf" stroke="#c7c1ae"/>
+  <rect x="889" y="725" width="262" height="26" rx="13" fill="#333"/>
+  <text x="901" y="743" font-size="10" fill="#eee">18650 · 3.96В  (холдер 1)</text>
+  <rect x="857" y="728" width="16" height="20" rx="2" fill="#555"/>
+  <rect x="1167" y="728" width="16" height="20" rx="2" fill="#d23b2e"/>
+  <text x="865" y="716" font-size="14" font-weight="700" fill="#1a1a1a" text-anchor="middle">−</text>
+  <text x="1175" y="716" font-size="14" font-weight="700" fill="#d23b2e" text-anchor="middle">+</text>
+  <rect x="875" y="788" width="290" height="40" rx="20" fill="#eceadf" stroke="#c7c1ae"/>
+  <rect x="889" y="795" width="262" height="26" rx="13" fill="#333"/>
+  <text x="901" y="813" font-size="10" fill="#eee">18650 · 3.96В  (холдер 2)</text>
+  <rect x="857" y="798" width="16" height="20" rx="2" fill="#555"/>
+  <rect x="1167" y="798" width="16" height="20" rx="2" fill="#d23b2e"/>
+  <text x="865" y="786" font-size="14" font-weight="700" fill="#1a1a1a" text-anchor="middle">−</text>
+  <text x="1175" y="786" font-size="14" font-weight="700" fill="#d23b2e" text-anchor="middle">+</text>
+  <path d="M857 738 L827 738 L827 808 L857 808" fill="none" stroke="#8e44ad" stroke-width="4"/>
+  <circle cx="827" cy="738" r="4" fill="#8e44ad"/><circle cx="827" cy="808" r="4" fill="#8e44ad"/>
+  <text x="805" y="777" font-size="11.5" font-weight="700" fill="#8e44ad" text-anchor="middle">«−» → B− (не на рельс!)</text>
+  <path d="M1183 738 L1213 738 L1213 808 L1183 808" fill="none" stroke="#d23b2e" stroke-width="4"/>
+  <circle cx="1213" cy="738" r="4" fill="#d23b2e"/><circle cx="1213" cy="808" r="4" fill="#d23b2e"/>
+  <text x="1247" y="777" font-size="11.5" font-weight="700" fill="#d23b2e" text-anchor="middle">«+» пакета</text>
+  <path d="M1213 753 C 1213 560, 900 536, 819 482" fill="none" stroke="#d23b2e" stroke-width="3.6"/>
+  <circle cx="819" cy="478" r="4" fill="#d23b2e"/>
+  <text x="1010" y="600" font-size="10.5" font-weight="700" fill="#d23b2e">«+» пакета → кол.44</text>
+  <path d="M827 753 C 660 812, 380 812, 252 650" fill="none" stroke="#8e44ad" stroke-width="3.6"/>
+  <circle cx="252" cy="650" r="4" fill="#8e44ad"/>
+  <circle cx="1300" cy="835" r="5" fill="#d23b2e"/><circle cx="1312" cy="835" r="5" fill="#111"/>
+  <text x="1322" y="831" font-size="10" fill="#333">3.95В</text>
+  <text x="200" y="828" font-size="9.5" fill="#999" text-anchor="middle">как выглядит реальный модуль — нажми на него (фото)</text>
+  <text x="30" y="892" font-size="17" font-weight="700" fill="#1a1a1a">Порядок монтажа (нижний банк = ряды f–j; синие капсулы = одна колонка = один узел):</text>
+  <g font-size="13.5" fill="#333">
+    <text x="30" y="915" fill="#c0392b">0.  <tspan font-weight="700">Прозвони рельсы и поставь 4 перемычки-моста через середину</tspan> (показаны дугами) — иначе питание не пройдёт по длине.</text>
+    <text x="30" y="937">1.  Адаптер «+5В» → кол.<tspan font-weight="700" fill="#2a6fd1">22</tspan> (ряд j).   Адаптер «GND» → «−» нижний рельс.</text>
+    <text x="30" y="959">2.  TP4056 <tspan font-weight="700">IN+</tspan> → кол.<tspan font-weight="700" fill="#2a6fd1">22</tspan> (ряд i).   <tspan font-weight="700">IN−</tspan> → «−» рельс.</text>
+    <text x="30" y="981">3.  <tspan font-weight="700">D1</tspan>: анод кол.<tspan font-weight="700" fill="#2a6fd1">22</tspan>, катод (полоска) кол.<tspan font-weight="700" fill="#2a6fd1">25</tspan> → перемычка на «+» НИЖНИЙ рельс.</text>
+    <text x="30" y="1003">4.  Батарея «+» → кол.<tspan font-weight="700" fill="#2a6fd1">44</tspan> → <tspan font-weight="700">F1 PTC</tspan> → кол.<tspan font-weight="700" fill="#2a6fd1">46</tspan> → TP4056 <tspan font-weight="700">B+</tspan>.   Батарея «−» → TP4056 <tspan font-weight="700" fill="#8e44ad">B−</tspan> (своя перемычка!).</text>
+    <text x="30" y="1025">5.  TP4056 <tspan font-weight="700">OUT+</tspan> → Boost#2 <tspan font-weight="700">IN+</tspan>.   B−, OUT−, IN−/OUT− Boost → «−» рельс.</text>
+    <text x="30" y="1047">6.  Boost#2 <tspan font-weight="700">OUT+</tspan> → кол.<tspan font-weight="700" fill="#2a6fd1">30</tspan>.   <tspan font-weight="700">D2</tspan>: анод кол.30, катод кол.<tspan font-weight="700" fill="#2a6fd1">33</tspan> → «+» НИЖНИЙ рельс.</text>
+    <text x="30" y="1069">7.  <tspan font-weight="700">C1 1000µF</tspan>: «+» кол.<tspan font-weight="700" fill="#2a6fd1">38</tspan> → «+» рельс;  «−» кол.<tspan font-weight="700" fill="#2a6fd1">40</tspan> → «−» рельс.</text>
+    <text x="30" y="1091">8.  «+» НИЖНИЙ рельс → <tspan font-weight="700">SW1</tspan> → «+» ВЕРХНИЙ рельс (LOAD).</text>
+    <text x="30" y="1113">9.  ESP32 <tspan font-weight="700">VIN</tspan> → «+» ВЕРХНИЙ рельс.   <tspan font-weight="700">C2 100нФ</tspan>: кол.<tspan font-weight="700" fill="#2a6fd1">17</tspan> → «+» верх, кол.<tspan font-weight="700" fill="#2a6fd1">19</tspan> → «−» верх.</text>
+    <text x="30" y="1135">10. Перемычка «−» верхний рельс ↔ «−» нижний рельс (общий GND).</text>
+  </g>
+  <rect x="30" y="1158" width="1340" height="206" rx="8" fill="#fbf7ec" stroke="#e6d9b0"/>
+  <text x="46" y="1184" font-size="13.5" fill="#8e44ad">⚠  <tspan font-weight="700">Минус батареи → на пад B− TP4056, СВОЕЙ перемычкой (фиолетовый).</tspan> НЕ на общий «−» рельс — иначе защита DW01 отключается. IN−/OUT− TP4056 — да, на «−» рельс.</text>
+  <text x="46" y="1208" font-size="13.5" fill="#c0392b">⚠  <tspan font-weight="700">РЕЛЬСЫ 830-макетки разрезаны посередине!</tspan> Прозвони каждый и поставь <tspan font-weight="700">по перемычке-мосту на все 4 рельса</tspan>.</text>
+  <text x="46" y="1232" font-size="13.5" fill="#c0392b">⚠  <tspan font-weight="700">Полоска (катод) обоих диодов — ВПРАВО, к шине.</tspan> Перепутаешь — питания на шине не будет.</text>
+  <text x="46" y="1256" font-size="13.5" fill="#c0392b">⚠  <tspan font-weight="700">C1 полярный</tspan>: длинная ножка «+» → «+» рельс; светлая полоса «−» → GND. Наоборот — вздуется.</text>
+  <text x="46" y="1280" font-size="13.5" fill="#c0392b">⚠  <tspan font-weight="700">Батарею НЕЛЬЗЯ вести напрямую на шину</tspan> — только через TP4056 → Boost#2. 3.95В на VIN уронят ESP32 в brownout.</text>
+  <text x="46" y="1304" font-size="13.5" fill="#2e7d32">✓  Проверка: 1) только адаптер → ШИНА 4.6–4.8В.  2) вставь батарею → Boost#2 OUT+ = 5.14В.  3) выдерни адаптер → ШИНА держится.</text>
+  <text x="46" y="1328" font-size="13.5" fill="#2a6fd1">→  4) включи SW1 → верхний рельс и VIN = 4.6–4.8В, ESP32 стартует без USB.  Кол.46 (TP_B+) — точка делителя батареи (задача 05).</text>
+<g class="hots">
+<rect class="hot" data-part="esp32" x="80" y="316" width="262" height="160" rx="6"><title>Нажми — фото детали</title></rect>
+<rect class="hot" data-part="esp32" x="82" y="306" width="22" height="20" rx="6"><title>Нажми — фото детали</title></rect>
+<rect class="hot" data-part="c2" x="356" y="344" width="44" height="20" rx="6"><title>Нажми — фото детали</title></rect>
+<rect class="hot" data-part="leds" x="406" y="286" width="620" height="42" rx="6"><title>Нажми — фото детали</title></rect>
+<rect class="hot" data-part="diode" x="455" y="412" width="60" height="26" rx="6"><title>Нажми — фото детали</title></rect>
+<rect class="hot" data-part="diode" x="591" y="412" width="60" height="26" rx="6"><title>Нажми — фото детали</title></rect>
+<rect class="hot" data-part="c1" x="709" y="374" width="50" height="54" rx="6"><title>Нажми — фото детали</title></rect>
+<rect class="hot" data-part="f1" x="814" y="382" width="44" height="36" rx="6"><title>Нажми — фото детали</title></rect>
+<rect class="hot" data-part="sw1" x="1190" y="326" width="150" height="80" rx="6"><title>Нажми — фото детали</title></rect>
+<rect class="hot" data-part="j1" x="580" y="650" width="150" height="150" rx="6"><title>Нажми — фото детали</title></rect>
+<rect class="hot" data-part="tp4056" x="90" y="650" width="220" height="150" rx="6"><title>Нажми — фото детали</title></rect>
+<rect class="hot" data-part="boost2" x="350" y="650" width="190" height="150" rx="6"><title>Нажми — фото детали</title></rect>
+<rect class="hot" data-part="battery" x="760" y="650" width="595" height="205" rx="6"><title>Нажми — фото детали</title></rect>
+</g>
+</svg>

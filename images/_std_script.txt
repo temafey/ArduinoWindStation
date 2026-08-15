@@ -1,0 +1,22 @@
+
+const veil = document.getElementById('veil');
+const PARTS = __PARTS__;
+function openPart(id) {
+  const p = PARTS[id]; if (!p) return;
+  document.getElementById('mpics').innerHTML = p.photos.map(s => `<img src="${s}" alt="${p.name}">`).join('');
+  document.getElementById('mname').textContent = p.name;
+  document.getElementById('msub').textContent = p.sub;
+  const n = document.getElementById('mnote');
+  n.textContent = p.note; n.className = 'mnote ' + p.kind;
+  veil.classList.add('on');
+  document.getElementById('mx').focus();
+}
+function closePart() { veil.classList.remove('on'); }
+document.querySelectorAll('[data-part]').forEach(el => {
+  el.addEventListener('click', () => openPart(el.getAttribute('data-part')));
+  if (el.tagName.toLowerCase() === 'rect') el.setAttribute('tabindex', '0');
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPart(el.getAttribute('data-part')); } });
+});
+document.getElementById('mx').addEventListener('click', closePart);
+veil.addEventListener('click', e => { if (e.target === veil) closePart(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePart(); });

@@ -1,0 +1,2533 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Собираем метеостанцию — инструкция для тебя</title>
+<style>
+  :root{
+    --bg:#f4f6fa; --card:#ffffff; --ink:#1a2030; --muted:#5b6478;
+    --accent:#2563eb; --ok:#16a34a; --warn:#f59e0b; --danger:#dc2626;
+    --dad:#7c3aed; --rail-pos:#dc2626; --rail-neg:#111827;
+    --yellow:#fde047; --shadow: 0 2px 8px rgba(20,30,60,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px;margin:0 auto;padding:24px 20px 80px}
+
+  /* Header */
+  .hero{background:linear-gradient(135deg,#2563eb 0%,#7c3aed 100%);
+    color:#fff;border-radius:20px;padding:32px 28px;margin-bottom:28px;box-shadow:var(--shadow)}
+  .hero h1{margin:0 0 10px;font-size:30px;line-height:1.15}
+  .hero p{margin:0;font-size:18px;opacity:.95}
+  .hero .big{font-size:56px;margin:0 0 6px;line-height:1}
+
+  /* Step cards */
+  .step{background:var(--card);border-radius:16px;padding:24px 22px;margin:20px 0;
+    box-shadow:var(--shadow);border:1px solid rgba(20,30,60,.05)}
+  .step h2{margin:0 0 4px;font-size:24px;display:flex;align-items:center;gap:12px}
+  .step h2 .num{display:inline-flex;align-items:center;justify-content:center;
+    width:44px;height:44px;background:var(--accent);color:#fff;border-radius:50%;
+    font-size:20px;font-weight:700;flex-shrink:0}
+  .step h2.safety .num{background:var(--danger)}
+  .step h2.tools .num{background:var(--warn);color:#111}
+  .step h2.fun .num{background:var(--ok)}
+  .step .subtitle{color:var(--muted);margin:0 0 18px;font-size:15px}
+  .step h3{font-size:19px;margin:22px 0 10px}
+  .step p{margin:10px 0}
+  .step ul, .step ol{margin:10px 0;padding-left:24px}
+  .step li{margin:6px 0}
+
+  /* Callouts */
+  .callout{border-radius:12px;padding:14px 16px;margin:14px 0;
+    display:flex;gap:12px;align-items:flex-start;border-left:5px solid}
+  .callout .icon{font-size:24px;flex-shrink:0}
+  .callout .body{flex:1}
+  .callout.dad{background:#f3e8ff;border-color:var(--dad);color:#4c1d95}
+  .callout.warn{background:#fef3c7;border-color:var(--warn);color:#78350f}
+  .callout.danger{background:#fee2e2;border-color:var(--danger);color:#7f1d1d}
+  .callout.ok{background:#dcfce7;border-color:var(--ok);color:#14532d}
+  .callout.tip{background:#dbeafe;border-color:var(--accent);color:#1e3a8a}
+  .callout b{font-weight:700}
+
+  /* Checklist */
+  .check{background:#f0fdf4;border:2px solid #86efac;border-radius:12px;padding:14px 18px;margin:18px 0}
+  .check h4{margin:0 0 8px;color:#14532d;font-size:16px}
+  .check ul{list-style:none;padding:0;margin:0}
+  .check li{padding:4px 0 4px 28px;position:relative}
+  .check li::before{content:"☐";position:absolute;left:0;font-size:20px;color:#16a34a;top:-2px}
+
+  /* SVG frames */
+  .fig{background:#fafbfc;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin:16px 0;text-align:center}
+  .fig svg{max-width:100%;height:auto}
+  .fig .cap{margin-top:8px;color:var(--muted);font-size:14px;font-style:italic}
+
+  /* Parts grid */
+  .parts{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:16px 0}
+  .part{background:#fafbfc;border:1px solid #e5e7eb;border-radius:10px;padding:10px;text-align:center}
+  .part svg{max-width:100%;height:80px}
+  .part .name{font-weight:600;margin-top:6px;font-size:14px}
+  .part .qty{color:var(--muted);font-size:13px}
+
+  /* Mini step rows */
+  .substep{display:grid;grid-template-columns:56px 1fr;gap:14px;padding:12px 0;border-top:1px dashed #e5e7eb}
+  .substep:first-of-type{border-top:none}
+  .substep .n{width:40px;height:40px;background:#eef2ff;color:var(--accent);
+    border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:18px}
+
+  /* TOC */
+  .toc{background:var(--card);border-radius:16px;padding:20px 24px;margin:20px 0;box-shadow:var(--shadow)}
+  .toc h3{margin:0 0 10px}
+  .toc ol{margin:0;padding-left:24px;columns:1}
+  .toc a{color:var(--ink);text-decoration:none}
+  .toc a:hover{color:var(--accent);text-decoration:underline}
+
+  /* Wire colors helper boxes */
+  .wirebox{display:inline-block;width:18px;height:10px;vertical-align:middle;margin:0 4px;
+    border:1px solid rgba(0,0,0,.2);border-radius:2px}
+  .w-red{background:#dc2626} .w-black{background:#111} .w-yellow{background:#fbbf24}
+  .w-blue{background:#2563eb} .w-green{background:#16a34a} .w-white{background:#fff}
+
+  @media print{
+    body{background:#fff} .step{box-shadow:none;border:1px solid #ddd;page-break-inside:avoid}
+    .hero{box-shadow:none}
+  }
+  @media(max-width:600px){
+    .hero h1{font-size:24px} .step h2{font-size:20px}
+    .wrap{padding:14px 10px 60px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="big">🌬️</div>
+  <h1>Собираем метеостанцию ветра!</h1>
+  <p>Пошаговая инструкция специально для тебя. Читай по порядку, не спеши, и у тебя всё получится 💪</p>
+</div>
+
+<!-- INTRO -->
+<div class="step">
+  <h2><span class="num">👋</span>Привет! Давай знакомиться</h2>
+  <p>Ты собираешь <b>настоящую метеостанцию</b>, которая будет измерять ветер и показывать это на экране компьютера или телефона. Это большой проект, но мы разобьём его на маленькие шаги. В каждом шаге будет картинка — смотри внимательно и делай точно как нарисовано.</p>
+
+  <div class="callout tip">
+    <div class="icon">⏱️</div>
+    <div class="body"><b>Сколько это займёт?</b> Около 2–3 дней по 2–3 часа. Не пытайся сделать всё за один раз — устанут глаза и руки, будут ошибки. Делай с перерывами.</div>
+  </div>
+
+  <div class="callout dad">
+    <div class="icon">👨</div>
+    <div class="body"><b>Где нужна помощь папы?</b> Везде, где ты увидишь такую фиолетовую рамку с человечком — зови папу. Это значит: шаг либо опасный (батарейки, пайка, первое включение), либо легко ошибиться так, что деталь сгорит. Папа проверит — и пойдём дальше.</div>
+  </div>
+
+  <div class="callout warn">
+    <div class="icon">⚠️</div>
+    <div class="body"><b>Главное правило:</b> если что-то непонятно — <b>остановись и спроси</b>. Лучше задать «глупый» вопрос, чем сжечь деталь за 500 гривен. Никто не рождается со знанием электроники, все сначала спрашивают.</div>
+  </div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h3>📋 Содержание</h3>
+  <ol>
+    <li><a href="#safety">Правила безопасности</a></li>
+    <li><a href="#parts">Что у нас в коробке</a></li>
+    <li><a href="#tools">Инструменты</a></li>
+    <li><a href="#multimeter">Как пользоваться мультиметром</a></li>
+    <li><a href="#resistors">Резисторы — как узнать, какой какой</a></li>
+    <li><a href="#breadboard">Что такое breadboard</a></li>
+    <li><a href="#stage1">Шаг 1: Настройка двух модулей-«повышалок»</a></li>
+    <li><a href="#stage2">Шаг 2: Проверка батареек 🔋</a></li>
+    <li><a href="#stage3">Шаг 3: Собираем питание</a></li>
+    <li><a href="#stage4">Шаг 4: Ставим мозг (ESP32)</a></li>
+    <li><a href="#stage5">Шаг 5: Делители для датчика</a></li>
+    <li><a href="#stage6">Шаг 6: Делитель для батареи</a></li>
+    <li><a href="#stage7">Шаг 7: Светодиоды (весёлая часть!) ✨</a></li>
+    <li><a href="#stage8">Шаг 8: Первая прошивка</a></li>
+    <li><a href="#stage9">Шаг 9: Проверка через браузер</a></li>
+    <li><a href="#stage10">Шаг 10: Подключаем датчик</a></li>
+    <li><a href="#stage11">Шаг 11: Тестируем</a></li>
+    <li><a href="#stage12">Шаг 12: Собираем в корпус</a></li>
+    <li><a href="#references">📚 Картинки и схемы в интернете</a></li>
+    <li><a href="#troubleshoot">Если что-то не работает</a></li>
+  </ol>
+</div>
+
+
+<!-- ============ SAFETY ============ -->
+<div class="step" id="safety">
+  <h2 class="safety"><span class="num">⚡</span>Правила безопасности</h2>
+  <p class="subtitle">Прочитай это ДО того, как открывать коробку с деталями!</p>
+
+  <p>Самое опасное в проекте — это <b>литиевые батарейки 18650</b> (те самые толстые пальчиковые, как в фонариках и электросамокатах). Всё остальное максимум ударит тебя слабым током или сожжёт деталь. А батарейка в плохих руках может <b>загореться</b> — поэтому правила строгие.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg">
+      <!-- Battery 18650 -->
+      <rect x="80" y="70" width="180" height="80" rx="6" fill="#1e40af" stroke="#0c1e4a" stroke-width="2"/>
+      <rect x="260" y="90" width="14" height="40" fill="#9ca3af" stroke="#4b5563" stroke-width="1"/>
+      <text x="170" y="115" font-size="16" fill="#fff" text-anchor="middle" font-weight="700">18650</text>
+      <text x="170" y="135" font-size="12" fill="#bfdbfe" text-anchor="middle">Li-ion 3.7V</text>
+      <text x="64" y="115" font-size="22" fill="#ef4444" text-anchor="middle" font-weight="700">−</text>
+      <text x="286" y="115" font-size="22" fill="#dc2626" text-anchor="middle" font-weight="700">+</text>
+      <!-- Arrow -->
+      <path d="M 310 110 L 360 110" stroke="#374151" stroke-width="3" fill="none" marker-end="url(#ah)"/>
+      <defs>
+        <marker id="ah" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L9,3 z" fill="#374151"/>
+        </marker>
+      </defs>
+      <!-- Warning signs -->
+      <g transform="translate(380,30)">
+        <polygon points="30,0 60,50 0,50" fill="#fbbf24" stroke="#b45309" stroke-width="2"/>
+        <text x="30" y="42" font-size="28" fill="#000" text-anchor="middle" font-weight="700">!</text>
+        <text x="110" y="35" font-size="14" fill="#111">Коротнуть клеммы →</text>
+        <text x="110" y="52" font-size="14" fill="#111">искра, ожог</text>
+      </g>
+      <g transform="translate(380,80)">
+        <polygon points="30,0 60,50 0,50" fill="#fbbf24" stroke="#b45309" stroke-width="2"/>
+        <text x="30" y="42" font-size="28" fill="#000" text-anchor="middle" font-weight="700">!</text>
+        <text x="110" y="35" font-size="14" fill="#111">Перепутать + и − →</text>
+        <text x="110" y="52" font-size="14" fill="#111">модуль сгорит</text>
+      </g>
+      <g transform="translate(380,130)">
+        <polygon points="30,0 60,50 0,50" fill="#fbbf24" stroke="#b45309" stroke-width="2"/>
+        <text x="30" y="42" font-size="28" fill="#000" text-anchor="middle" font-weight="700">!</text>
+        <text x="110" y="35" font-size="14" fill="#111">Нагрев или вздутие →</text>
+        <text x="110" y="52" font-size="14" fill="#111">вынеси на улицу</text>
+      </g>
+    </svg>
+    <div class="cap">Опасности литиевой батареи</div>
+  </div>
+
+  <h3>Железные правила 🛡️</h3>
+  <ol>
+    <li><b>Не клади батарейку на металлический стол</b> рядом с монетами, ключами, скрепками. Если металл соединит «плюс» и «минус» — будет искра и нагрев.</li>
+    <li><b>Плюс к плюсу, минус к минусу.</b> Проверяй <b>пять раз</b> перед тем, как что-то подключить. Перепутал — деталь сгорает за секунду.</li>
+    <li><b>Если батарейка вздулась, горячая или странно пахнет</b> — не трогай руками! Щипцами возьми, положи в металлическую банку с песком, вынеси на улицу. Сразу позови папу.</li>
+    <li><b>Не заряжай батарейку на морозе или жаре.</b> От 0°C до +45°C — норм.</li>
+    <li><b>Паяльник всегда ставь на подставку.</b> Он 350 градусов — это в 3 раза горячее духовки. Включённый без присмотра — пожар.</li>
+  </ol>
+
+  <div class="callout dad">
+    <div class="icon">👨</div>
+    <div class="body"><b>Пайку всегда делает папа, или ты — под присмотром.</b> Никогда не паяй один. Это правило не обсуждается.</div>
+  </div>
+</div>
+
+<!-- ============ PARTS ============ -->
+<div class="step" id="parts">
+  <h2><span class="num">📦</span>Что у нас в коробке</h2>
+  <p class="subtitle">Разложи всё на столе и сверь с картинкой. Не хватает чего-то — скажи папе до начала.</p>
+
+  <div class="parts">
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="20" y="10" width="80" height="60" rx="3" fill="#1e40af"/>
+        <rect x="35" y="20" width="50" height="30" rx="2" fill="#334155"/>
+        <circle cx="30" cy="60" r="2" fill="#9ca3af"/><circle cx="40" cy="60" r="2" fill="#9ca3af"/>
+        <circle cx="50" cy="60" r="2" fill="#9ca3af"/><circle cx="60" cy="60" r="2" fill="#9ca3af"/>
+        <circle cx="70" cy="60" r="2" fill="#9ca3af"/><circle cx="80" cy="60" r="2" fill="#9ca3af"/>
+        <circle cx="90" cy="60" r="2" fill="#9ca3af"/>
+        <rect x="50" y="68" width="20" height="8" fill="#6b7280"/>
+      </svg>
+      <div class="name">ESP32</div>
+      <div class="qty">×1 — это «мозг»</div>
+    </div>
+
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="10" y="25" width="100" height="30" rx="2" fill="#16a34a"/>
+        <circle cx="25" cy="40" r="4" fill="#eab308"/>
+        <circle cx="25" cy="40" r="2" fill="#854d0e"/>
+        <rect x="40" y="35" width="30" height="10" rx="1" fill="#0f766e"/>
+        <circle cx="95" cy="40" r="4" fill="#eab308"/>
+        <circle cx="95" cy="40" r="2" fill="#854d0e"/>
+      </svg>
+      <div class="name">TP4056</div>
+      <div class="qty">×1 — зарядка для батареи</div>
+    </div>
+
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="20" y="20" width="80" height="40" rx="2" fill="#065f46"/>
+        <circle cx="35" cy="32" r="6" fill="#4b5563"/>
+        <rect x="50" y="30" width="25" height="15" fill="#1f2937"/>
+        <circle cx="88" cy="45" r="3" fill="#fbbf24"/>
+      </svg>
+      <div class="name">Mini Boost</div>
+      <div class="qty">×2 — «повышалки»</div>
+    </div>
+
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="15" y="30" width="90" height="20" rx="10" fill="#d1d5db" stroke="#6b7280"/>
+        <rect x="70" y="32" width="2" height="16" fill="#111"/>
+        <line x1="5" y1="40" x2="15" y2="40" stroke="#374151" stroke-width="2"/>
+        <line x1="105" y1="40" x2="115" y2="40" stroke="#374151" stroke-width="2"/>
+      </svg>
+      <div class="name">Диод 1N5819</div>
+      <div class="qty">×3 — с чёрной полоской</div>
+    </div>
+
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="15" y="20" width="90" height="40" rx="6" fill="#3b82f6" stroke="#1e3a8a" stroke-width="1.5"/>
+        <rect x="100" y="30" width="10" height="20" fill="#9ca3af"/>
+        <text x="60" y="45" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">18650</text>
+      </svg>
+      <div class="name">Батарея 18650</div>
+      <div class="qty">×2 — осторожно!</div>
+    </div>
+
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="10" y="15" width="100" height="50" rx="4" fill="#000" stroke="#4b5563"/>
+        <rect x="18" y="23" width="84" height="34" rx="2" fill="#1f2937"/>
+        <circle cx="28" cy="40" r="6" fill="#4b5563" stroke="#9ca3af"/>
+        <circle cx="92" cy="40" r="6" fill="#4b5563" stroke="#9ca3af"/>
+        <line x1="20" y1="4" x2="20" y2="15" stroke="#dc2626" stroke-width="2"/>
+        <line x1="100" y1="4" x2="100" y2="15" stroke="#111" stroke-width="2"/>
+      </svg>
+      <div class="name">Холдер</div>
+      <div class="qty">×2 — для батарей</div>
+    </div>
+
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <line x1="5" y1="40" x2="20" y2="40" stroke="#6b7280" stroke-width="2"/>
+        <rect x="20" y="32" width="80" height="16" rx="8" fill="#fef3c7"/>
+        <rect x="30" y="32" width="6" height="16" fill="#a78bfa"/>
+        <rect x="40" y="32" width="6" height="16" fill="#ef4444"/>
+        <rect x="50" y="32" width="6" height="16" fill="#f97316"/>
+        <rect x="85" y="32" width="6" height="16" fill="#eab308"/>
+        <line x1="100" y1="40" x2="115" y2="40" stroke="#6b7280" stroke-width="2"/>
+      </svg>
+      <div class="name">Резисторы</div>
+      <div class="qty">×11 разных</div>
+    </div>
+
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <line x1="40" y1="20" x2="40" y2="65" stroke="#fbbf24" stroke-width="3"/>
+        <line x1="75" y1="30" x2="75" y2="65" stroke="#fbbf24" stroke-width="3"/>
+        <ellipse cx="58" cy="20" rx="25" ry="12" fill="#fca5a5" opacity=".8"/>
+        <circle cx="58" cy="20" r="8" fill="#dc2626"/>
+      </svg>
+      <div class="name">Светодиоды</div>
+      <div class="qty">×5 разных цветов</div>
+    </div>
+
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="10" y="10" width="100" height="60" rx="4" fill="#fafaf9" stroke="#78716c"/>
+        <g fill="#d6d3d1">
+          <circle cx="20" cy="20" r="1.5"/><circle cx="30" cy="20" r="1.5"/>
+          <circle cx="40" cy="20" r="1.5"/><circle cx="50" cy="20" r="1.5"/>
+          <circle cx="60" cy="20" r="1.5"/><circle cx="70" cy="20" r="1.5"/>
+          <circle cx="80" cy="20" r="1.5"/><circle cx="90" cy="20" r="1.5"/>
+          <circle cx="100" cy="20" r="1.5"/>
+          <circle cx="20" cy="30" r="1.5"/><circle cx="30" cy="30" r="1.5"/>
+          <circle cx="40" cy="30" r="1.5"/><circle cx="50" cy="30" r="1.5"/>
+          <circle cx="60" cy="30" r="1.5"/><circle cx="70" cy="30" r="1.5"/>
+          <circle cx="80" cy="30" r="1.5"/><circle cx="90" cy="30" r="1.5"/>
+          <circle cx="100" cy="30" r="1.5"/>
+          <circle cx="20" cy="50" r="1.5"/><circle cx="30" cy="50" r="1.5"/>
+          <circle cx="40" cy="50" r="1.5"/><circle cx="50" cy="50" r="1.5"/>
+          <circle cx="60" cy="50" r="1.5"/><circle cx="70" cy="50" r="1.5"/>
+          <circle cx="80" cy="50" r="1.5"/><circle cx="90" cy="50" r="1.5"/>
+          <circle cx="100" cy="50" r="1.5"/>
+          <circle cx="20" cy="60" r="1.5"/><circle cx="30" cy="60" r="1.5"/>
+          <circle cx="40" cy="60" r="1.5"/><circle cx="50" cy="60" r="1.5"/>
+          <circle cx="60" cy="60" r="1.5"/><circle cx="70" cy="60" r="1.5"/>
+          <circle cx="80" cy="60" r="1.5"/><circle cx="90" cy="60" r="1.5"/>
+          <circle cx="100" cy="60" r="1.5"/>
+        </g>
+        <line x1="10" y1="40" x2="110" y2="40" stroke="#a8a29e" stroke-width="0.5"/>
+      </svg>
+      <div class="name">Breadboard</div>
+      <div class="qty">×1 — макетная плата</div>
+    </div>
+
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="20" y="15" width="80" height="50" rx="3" fill="#6b7280"/>
+        <circle cx="60" cy="30" r="10" fill="#374151"/>
+        <path d="M 45 50 Q 60 35 75 50" stroke="#fff" stroke-width="2" fill="none"/>
+        <text x="60" y="58" font-size="8" fill="#fff" text-anchor="middle">датчик</text>
+      </svg>
+      <div class="name">Датчик ветра</div>
+      <div class="qty">×1 — три чашки</div>
+    </div>
+
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="20" y="15" width="80" height="50" rx="4" fill="#1f2937"/>
+        <rect x="30" y="25" width="60" height="30" fill="#111827"/>
+        <text x="60" y="45" font-size="13" fill="#10b981" text-anchor="middle" font-weight="700">12.04</text>
+        <rect x="35" y="62" width="10" height="4" fill="#dc2626"/>
+        <rect x="75" y="62" width="10" height="4" fill="#111"/>
+      </svg>
+      <div class="name">Мультиметр</div>
+      <div class="qty">×1 — измеряет</div>
+    </div>
+
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="10" y="20" width="100" height="40" rx="6" fill="#d1d5db" stroke="#6b7280"/>
+        <rect x="15" y="26" width="90" height="28" rx="3" fill="#f3f4f6"/>
+        <text x="60" y="45" font-size="10" fill="#374151" text-anchor="middle">IP65 190×150</text>
+      </svg>
+      <div class="name">Корпус</div>
+      <div class="qty">×1 — защита от дождя</div>
+    </div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Перед началом проверь:</h4>
+    <ul>
+      <li>Все детали на месте (сверь по картинкам выше)</li>
+      <li>Ничего не сломано и не помято</li>
+      <li>У батареек не содраны обёртки (если содраны — НЕ ИСПОЛЬЗУЙ, скажи папе)</li>
+      <li>Стол чистый, свет хороший, под рукой нет еды и питья</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ TOOLS ============ -->
+<div class="step" id="tools">
+  <h2 class="tools"><span class="num">🔧</span>Инструменты</h2>
+  <p class="subtitle">Они должны быть под рукой у папы, пока ты работаешь.</p>
+
+  <div class="parts">
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="20" y="20" width="80" height="45" rx="4" fill="#1f2937"/>
+        <rect x="25" y="25" width="70" height="20" fill="#0f172a"/>
+        <text x="60" y="38" font-size="10" fill="#10b981" text-anchor="middle">V=</text>
+      </svg>
+      <div class="name">Мультиметр</div>
+    </div>
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="10" y="35" width="60" height="10" fill="#78716c"/>
+        <rect x="70" y="30" width="10" height="20" fill="#78350f"/>
+        <polygon points="80,40 100,32 100,48" fill="#dc2626"/>
+      </svg>
+      <div class="name">Паяльник</div>
+    </div>
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <path d="M 30 25 L 60 40 L 30 55 L 25 50 L 45 40 L 25 30 Z" fill="#6b7280"/>
+        <path d="M 90 25 L 60 40 L 90 55 L 95 50 L 75 40 L 95 30 Z" fill="#6b7280"/>
+        <circle cx="30" cy="40" r="6" fill="none" stroke="#111" stroke-width="2"/>
+        <circle cx="90" cy="40" r="6" fill="none" stroke="#111" stroke-width="2"/>
+      </svg>
+      <div class="name">Бокорезы</div>
+    </div>
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <circle cx="40" cy="40" r="18" fill="none" stroke="#6b7280" stroke-width="2"/>
+        <line x1="55" y1="55" x2="80" y2="75" stroke="#6b7280" stroke-width="5"/>
+      </svg>
+      <div class="name">Лупа</div>
+    </div>
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="40" y="10" width="40" height="60" fill="#d97706" stroke="#78350f"/>
+        <rect x="50" y="10" width="20" height="8" fill="#f59e0b"/>
+      </svg>
+      <div class="name">Изолента</div>
+    </div>
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <rect x="30" y="25" width="60" height="30" fill="#fff" stroke="#6b7280"/>
+        <rect x="35" y="30" width="50" height="20" fill="#1d4ed8"/>
+        <text x="60" y="43" font-size="10" fill="#fff" text-anchor="middle">USB-C</text>
+      </svg>
+      <div class="name">USB-C кабель</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="icon">🔌</div>
+    <div class="body"><b>Про USB-кабель:</b> нужен именно <b>с данными</b>, не только для зарядки! Дешёвые кабели часто только заряжают. Если компьютер не видит ESP32 после подключения — возможно, проблема в кабеле. Попроси папу проверить.</div>
+  </div>
+
+  <h3 style="margin-top:32px">🔥 Подробно про паяльник (это серьёзно!)</h3>
+  <p>У нас паяльник <b>Alientek T90B</b> — мощный портативный паяльник <b>140 Вт</b> с регулировкой температуры и IPS-дисплеем. Это профессиональный инструмент, поэтому надо знать как с ним обращаться.</p>
+
+  <div class="callout danger">
+    <div class="icon">🔥</div>
+    <div class="body"><b>ВАЖНО:</b> жало паяльника нагревается до <b>300–400°C</b>. Это в 4 раза горячее кипящей воды! Прикосновение даже на долю секунды — серьёзный ожог. <b>Паяльник в руках только у папы.</b> Ты можешь подавать припой, держать пинцетом провода, но сам паяльник пока не трогаешь.</div>
+  </div>
+
+  <div class="callout tip" style="margin-top:12px">
+    <div class="icon">📦</div>
+    <div class="body"><b>Что в коробке у нашего Alientek T90B:</b>
+      <ul style="margin:6px 0 0">
+        <li>Паяльник 140 Вт с IPS цветным экраном (показывает температуру, напряжение, ток)</li>
+        <li><b>Жало C245-KU</b> (универсальный конус) — в стандартной комплектации</li>
+        <li>USB-C кабель питания (C2C, 140W, 1.2м)</li>
+        <li>Мини-подставка силиконовая TH30</li>
+        <li>Инструкция</li>
+        <li>Красивая подарочная коробка</li>
+      </ul>
+      <p style="margin:8px 0 0;font-size:13px;color:#64748b"><b>⚠️ БП в комплект НЕ входит!</b> Нужна зарядка USB-C PD 65W+ (от ноутбука или купить отдельно). Для полной мощности 140W нужен адаптер на 140W (28V 5A).</p>
+    </div>
+  </div>
+
+  <div class="parts" style="margin-top:20px">
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <!-- Alientek T90B soldering iron with IPS display -->
+        <rect x="10" y="32" width="50" height="16" rx="3" fill="#1f2937"/>
+        <rect x="14" y="36" width="20" height="8" fill="#0f172a"/>
+        <text x="24" y="42" font-size="6" fill="#10b981" text-anchor="middle" font-weight="700">350°C</text>
+        <rect x="60" y="36" width="25" height="8" fill="#9ca3af"/>
+        <polygon points="85,32 110,40 85,48" fill="#dc2626"/>
+        <text x="35" y="60" font-size="7" fill="#1f2937" text-anchor="middle" font-weight="700">Alientek T90B</text>
+      </svg>
+      <div class="name">Паяльник Alientek T90B</div>
+      <div class="qty">140 Вт, IPS</div>
+    </div>
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <!-- C245-KU tip -->
+        <rect x="15" y="35" width="50" height="10" rx="2" fill="#9ca3af"/>
+        <polygon points="65,35 85,40 65,45" fill="#dc2626"/>
+        <text x="50" y="60" font-size="8" fill="#374151" text-anchor="middle" font-weight="700">C245-KU</text>
+        <text x="50" y="72" font-size="7" fill="#6b7280" text-anchor="middle">конус 1мм</text>
+      </svg>
+      <div class="name">Жало KU (в комплекте)</div>
+      <div class="qty">80% работы</div>
+    </div>
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <!-- C245-K tip -->
+        <rect x="15" y="35" width="50" height="10" rx="2" fill="#9ca3af"/>
+        <polygon points="65,33 90,40 65,47" fill="#dc2626"/>
+        <text x="50" y="60" font-size="8" fill="#374151" text-anchor="middle" font-weight="700">C245-K</text>
+        <text x="50" y="72" font-size="7" fill="#6b7280" text-anchor="middle">нож 3.2мм</text>
+      </svg>
+      <div class="name">Жало K (докупить!)</div>
+      <div class="qty">силовая пайка</div>
+    </div>
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <!-- USB-C PD3.1 power -->
+        <rect x="20" y="30" width="60" height="25" rx="4" fill="#1f2937"/>
+        <text x="50" y="42" font-size="9" fill="#fbbf24" text-anchor="middle" font-weight="700">PD3.1 140W</text>
+        <text x="50" y="52" font-size="7" fill="#9ca3af" text-anchor="middle">USB-C</text>
+        <line x1="80" y1="42" x2="105" y2="42" stroke="#111" stroke-width="2"/>
+      </svg>
+      <div class="name">Питание PD3.1</div>
+      <div class="qty">65W мин, 140W макс</div>
+    </div>
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <!-- Solder spool -->
+        <circle cx="60" cy="40" r="28" fill="none" stroke="#94a3b8" stroke-width="3"/>
+        <circle cx="60" cy="40" r="8" fill="#475569"/>
+        <text x="60" y="44" font-size="8" fill="#fff" text-anchor="middle" font-weight="700">Sn63</text>
+      </svg>
+      <div class="name">Припой ПОС 63</div>
+      <div class="qty">0.6 мм</div>
+    </div>
+    <div class="part">
+      <svg viewBox="0 0 120 80">
+        <!-- Flux gel tube -->
+        <rect x="35" y="20" width="50" height="45" rx="6" fill="#fbbf24" stroke="#92400e" stroke-width="2"/>
+        <rect x="55" y="12" width="10" height="12" fill="#78350f"/>
+        <text x="60" y="48" font-size="9" fill="#78350f" text-anchor="middle" font-weight="700">FLUX</text>
+      </svg>
+      <div class="name">Флюс-паста</div>
+      <div class="qty">канифоль</div>
+    </div>
+  </div>
+
+  <h4 style="margin-top:24px">🔧 Какое жало для какой задачи?</h4>
+  <p>T90B использует жала стандарта <b>C245</b> (совместимые с JBC T245). В стандартном комплекте идёт <b>KU</b>, остальные можно докупить.</p>
+  <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:14px">
+    <thead>
+      <tr style="background:#1e293b;color:white">
+        <th style="padding:10px;text-align:left;border:1px solid #334155">Жало</th>
+        <th style="padding:10px;text-align:left;border:1px solid #334155">Когда использовать</th>
+        <th style="padding:10px;text-align:left;border:1px solid #334155">Нам нужно?</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="background:#f0fdf4">
+        <td style="padding:10px;border:1px solid #cbd5e1"><b>C245-KU</b> (конус 1мм)</td>
+        <td style="padding:10px;border:1px solid #cbd5e1">Универсальное. Through-hole: резисторы, LED, провода, dupont. С ним делается 80% работы.</td>
+        <td style="padding:10px;border:1px solid #cbd5e1"><b style="color:#16a34a">✅ ДА</b> — в комплекте</td>
+      </tr>
+      <tr style="background:#fef3c7">
+        <td style="padding:10px;border:1px solid #cbd5e1"><b>C245-K</b> (нож 3.2мм)</td>
+        <td style="padding:10px;border:1px solid #cbd5e1">Силовая пайка: холдер 18650, толстые провода. SMD пады A/B на boost-модулях. Drag-soldering.</td>
+        <td style="padding:10px;border:1px solid #cbd5e1"><b style="color:#d97706">⚠️ ДОКУПИТЬ</b></td>
+      </tr>
+      <tr>
+        <td style="padding:10px;border:1px solid #cbd5e1"><b>C245-I</b> (игла &lt;0.5мм)</td>
+        <td style="padding:10px;border:1px solid #cbd5e1">Очень мелкая работа — тонкие SMD, мелкие пады. Нам скорее всего не понадобится.</td>
+        <td style="padding:10px;border:1px solid #cbd5e1" style="color:#6b7280">На будущее</td>
+      </tr>
+      <tr style="background:#f8fafc">
+        <td style="padding:10px;border:1px solid #cbd5e1"><b>C245-IS</b> (изогнутая игла)</td>
+        <td style="padding:10px;border:1px solid #cbd5e1">Когда надо подобраться к точке сбоку, под углом 30°. Для труднодоступных мест.</td>
+        <td style="padding:10px;border:1px solid #cbd5e1" style="color:#6b7280">На будущее</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip" style="margin-top:16px">
+    <div class="icon">💡</div>
+    <div class="body"><b>Для нашего проекта хватит двух жал:</b> <b>KU</b> (в комплекте) для всей пайки на breadboard + <b>K</b> (докупить ~$3–5 на AliExpress, поиск «C245 K tip») для холдера 18650 и силовых проводов. Остальные — на будущее.</div>
+  </div>
+
+  <h4 style="margin-top:24px">⚙️ Настройки температуры (запомни!)</h4>
+  <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:14px">
+    <thead>
+      <tr style="background:#1e293b;color:white">
+        <th style="padding:10px;text-align:left;border:1px solid #334155">Что паяем</th>
+        <th style="padding:10px;text-align:left;border:1px solid #334155">Температура</th>
+        <th style="padding:10px;text-align:left;border:1px solid #334155">Жало</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:10px;border:1px solid #cbd5e1">SMD пады A/B на boost-модуле</td>
+        <td style="padding:10px;border:1px solid #cbd5e1"><b>320°C</b></td>
+        <td style="padding:10px;border:1px solid #cbd5e1">C245-K (нож)</td>
+      </tr>
+      <tr style="background:#f8fafc">
+        <td style="padding:10px;border:1px solid #cbd5e1">Тонкие провода, ножки светодиодов, резисторы</td>
+        <td style="padding:10px;border:1px solid #cbd5e1"><b>320°C</b></td>
+        <td style="padding:10px;border:1px solid #cbd5e1">C245-KU (конус)</td>
+      </tr>
+      <tr>
+        <td style="padding:10px;border:1px solid #cbd5e1">Толстые провода, холдер 18650, ESP32 dupont</td>
+        <td style="padding:10px;border:1px solid #cbd5e1"><b>340°C</b></td>
+        <td style="padding:10px;border:1px solid #cbd5e1">C245-K (нож)</td>
+      </tr>
+      <tr style="background:#f8fafc">
+        <td style="padding:10px;border:1px solid #cbd5e1">Если используете бессвинцовый припой</td>
+        <td style="padding:10px;border:1px solid #cbd5e1"><b>360°C</b></td>
+        <td style="padding:10px;border:1px solid #cbd5e1">по задаче</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip" style="margin-top:16px">
+    <div class="icon">💡</div>
+    <div class="body"><b>Почему свинцовый припой ПОС 63 лучше для учёбы:</b> плавится при 183°C (бессвинцовый — 217°C), течёт легче, прощает медлительность новичка. Просто после пайки помой руки с мылом — и всё. Свинцовая пайка делается во всём мире десятки лет, ничего страшного.</div>
+  </div>
+
+  <h4 style="margin-top:24px">📋 Что должен делать сын во время пайки</h4>
+  <p>Это твоя <b>важная работа помощника</b> — без помощника папе будет в 3 раза сложнее:</p>
+  <ul>
+    <li>✅ <b>Держать припой</b> — подавать его к месту пайки, когда папа скажет</li>
+    <li>✅ <b>Держать провода пинцетом</b> — чтобы они не двигались пока папа паяет</li>
+    <li>✅ <b>Подавать инструменты</b> — кусачки, термоусадку, флюс, нужное жало</li>
+    <li>✅ <b>Следить за временем</b> — если папа держит паяльник на компоненте больше <b>3 секунд</b> — крикни «отводи!» (компонент может перегреться)</li>
+    <li>✅ <b>Греть термоусадку</b> зажигалкой или феном (только под папиным присмотром)</li>
+    <li>✅ <b>Следить за дисплеем паяльника</b> — на IPS-экране видна температура. Если упала ниже 280°C во время пайки — скажи папе, надо подождать</li>
+    <li>❌ <b>Не трогать паяльник</b> — даже если он остыл с виду, проверяй мокрой губкой (зашипит — горячий)</li>
+  </ul>
+
+  <div class="callout warn" style="margin-top:16px">
+    <div class="icon">🔌</div>
+    <div class="body"><b>Питание Alientek T90B:</b> работает от <b>USB-C PD3.1</b> (Power Delivery), диапазон <b>9–28V</b>. Для полной мощности 140W нужен адаптер <b>28V 5A</b> (продаётся отдельно!). Но для нашего проекта хватит <b>любой PD-зарядки от 65W</b> — паяльник сам определит максимальную мощность от адаптера. Подойдут зарядки от MacBook/ThinkPad/Samsung 65W+. <b>Не подойдёт</b> обычная зарядка 5V/2A — паяльник выдаст максимум 18W и будет медленно греться.</div>
+  </div>
+
+  <div class="callout danger" style="margin-top:16px">
+    <div class="icon">🚨</div>
+    <div class="body"><b>Правила безопасности:</b>
+      <ul style="margin:6px 0 0">
+        <li>Паяльник <b>всегда</b> возвращается на силиконовую подставку TH30 (из комплекта), никогда на стол</li>
+        <li>После пайки — отключи USB-C и дай остыть на подставке 2–3 минуты</li>
+        <li>Шнур USB-C проложен так, чтобы не зацепиться рукой</li>
+        <li>Окно открыто или включена вытяжка — пары флюса вредно вдыхать</li>
+        <li>Длинные волосы — собраны</li>
+        <li>На столе нет ничего легковоспламеняющегося (бумага, ткань)</li>
+        <li>Рядом стоит <b>стакан с водой</b> на случай ожога — сразу под холодную воду на 10 минут</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout goal" style="margin-top:16px">
+    <div class="icon">🧠</div>
+    <div class="body"><b>Умные функции T90B (работают автоматически):</b>
+      <ul style="margin:6px 0 0">
+        <li><b>Автосон:</b> если положить паяльник на подставку — он сам снизит температуру через 30 сек (видно на экране). Экономит ресурс жала.</li>
+        <li><b>Автовыключение:</b> если не трогать 5+ минут — полностью выключится. Безопасность!</li>
+        <li><b>Авторазогрев:</b> взял в руку — сам проснулся и за 3 секунды вернулся к рабочей температуре.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MULTIMETER ============ -->
+<div class="step" id="multimeter">
+  <h2><span class="num">🔬</span>Мультиметр — твой лучший друг</h2>
+  <p class="subtitle">Он будет говорить тебе, правильно ли ты всё собрал.</p>
+
+  <p>Мультиметр — это прибор, который меряет напряжение (силу «электрического давления») и проверяет, есть ли соединение между двумя точками. Без него собирать электронику — всё равно что готовить суп с завязанными глазами.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg">
+      <!-- Body -->
+      <rect x="100" y="30" width="320" height="240" rx="16" fill="#fde047" stroke="#92400e" stroke-width="3"/>
+      <!-- Screen -->
+      <rect x="130" y="50" width="260" height="70" rx="4" fill="#1f2937"/>
+      <text x="260" y="100" font-size="40" fill="#10b981" text-anchor="middle" font-family="monospace" font-weight="700">12.04</text>
+      <text x="370" y="70" font-size="14" fill="#10b981" font-family="monospace">V=</text>
+
+      <!-- Dial -->
+      <circle cx="260" cy="180" r="60" fill="#fef3c7" stroke="#78350f" stroke-width="3"/>
+      <circle cx="260" cy="180" r="50" fill="#fff" stroke="#78350f" stroke-width="1"/>
+      <!-- Dial indicator pointing to V= -->
+      <line x1="260" y1="180" x2="260" y2="130" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="260" cy="180" r="6" fill="#111"/>
+      <!-- Dial labels around -->
+      <text x="260" y="125" font-size="11" text-anchor="middle" fill="#111" font-weight="700">V=</text>
+      <text x="310" y="150" font-size="10" text-anchor="middle" fill="#111">V~</text>
+      <text x="320" y="185" font-size="10" text-anchor="middle" fill="#111">mA</text>
+      <text x="305" y="220" font-size="10" text-anchor="middle" fill="#111">Ω</text>
+      <text x="260" y="240" font-size="11" text-anchor="middle" fill="#dc2626" font-weight="700">OFF</text>
+      <text x="215" y="220" font-size="10" text-anchor="middle" fill="#111">🔊</text>
+      <text x="200" y="185" font-size="10" text-anchor="middle" fill="#111">Ω</text>
+      <text x="210" y="150" font-size="10" text-anchor="middle" fill="#111">V=</text>
+
+      <!-- Probe sockets -->
+      <circle cx="180" cy="250" r="10" fill="#111" stroke="#78350f" stroke-width="2"/>
+      <text x="180" y="272" font-size="10" text-anchor="middle" fill="#111">COM</text>
+      <circle cx="340" cy="250" r="10" fill="#dc2626" stroke="#78350f" stroke-width="2"/>
+      <text x="340" y="272" font-size="10" text-anchor="middle" fill="#dc2626">VΩmA</text>
+
+      <!-- Probes -->
+      <path d="M 180 260 Q 80 290 40 260" stroke="#111" stroke-width="4" fill="none"/>
+      <rect x="20" y="255" width="18" height="8" fill="#111"/>
+      <text x="30" y="283" font-size="11" text-anchor="middle" fill="#111">чёрный</text>
+
+      <path d="M 340 260 Q 440 290 480 260" stroke="#dc2626" stroke-width="4" fill="none"/>
+      <rect x="480" y="255" width="18" height="8" fill="#dc2626"/>
+      <text x="490" y="283" font-size="11" text-anchor="middle" fill="#dc2626">красный</text>
+    </svg>
+    <div class="cap">Твой мультиметр — на крутилке поставь <b>V=</b> (напряжение)</div>
+  </div>
+
+  <h3>Запомни три правила:</h3>
+  <div class="substep">
+    <div class="n">1</div>
+    <div><b>Чёрный щуп всегда в «COM».</b> Это «земля» — откуда считаем. Красный — в ту дырку, где написано V/Ω/mA.</div>
+  </div>
+  <div class="substep">
+    <div class="n">2</div>
+    <div><b>Мерить напряжение — крутилка на V=</b> (или V⎓). Чёрный щуп на «минус», красный на «плюс» того места, где мерим. Цифра на экране — напряжение в вольтах.</div>
+  </div>
+  <div class="substep">
+    <div class="n">3</div>
+    <div><b>Прозвонка</b> — это режим со значком 🔊 (динамик). Если две точки соединены проводом, мультиметр <b>запищит</b>. Если нет — молчит. Полезно, чтобы проверить, не сломался ли провод.</div>
+  </div>
+
+  <div class="callout warn">
+    <div class="icon">⚠️</div>
+    <div class="body"><b>Никогда не мерь сопротивление (Ω), когда схема ВКЛЮЧЕНА!</b> Это может сломать мультиметр. Сначала выключи питание, потом мерь Ω.</div>
+  </div>
+
+  <div class="callout tip">
+    <div class="icon">💡</div>
+    <div class="body"><b>Потренируйся!</b> Возьми простую батарейку AA (пальчиковую). Поставь мультиметр на V=, чёрный щуп к минусу, красный к плюсу. Должно показать 1.4–1.5V. Если показывает −1.5V — поменяй щупы местами. Поздравляю, ты умеешь мерить напряжение!</div>
+  </div>
+</div>
+
+<!-- ============ RESISTORS ============ -->
+<div class="step" id="resistors">
+  <h2><span class="num">🎨</span>Резисторы — как узнать, какой какой</h2>
+  <p class="subtitle">Они все похожи, но разные. Узнаём по цветным полоскам — или проще, мультиметром.</p>
+
+  <p>Резистор — это маленький цилиндрик с цветными полосками. Полоски — это цифры, которые говорят, какое у него сопротивление (измеряется в Омах, Ω).</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 500 160" xmlns="http://www.w3.org/2000/svg">
+      <!-- Resistor body with 4 color bands -->
+      <line x1="20" y1="80" x2="90" y2="80" stroke="#6b7280" stroke-width="3"/>
+      <rect x="90" y="60" width="320" height="40" rx="20" fill="#fef3c7" stroke="#78350f" stroke-width="2"/>
+      <rect x="130" y="60" width="20" height="40" fill="#78350f"/>
+      <rect x="170" y="60" width="20" height="40" fill="#111"/>
+      <rect x="210" y="60" width="20" height="40" fill="#f97316"/>
+      <rect x="360" y="60" width="20" height="40" fill="#eab308"/>
+      <line x1="410" y1="80" x2="480" y2="80" stroke="#6b7280" stroke-width="3"/>
+
+      <!-- Labels -->
+      <text x="140" y="130" font-size="14" text-anchor="middle" fill="#111">1</text>
+      <text x="180" y="130" font-size="14" text-anchor="middle" fill="#111">0</text>
+      <text x="220" y="130" font-size="14" text-anchor="middle" fill="#111">×1000</text>
+      <text x="370" y="130" font-size="14" text-anchor="middle" fill="#111">±5%</text>
+
+      <text x="140" y="150" font-size="11" text-anchor="middle" fill="#6b7280">коричн.</text>
+      <text x="180" y="150" font-size="11" text-anchor="middle" fill="#6b7280">чёрный</text>
+      <text x="220" y="150" font-size="11" text-anchor="middle" fill="#6b7280">оранж.</text>
+      <text x="370" y="150" font-size="11" text-anchor="middle" fill="#6b7280">золотой</text>
+
+      <text x="250" y="40" font-size="18" text-anchor="middle" fill="#111" font-weight="700">10 × 1000 = 10 000 Ом = 10 кΩ</text>
+    </svg>
+    <div class="cap">Пример резистора 10 кΩ (читается слева направо, от ближайшей к краю полоски)</div>
+  </div>
+
+  <h3>В нашем проекте 4 вида резисторов:</h3>
+  <div class="parts">
+    <div class="part">
+      <svg viewBox="0 0 160 60">
+        <rect x="30" y="22" width="100" height="20" rx="10" fill="#fef3c7" stroke="#78350f"/>
+        <rect x="45" y="22" width="6" height="20" fill="#dc2626"/>
+        <rect x="55" y="22" width="6" height="20" fill="#dc2626"/>
+        <rect x="65" y="22" width="6" height="20" fill="#78350f"/>
+        <rect x="110" y="22" width="6" height="20" fill="#eab308"/>
+      </svg>
+      <div class="name">220 Ω</div>
+      <div class="qty">красный-красный-коричневый<br>×5 для светодиодов</div>
+    </div>
+    <div class="part">
+      <svg viewBox="0 0 160 60">
+        <rect x="30" y="22" width="100" height="20" rx="10" fill="#fef3c7" stroke="#78350f"/>
+        <rect x="45" y="22" width="6" height="20" fill="#78350f"/>
+        <rect x="55" y="22" width="6" height="20" fill="#111"/>
+        <rect x="65" y="22" width="6" height="20" fill="#f97316"/>
+        <rect x="110" y="22" width="6" height="20" fill="#eab308"/>
+      </svg>
+      <div class="name">10 кΩ</div>
+      <div class="qty">коричневый-чёрный-оранжевый<br>×4 (низ + верх 1-й в серии)</div>
+    </div>
+    <div class="part">
+      <svg viewBox="0 0 160 60">
+        <rect x="30" y="22" width="100" height="20" rx="10" fill="#fef3c7" stroke="#78350f"/>
+        <rect x="45" y="22" width="6" height="20" fill="#16a34a"/>
+        <rect x="55" y="22" width="6" height="20" fill="#111"/>
+        <rect x="65" y="22" width="6" height="20" fill="#dc2626"/>
+        <rect x="110" y="22" width="6" height="20" fill="#eab308"/>
+      </svg>
+      <div class="name">5 кΩ</div>
+      <div class="qty">зелёный-чёрный-красный<br>×2 (верх, 2-й в серии)</div>
+    </div>
+    <div class="part">
+      <svg viewBox="0 0 160 60">
+        <rect x="30" y="22" width="100" height="20" rx="10" fill="#fef3c7" stroke="#78350f"/>
+        <rect x="45" y="22" width="6" height="20" fill="#78350f"/>
+        <rect x="55" y="22" width="6" height="20" fill="#111"/>
+        <rect x="65" y="22" width="6" height="20" fill="#eab308"/>
+        <rect x="110" y="22" width="6" height="20" fill="#eab308"/>
+      </svg>
+      <div class="name">100 кΩ</div>
+      <div class="qty">коричневый-чёрный-жёлтый<br>×2 для батареи</div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <div class="icon">🎯</div>
+    <div class="body"><b>Проще всего — проверяй мультиметром!</b> Цвета легко перепутать (оранжевый и красный, коричневый и чёрный). Ставишь мультиметр на Ω, прикладываешь щупы к ножкам резистора — цифра говорит тебе, какой это резистор.
+    <br><br>
+    <b>Что должен показать мультиметр:</b><br>
+    • 220 Ω → около 220 (на пределе 2к)<br>
+    • 10 кΩ → около 10 000 или «10.0k»<br>
+    • 5 кΩ → около 5 000 или «5.0k»<br>
+    • 100 кΩ → около 100 000 или «100k»
+    </div>
+  </div>
+
+  <div class="callout dad">
+    <div class="icon">👨</div>
+    <div class="body"><b>Позови папу:</b> пусть он покажет тебе один раз, как прозвонить резистор мультиметром. Потом ты делаешь сам.</div>
+  </div>
+</div>
+
+<!-- ============ BREADBOARD ============ -->
+<div class="step" id="breadboard">
+  <h2><span class="num">🧩</span>Breadboard — макетная плата</h2>
+  <p class="subtitle">Это как конструктор LEGO для электроники — втыкаешь провода в дырочки, и они соединяются.</p>
+
+  <p>Breadboard (читается «бредборд») — это белая пластиковая плата с кучей маленьких дырочек. Внутри неё металлические полоски, которые соединяют дырочки между собой определённым образом. <b>Важно понимать, какие дырочки соединены, а какие нет!</b></p>
+
+  <div class="fig">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <!-- Breadboard body -->
+      <rect x="20" y="20" width="660" height="260" rx="6" fill="#fafaf9" stroke="#78716c" stroke-width="2"/>
+
+      <!-- Top power rails -->
+      <rect x="40" y="40" width="620" height="50" fill="#fef2f2" stroke="#fca5a5" stroke-dasharray="4,2"/>
+      <text x="30" y="55" font-size="14" fill="#dc2626" font-weight="700">+</text>
+      <text x="30" y="85" font-size="14" fill="#111" font-weight="700">−</text>
+      <line x1="40" y1="50" x2="660" y2="50" stroke="#dc2626" stroke-width="1" opacity=".4"/>
+      <line x1="40" y1="80" x2="660" y2="80" stroke="#111" stroke-width="1" opacity=".4"/>
+      <!-- Top rail dots -->
+      <g fill="#94a3b8">
+        <!-- row red -->
+        <circle cx="50" cy="50" r="2"/><circle cx="65" cy="50" r="2"/><circle cx="80" cy="50" r="2"/>
+        <circle cx="95" cy="50" r="2"/><circle cx="110" cy="50" r="2"/><circle cx="125" cy="50" r="2"/>
+        <circle cx="150" cy="50" r="2"/><circle cx="165" cy="50" r="2"/><circle cx="180" cy="50" r="2"/>
+        <circle cx="195" cy="50" r="2"/><circle cx="210" cy="50" r="2"/><circle cx="225" cy="50" r="2"/>
+        <!-- row black -->
+        <circle cx="50" cy="80" r="2"/><circle cx="65" cy="80" r="2"/><circle cx="80" cy="80" r="2"/>
+        <circle cx="95" cy="80" r="2"/><circle cx="110" cy="80" r="2"/><circle cx="125" cy="80" r="2"/>
+        <circle cx="150" cy="80" r="2"/><circle cx="165" cy="80" r="2"/><circle cx="180" cy="80" r="2"/>
+        <circle cx="195" cy="80" r="2"/><circle cx="210" cy="80" r="2"/><circle cx="225" cy="80" r="2"/>
+      </g>
+
+      <!-- Main area -->
+      <g fill="#94a3b8">
+        <!-- rows a-e -->
+        <g>
+          <circle cx="50" cy="110" r="2"/><circle cx="65" cy="110" r="2"/><circle cx="80" cy="110" r="2"/>
+          <circle cx="95" cy="110" r="2"/><circle cx="110" cy="110" r="2"/><circle cx="125" cy="110" r="2"/>
+          <circle cx="50" cy="125" r="2"/><circle cx="65" cy="125" r="2"/><circle cx="80" cy="125" r="2"/>
+          <circle cx="95" cy="125" r="2"/><circle cx="110" cy="125" r="2"/><circle cx="125" cy="125" r="2"/>
+          <circle cx="50" cy="140" r="2"/><circle cx="65" cy="140" r="2"/><circle cx="80" cy="140" r="2"/>
+          <circle cx="95" cy="140" r="2"/><circle cx="110" cy="140" r="2"/><circle cx="125" cy="140" r="2"/>
+          <circle cx="50" cy="155" r="2"/><circle cx="65" cy="155" r="2"/><circle cx="80" cy="155" r="2"/>
+          <circle cx="95" cy="155" r="2"/><circle cx="110" cy="155" r="2"/><circle cx="125" cy="155" r="2"/>
+          <circle cx="50" cy="170" r="2"/><circle cx="65" cy="170" r="2"/><circle cx="80" cy="170" r="2"/>
+          <circle cx="95" cy="170" r="2"/><circle cx="110" cy="170" r="2"/><circle cx="125" cy="170" r="2"/>
+        </g>
+      </g>
+
+      <!-- Highlight a column showing it's connected -->
+      <rect x="45" y="102" width="10" height="76" fill="#fde68a" opacity=".55" rx="4"/>
+      <text x="50" y="96" font-size="10" fill="#92400e" text-anchor="middle" font-weight="700">эти 5 точек</text>
+      <text x="50" y="195" font-size="10" fill="#92400e" text-anchor="middle" font-weight="700">соединены!</text>
+
+      <!-- Canyon -->
+      <rect x="40" y="185" width="620" height="15" fill="#e5e7eb" stroke="#78716c" stroke-width="1"/>
+      <text x="350" y="197" font-size="11" text-anchor="middle" fill="#6b7280">КАНЬОН (сюда ставим ESP32)</text>
+
+      <!-- rows f-j -->
+      <g fill="#94a3b8">
+        <circle cx="50" cy="210" r="2"/><circle cx="65" cy="210" r="2"/><circle cx="80" cy="210" r="2"/>
+        <circle cx="95" cy="210" r="2"/><circle cx="110" cy="210" r="2"/>
+        <circle cx="50" cy="225" r="2"/><circle cx="65" cy="225" r="2"/><circle cx="80" cy="225" r="2"/>
+        <circle cx="95" cy="225" r="2"/><circle cx="110" cy="225" r="2"/>
+        <circle cx="50" cy="240" r="2"/><circle cx="65" cy="240" r="2"/><circle cx="80" cy="240" r="2"/>
+        <circle cx="95" cy="240" r="2"/><circle cx="110" cy="240" r="2"/>
+      </g>
+
+      <!-- Row letters -->
+      <text x="30" y="113" font-size="10" fill="#6b7280">a</text>
+      <text x="30" y="128" font-size="10" fill="#6b7280">b</text>
+      <text x="30" y="143" font-size="10" fill="#6b7280">c</text>
+      <text x="30" y="158" font-size="10" fill="#6b7280">d</text>
+      <text x="30" y="173" font-size="10" fill="#6b7280">e</text>
+      <text x="30" y="213" font-size="10" fill="#6b7280">f</text>
+
+      <!-- Right side explanation -->
+      <g transform="translate(300, 50)">
+        <rect x="0" y="0" width="350" height="130" fill="#fff" stroke="#cbd5e1" rx="6"/>
+        <text x="10" y="20" font-size="13" fill="#111" font-weight="700">Как запомнить:</text>
+        <text x="10" y="42" font-size="12" fill="#dc2626">━━━━</text>
+        <text x="60" y="42" font-size="12" fill="#111">«плюс» (красный) — длинная полоса</text>
+        <text x="10" y="62" font-size="12" fill="#111">━━━━</text>
+        <text x="60" y="62" font-size="12" fill="#111">«минус» (чёрный) — длинная полоса</text>
+        <text x="10" y="85" font-size="12" fill="#f59e0b" font-weight="700">│ │ │</text>
+        <text x="60" y="85" font-size="12" fill="#111">Столбики по 5 дырочек — соединены</text>
+        <text x="60" y="100" font-size="11" fill="#6b7280">(по вертикали, внутри одной половины)</text>
+        <text x="10" y="120" font-size="12" fill="#111">Между верхом и низом — <b>НЕ соединены</b></text>
+      </g>
+    </svg>
+    <div class="cap">Главное правило: столбик из 5 дырочек = одна соединённая точка</div>
+  </div>
+
+  <div class="callout ok">
+    <div class="icon">💡</div>
+    <div class="body"><b>Попрактикуйся:</b> возьми мультиметр в режиме прозвонки (🔊). Воткни два провода в один столбик (например, в дырки `a1` и `e1`) — должно запищать. Воткни в разные столбики (`a1` и `a2`) — молчит. Поиграй так 5 минут, чтобы понять логику.</div>
+  </div>
+</div>
+<!-- ============ STAGE 1 ============ -->
+<div class="step" id="stage1">
+  <h2><span class="num">1</span>Настройка двух «повышалок» (Mini Boost)</h2>
+  <p class="subtitle">Эти маленькие модули повышают напряжение. Один будет давать 12V для датчика, другой — 5V для батареи.</p>
+
+  <div class="callout tip">
+    <div class="icon">🎯</div>
+    <div class="body"><b>Что делаем:</b> на каждом модуле есть два маленьких пятачка (их называют «пады») с буквами <b>A</b> и <b>B</b>. От того, залиты они припоем или нет — зависит, какое напряжение модуль выдаёт на выходе.</div>
+  </div>
+
+  <div class="fig">
+    <svg viewBox="0 0 500 280" xmlns="http://www.w3.org/2000/svg">
+      <!-- Boost module -->
+      <rect x="120" y="30" width="260" height="220" rx="8" fill="#065f46" stroke="#064e3b" stroke-width="2"/>
+      <!-- Inductor coil -->
+      <circle cx="200" cy="90" r="25" fill="#4b5563" stroke="#111"/>
+      <circle cx="200" cy="90" r="15" fill="#6b7280"/>
+      <!-- IC chip -->
+      <rect x="230" y="120" width="80" height="40" fill="#111" stroke="#4b5563"/>
+      <text x="270" y="145" font-size="10" fill="#9ca3af" text-anchor="middle">IC</text>
+
+      <!-- A/B pads -->
+      <g transform="translate(220, 180)">
+        <text x="0" y="-5" font-size="18" fill="#fff" font-weight="700">A</text>
+        <circle cx="15" cy="0" r="8" fill="#fbbf24" stroke="#fff" stroke-width="2"/>
+        <text x="15" y="4" font-size="11" fill="#000" text-anchor="middle" font-weight="700">○</text>
+
+        <text x="50" y="-5" font-size="18" fill="#fff" font-weight="700">B</text>
+        <circle cx="65" cy="0" r="8" fill="#fbbf24" stroke="#fff" stroke-width="2"/>
+        <text x="65" y="4" font-size="11" fill="#000" text-anchor="middle" font-weight="700">○</text>
+      </g>
+
+      <!-- IN/OUT labels -->
+      <text x="135" y="230" font-size="12" fill="#fff">IN+</text>
+      <text x="135" y="248" font-size="12" fill="#fff">IN−</text>
+      <text x="345" y="230" font-size="12" fill="#fff">OUT+</text>
+      <text x="345" y="248" font-size="12" fill="#fff">OUT−</text>
+
+      <!-- Arrows -->
+      <path d="M 50 240 L 125 240" stroke="#111" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="30" y="235" font-size="11" fill="#111">5V</text>
+      <text x="30" y="248" font-size="11" fill="#111">вход</text>
+
+      <path d="M 380 240 L 460 240" stroke="#111" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="465" y="235" font-size="11" fill="#111">12V</text>
+      <text x="465" y="248" font-size="11" fill="#111">или 5V</text>
+
+      <defs>
+        <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#111"/>
+        </marker>
+      </defs>
+
+      <text x="250" y="20" font-size="14" text-anchor="middle" fill="#111" font-weight="700">Mini Boost Module</text>
+    </svg>
+    <div class="cap">Ищем <b>А</b> и <b>В</b> пятачки рядом с микросхемой</div>
+  </div>
+
+  <h3>Правило A/B:</h3>
+  <div class="fig">
+    <svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg">
+      <!-- Preset 5V -->
+      <g transform="translate(40, 20)">
+        <text x="120" y="15" font-size="14" text-anchor="middle" font-weight="700" fill="#2563eb">Boost #2 — нам нужно 5V</text>
+        <rect x="0" y="25" width="240" height="120" rx="6" fill="#065f46"/>
+        <text x="60" y="80" font-size="16" fill="#fff" font-weight="700">A ○</text>
+        <text x="150" y="80" font-size="16" fill="#fff" font-weight="700">B ○</text>
+        <text x="120" y="115" font-size="12" fill="#bfdbfe" text-anchor="middle">пады ПУСТЫЕ</text>
+        <text x="120" y="165" font-size="18" text-anchor="middle" fill="#16a34a" font-weight="700">= 5V ✓</text>
+      </g>
+      <!-- Preset 12V -->
+      <g transform="translate(360, 20)">
+        <text x="120" y="15" font-size="14" text-anchor="middle" font-weight="700" fill="#dc2626">Boost #1 — нам нужно 12V</text>
+        <rect x="0" y="25" width="240" height="120" rx="6" fill="#065f46"/>
+        <circle cx="72" cy="75" r="10" fill="#9ca3af"/>
+        <circle cx="72" cy="75" r="6" fill="#fbbf24"/>
+        <text x="60" y="80" font-size="16" fill="#fff" font-weight="700">A</text>
+        <text x="150" y="80" font-size="16" fill="#fff" font-weight="700">B</text>
+        <circle cx="162" cy="75" r="10" fill="#9ca3af"/>
+        <circle cx="162" cy="75" r="6" fill="#fbbf24"/>
+        <text x="120" y="115" font-size="12" fill="#fde047" text-anchor="middle">пады ЗАЛИТЫ</text>
+        <text x="120" y="165" font-size="18" text-anchor="middle" fill="#16a34a" font-weight="700">= 12V ✓</text>
+      </g>
+    </svg>
+    <div class="cap">Обычно модули приходят с завода уже в режиме 12V (пады залиты). Для Boost #2 нужно будет <b>убрать</b> припой с пятачков.</div>
+  </div>
+
+  <div class="callout warn">
+    <div class="icon">⚠️</div>
+    <div class="body"><b>Эта таблица может отличаться!</b> На некоторых модулях логика наоборот. <b>Всегда проверяй мультиметром</b>, прежде чем подключать датчик или электролит — иначе сгорит.</div>
+  </div>
+
+  <h3>Что делаешь:</h3>
+  <div class="substep">
+    <div class="n">1</div>
+    <div>Возьми <b>первый</b> модуль. Посмотри на пады A и B. Если они залиты припоем (капельки металла) — это будет Boost #1 (12V). Отложи его, напиши маркером «<b>#1 12V</b>».</div>
+  </div>
+  <div class="substep">
+    <div class="n">2</div>
+    <div>Возьми <b>второй</b> модуль. Если у него тоже пады залиты — их надо <b>убрать</b>. <b class="callout dad" style="display:inline;padding:2px 6px;border:none;background:#f3e8ff">👨 Это делает папа</b>: паяльником и медной оплёткой (или просто стряхнуть припой) снимает припой с обоих падов.</div>
+  </div>
+  <div class="substep">
+    <div class="n">3</div>
+    <div>После того как на втором модуле пады пустые — подпиши его маркером «<b>#2 5V</b>».</div>
+  </div>
+  <div class="substep">
+    <div class="n">4</div>
+    <div><b>Проверяем каждый модуль мультиметром!</b> Папа подаёт на IN+/IN− 5V (от USB-адаптера через специальный переходник). Ты мультиметром меряешь OUT+ / OUT−:
+      <ul>
+        <li>Boost <b>#1</b> должен показать <b>11.5–12.5V</b> ✓</li>
+        <li>Boost <b>#2</b> должен показать <b>4.8–5.2V</b> ✓</li>
+      </ul>
+      Если не так — зови папу, разбираемся.</div>
+  </div>
+
+  <div class="callout dad">
+    <div class="icon">👨</div>
+    <div class="body">Пайка и первая подача питания — обязательно с папой. Ты участвуешь, смотришь, держишь мультиметр — но главный шеф-повар тут папа.</div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Шаг 1 готов, если:</h4>
+    <ul>
+      <li>Один модуль подписан «#1 12V» и мультиметр показал 12V</li>
+      <li>Второй модуль подписан «#2 5V» и мультиметр показал 5V</li>
+      <li>Оба модуля отложены в коробочку до следующих шагов</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ STAGE 2 ============ -->
+<div class="step" id="stage2">
+  <h2 class="safety"><span class="num">2</span>Проверка батареек 🔋</h2>
+  <p class="subtitle">Самая опасная часть проекта. Делаем ТОЛЬКО с папой.</p>
+
+  <div class="callout danger">
+    <div class="icon">🚨</div>
+    <div class="body"><b>Весь этот шаг делается только с папой рядом.</b> Литиевые батарейки могут загореться, если ошибиться. Не спеши, не трогай руками металлические части, не клади батарейки друг на друга.</div>
+  </div>
+
+  <p>У нас две батарейки 18650. Их нужно соединить параллельно (плюс к плюсу, минус к минусу). Но перед этим они <b>должны иметь почти одинаковое напряжение</b>. Иначе одна начнёт заряжать другую очень большим током, и обе перегреются.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 580 240" xmlns="http://www.w3.org/2000/svg">
+      <!-- Good case -->
+      <g transform="translate(20, 20)">
+        <text x="120" y="15" font-size="14" text-anchor="middle" fill="#16a34a" font-weight="700">✓ ПРАВИЛЬНО</text>
+        <!-- Battery 1 -->
+        <rect x="20" y="40" width="100" height="40" rx="4" fill="#3b82f6"/>
+        <rect x="120" y="50" width="8" height="20" fill="#9ca3af"/>
+        <text x="70" y="65" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">3.95V</text>
+        <!-- Battery 2 -->
+        <rect x="20" y="100" width="100" height="40" rx="4" fill="#3b82f6"/>
+        <rect x="120" y="110" width="8" height="20" fill="#9ca3af"/>
+        <text x="70" y="125" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">3.97V</text>
+        <text x="130" y="175" font-size="13" fill="#16a34a">Разница 0.02V — можно</text>
+        <text x="130" y="193" font-size="13" fill="#16a34a">соединять параллельно!</text>
+      </g>
+
+      <!-- Bad case -->
+      <g transform="translate(310, 20)">
+        <text x="120" y="15" font-size="14" text-anchor="middle" fill="#dc2626" font-weight="700">✗ ОПАСНО</text>
+        <rect x="20" y="40" width="100" height="40" rx="4" fill="#3b82f6"/>
+        <rect x="120" y="50" width="8" height="20" fill="#9ca3af"/>
+        <text x="70" y="65" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">4.15V</text>
+        <rect x="20" y="100" width="100" height="40" rx="4" fill="#3b82f6"/>
+        <rect x="120" y="110" width="8" height="20" fill="#9ca3af"/>
+        <text x="70" y="125" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">3.50V</text>
+        <!-- Fire icon -->
+        <text x="180" y="85" font-size="30">🔥</text>
+        <text x="130" y="175" font-size="13" fill="#dc2626">Разница 0.65V — не соединять!</text>
+        <text x="130" y="193" font-size="13" fill="#dc2626">Сначала зарядить по одной.</text>
+      </g>
+    </svg>
+    <div class="cap">Разница напряжений должна быть <b>меньше 0.05V</b>, иначе — нагрев и опасность.</div>
+  </div>
+
+  <h3>Что делаешь:</h3>
+  <div class="substep">
+    <div class="n">1</div>
+    <div><b>Замерь каждую батарейку отдельно.</b> Мультиметр на V=. Чёрный щуп на плоский конец (−), красный на кончик с выступом (+). Запиши напряжения на бумажке: V₁ = ___ V, V₂ = ___ V.</div>
+  </div>
+  <div class="substep">
+    <div class="n">2</div>
+    <div><b>Посчитай разницу.</b> Если меньше 0.05V — ок, идём дальше. Если больше — папа заряжает каждую отдельно через модуль TP4056 до одинакового уровня. После зарядки надо подождать <b>30 минут</b>, и только потом мерить снова.</div>
+  </div>
+  <div class="substep">
+    <div class="n">3</div>
+    <div><b>Вставь батарейки в холдеры.</b> Проверь, что знак <b>+</b> на батарее совпадает со знаком <b>+</b> на дне холдера. Красный провод от холдера = «плюс», чёрный = «минус».</div>
+  </div>
+
+  <div class="fig">
+    <svg viewBox="0 0 540 260" xmlns="http://www.w3.org/2000/svg">
+      <!-- Holder 1 -->
+      <rect x="30" y="50" width="180" height="70" rx="4" fill="#1f2937" stroke="#4b5563"/>
+      <rect x="40" y="65" width="160" height="40" rx="20" fill="#3b82f6"/>
+      <text x="120" y="90" font-size="14" fill="#fff" text-anchor="middle">18650</text>
+      <text x="50" y="140" font-size="11" fill="#dc2626" font-weight="700">+</text>
+      <text x="195" y="140" font-size="11" fill="#111" font-weight="700">−</text>
+      <line x1="45" y1="125" x2="45" y2="165" stroke="#dc2626" stroke-width="3"/>
+      <line x1="195" y1="125" x2="195" y2="165" stroke="#111" stroke-width="3"/>
+
+      <!-- Holder 2 -->
+      <rect x="290" y="50" width="180" height="70" rx="4" fill="#1f2937" stroke="#4b5563"/>
+      <rect x="300" y="65" width="160" height="40" rx="20" fill="#3b82f6"/>
+      <text x="380" y="90" font-size="14" fill="#fff" text-anchor="middle">18650</text>
+      <text x="310" y="140" font-size="11" fill="#dc2626" font-weight="700">+</text>
+      <text x="455" y="140" font-size="11" fill="#111" font-weight="700">−</text>
+      <line x1="305" y1="125" x2="305" y2="165" stroke="#dc2626" stroke-width="3"/>
+      <line x1="455" y1="125" x2="455" y2="165" stroke="#111" stroke-width="3"/>
+
+      <!-- Wires joining -->
+      <path d="M 45 165 Q 150 200 250 200 Q 280 200 305 165" stroke="#dc2626" stroke-width="3" fill="none"/>
+      <path d="M 195 165 Q 220 200 260 210 Q 420 220 455 165" stroke="#111" stroke-width="3" fill="none"/>
+
+      <!-- Output labels -->
+      <rect x="115" y="225" width="80" height="22" rx="11" fill="#fecaca"/>
+      <text x="155" y="241" font-size="13" fill="#7f1d1d" text-anchor="middle" font-weight="700">ВХОД +</text>
+
+      <rect x="290" y="225" width="80" height="22" rx="11" fill="#d1d5db"/>
+      <text x="330" y="241" font-size="13" fill="#111" text-anchor="middle" font-weight="700">ВХОД −</text>
+
+      <text x="250" y="30" font-size="15" text-anchor="middle" font-weight="700" fill="#111">Соединяем параллельно: + к +, − к −</text>
+    </svg>
+    <div class="cap">Красные провода холдеров скручиваем вместе, чёрные — вместе. Изолируем изолентой.</div>
+  </div>
+
+  <div class="substep">
+    <div class="n">4</div>
+    <div><b>Проверь!</b> Мультиметр на V=. Между общими «ВХОД+» и «ВХОД−» должно показать то же напряжение, что было у каждой батареи (например, 3.95V). Если 0V или отрицательное — переполюсовка, зови папу переделывать.</div>
+  </div>
+
+  <div class="callout dad">
+    <div class="icon">👨</div>
+    <div class="body">Весь шаг 2 с папой! Особенно шаг со скрутками проводов и измерением. Если что-то пошло не так — немедленно вытащи батарейки из холдеров.</div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Шаг 2 готов, если:</h4>
+    <ul>
+      <li>Обе батарейки имеют одинаковое напряжение (±0.05V)</li>
+      <li>Они вставлены в холдеры правильной стороной</li>
+      <li>Красные провода соединены, чёрные соединены</li>
+      <li>На общих «ВХОД+» и «ВХОД−» мультиметр показывает ~3.7–4.2V</li>
+      <li>Соединения изолированы</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ STAGE 3 ============ -->
+<div class="step" id="stage3">
+  <h2><span class="num">3</span>Собираем питание на breadboard</h2>
+  <p class="subtitle">Это самый большой шаг. Не пытайся сделать за один раз — сделай половину, отдохни, потом другую половину.</p>
+
+  <p>У нас будет два источника питания: <b>адаптер от розетки</b> (основной) и <b>батарея</b> (резервный). Чтобы они не конфликтовали, между ними стоят <b>диоды Шоттки</b>. Это такие «односторонние дверцы» для электричества — пропускают ток только в одну сторону.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+      <!-- Adapter -->
+      <rect x="20" y="40" width="100" height="60" rx="6" fill="#fbbf24" stroke="#92400e" stroke-width="2"/>
+      <text x="70" y="70" font-size="13" fill="#111" text-anchor="middle" font-weight="700">Адаптер</text>
+      <text x="70" y="88" font-size="12" fill="#111" text-anchor="middle">5V от розетки</text>
+
+      <!-- Schottky A -->
+      <rect x="160" y="55" width="80" height="30" rx="3" fill="#d1d5db" stroke="#4b5563"/>
+      <text x="200" y="50" font-size="12" text-anchor="middle" fill="#111" font-weight="700">Schottky A</text>
+      <rect x="215" y="55" width="3" height="30" fill="#111"/>
+      <text x="218" y="100" font-size="10" fill="#dc2626" text-anchor="middle">полоска →</text>
+
+      <line x1="120" y1="70" x2="160" y2="70" stroke="#dc2626" stroke-width="3"/>
+      <line x1="240" y1="70" x2="310" y2="70" stroke="#dc2626" stroke-width="3"/>
+
+      <!-- Rail -->
+      <rect x="310" y="60" width="380" height="20" fill="#fecaca" stroke="#dc2626" stroke-width="2"/>
+      <text x="500" y="75" font-size="14" text-anchor="middle" fill="#7f1d1d" font-weight="700">Шина ~4.7V (breadboard)</text>
+
+      <!-- Schottky B -->
+      <rect x="160" y="200" width="80" height="30" rx="3" fill="#d1d5db" stroke="#4b5563"/>
+      <text x="200" y="195" font-size="12" text-anchor="middle" fill="#111" font-weight="700">Schottky B</text>
+      <rect x="215" y="200" width="3" height="30" fill="#111"/>
+
+      <!-- Battery/Boost chain -->
+      <rect x="20" y="180" width="100" height="70" rx="6" fill="#3b82f6"/>
+      <text x="70" y="210" font-size="13" fill="#fff" text-anchor="middle" font-weight="700">Батареи</text>
+      <text x="70" y="228" font-size="12" fill="#fff" text-anchor="middle">3.7V</text>
+
+      <line x1="120" y1="215" x2="160" y2="215" stroke="#111" stroke-width="2"/>
+      <text x="130" y="205" font-size="11" fill="#111">TP4056 + Boost#2</text>
+      <text x="130" y="245" font-size="11" fill="#111">делает из 3.7V → 5V</text>
+
+      <line x1="240" y1="215" x2="310" y2="215" stroke="#111" stroke-width="2"/>
+      <path d="M 310 215 Q 330 215 340 100 Q 345 85 310 80" stroke="#111" stroke-width="2" fill="none"/>
+
+      <!-- ESP32 -->
+      <rect x="520" y="150" width="130" height="100" rx="6" fill="#1e40af" stroke="#0c1e4a" stroke-width="2"/>
+      <text x="585" y="190" font-size="14" fill="#fff" text-anchor="middle" font-weight="700">ESP32</text>
+      <text x="585" y="210" font-size="11" fill="#bfdbfe" text-anchor="middle">«мозг»</text>
+
+      <line x1="580" y1="80" x2="580" y2="150" stroke="#dc2626" stroke-width="3"/>
+      <text x="595" y="120" font-size="12" fill="#dc2626">питание</text>
+    </svg>
+    <div class="cap">Схема питания: адаптер (основной) и батарея (резерв) сходятся на общую «шину», а от неё кормится ESP32</div>
+  </div>
+
+  <h3>Собираем по частям:</h3>
+
+  <div class="callout tip">
+    <div class="icon">📖</div>
+    <div class="body"><b>Важно:</b> пока что <b>не вставляй батареи</b> в холдеры! Сначала всё соединим, потом вставим. Так безопаснее — если ошибёмся, никаких искр.</div>
+  </div>
+
+  <div class="substep">
+    <div class="n">1</div>
+    <div><b>Выбери одну красную полосу (+) и одну чёрную (−)</b> на breadboard — они будут главными «шинами» питания. Подпиши их маркером на краю платы: «+4.7V» и «GND».</div>
+  </div>
+  <div class="substep">
+    <div class="n">2</div>
+    <div><b>Папа припаивает провода к TP4056.</b> Это модуль зарядки (прямоугольная зелёная платка с USB-C). У него 6 пятачков по краям: IN+, IN−, B+, B−, OUT+, OUT−. На каждый припаивается провод dupont «мама-папа».
+    <div class="callout dad" style="margin-top:8px">
+      <div class="icon">👨</div>
+      <div class="body">Пайка TP4056 — 100% папина работа. Ты смотришь и подаёшь инструменты.</div>
+    </div>
+    </div>
+  </div>
+
+  <div class="fig">
+    <svg viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
+      <!-- TP4056 -->
+      <rect x="100" y="40" width="320" height="160" rx="8" fill="#16a34a" stroke="#064e3b" stroke-width="2"/>
+      <rect x="180" y="50" width="160" height="30" rx="2" fill="#111"/>
+      <text x="260" y="70" font-size="12" fill="#fff" text-anchor="middle">USB-C</text>
+
+      <!-- Pads -->
+      <!-- Top: IN+, IN- -->
+      <circle cx="150" cy="100" r="8" fill="#fbbf24"/>
+      <text x="150" y="130" font-size="11" fill="#fff" text-anchor="middle">IN+</text>
+      <circle cx="150" cy="150" r="8" fill="#fbbf24"/>
+      <text x="150" y="180" font-size="11" fill="#fff" text-anchor="middle">IN−</text>
+
+      <!-- Right: OUT+, OUT- -->
+      <circle cx="370" cy="100" r="8" fill="#fbbf24"/>
+      <text x="370" y="130" font-size="11" fill="#fff" text-anchor="middle">OUT+</text>
+      <circle cx="370" cy="150" r="8" fill="#fbbf24"/>
+      <text x="370" y="180" font-size="11" fill="#fff" text-anchor="middle">OUT−</text>
+
+      <!-- Middle: B+, B- -->
+      <circle cx="260" cy="110" r="8" fill="#fbbf24"/>
+      <text x="260" y="95" font-size="11" fill="#fff" text-anchor="middle">B+</text>
+      <circle cx="260" cy="170" r="8" fill="#fbbf24"/>
+      <text x="260" y="195" font-size="11" fill="#fff" text-anchor="middle">B−</text>
+
+      <!-- Wires -->
+      <path d="M 150 100 L 50 70" stroke="#dc2626" stroke-width="2"/>
+      <text x="20" y="65" font-size="10" fill="#dc2626">от адаптера +</text>
+      <path d="M 150 150 L 50 200" stroke="#111" stroke-width="2"/>
+      <text x="10" y="215" font-size="10" fill="#111">от адаптера −</text>
+
+      <path d="M 260 110 L 260 30" stroke="#dc2626" stroke-width="2"/>
+      <text x="265" y="25" font-size="10" fill="#dc2626">+ от батарей (через PTC)</text>
+      <path d="M 260 170 L 260 230" stroke="#111" stroke-width="2"/>
+      <text x="265" y="237" font-size="10" fill="#111">− от батарей</text>
+
+      <path d="M 370 100 L 470 70" stroke="#dc2626" stroke-width="2"/>
+      <text x="420" y="60" font-size="10" fill="#dc2626">на Boost #2</text>
+      <path d="M 370 150 L 470 200" stroke="#111" stroke-width="2"/>
+      <text x="425" y="215" font-size="10" fill="#111">GND</text>
+    </svg>
+    <div class="cap">Что к чему подключается на TP4056</div>
+  </div>
+
+  <div class="substep">
+    <div class="n">3</div>
+    <div><b>Подключи батарейный провод через PTC.</b> PTC — это маленький жёлтый диск. Он как предохранитель: если что-то замкнёт, он нагреется и отключит батарею. Провода: общий + батарей → один вывод PTC → другой вывод PTC → пад B+ на TP4056. Общий минус батарей → прямо на B−. <b>Батареи пока НЕ вставляй в холдеры!</b></div>
+  </div>
+
+  <div class="substep">
+    <div class="n">4</div>
+    <div><b>Поставь Boost #2 (5V).</b> Его IN+ — к OUT+ TP4056 (это провод, идущий от TP4056). IN− — к чёрной шине GND. OUT+ и OUT− Boost #2 — в отдельный ряд на breadboard.</div>
+  </div>
+
+  <div class="substep">
+    <div class="n">5</div>
+    <div><b>Диоды Шоттки!</b> Это маленькие стеклянные цилиндрики с <b>чёрной полоской</b> на одной стороне. Полоска = катод (куда ток выходит).
+    <div class="fig">
+      <svg viewBox="0 0 440 80" xmlns="http://www.w3.org/2000/svg">
+        <line x1="20" y1="40" x2="100" y2="40" stroke="#111" stroke-width="2"/>
+        <rect x="100" y="28" width="80" height="24" rx="12" fill="#d1d5db" stroke="#6b7280"/>
+        <rect x="170" y="28" width="3" height="24" fill="#111"/>
+        <line x1="180" y1="40" x2="260" y2="40" stroke="#111" stroke-width="2"/>
+        <text x="60" y="25" font-size="11" fill="#16a34a" text-anchor="middle">сюда ток →</text>
+        <text x="220" y="25" font-size="11" fill="#16a34a" text-anchor="middle">→ выходит сюда</text>
+        <text x="60" y="65" font-size="11" fill="#111" text-anchor="middle">АНОД (+)</text>
+        <text x="220" y="65" font-size="11" fill="#111" text-anchor="middle">КАТОД (−, полоска)</text>
+        <!-- Reverse direction red cross -->
+        <text x="350" y="30" font-size="11" fill="#dc2626" text-anchor="middle">обратно — НЕ пропустит</text>
+        <path d="M 330 40 L 400 40" stroke="#dc2626" stroke-width="2" stroke-dasharray="4,2"/>
+        <text x="365" y="55" font-size="20" fill="#dc2626" text-anchor="middle">✗</text>
+      </svg>
+      <div class="cap">Диод: полоска указывает, куда ток «выходит»</div>
+    </div>
+    <ul style="margin-top:6px">
+      <li><b>Schottky A:</b> ножка без полоски → туда, куда придёт «+» от адаптера. Ножка с полоской → на красную шину breadboard.</li>
+      <li><b>Schottky B:</b> ножка без полоски → к OUT+ Boost #2. Ножка с полоской → на <b>ту же</b> красную шину.</li>
+    </ul>
+    </div>
+  </div>
+
+  <div class="substep">
+    <div class="n">6</div>
+    <div><b>Электролит 1000мкФ 16V.</b> Это большой чёрный цилиндр. У него есть <b>длинная</b> и <b>короткая</b> ножка. Длинная = плюс.
+    <ul>
+      <li>Длинная ножка → в красную шину</li>
+      <li>Короткая ножка → в чёрную шину GND</li>
+    </ul>
+    <div class="callout danger" style="margin-top:8px">
+      <div class="icon">💥</div>
+      <div class="body"><b>Перепутаешь ножки — через минуту вздуется и может взорваться!</b> Проверь дважды, прежде чем включать питание. На корпусе цилиндра полоска показывает «минус» — она должна смотреть в сторону GND.</div>
+    </div>
+    <div class="callout tip" style="margin-top:8px">
+      <div class="icon">🛡️</div>
+      <div class="body"><b>Почему именно 16V, а не 10V?</b> На нашей шине обычно 5V — то есть 10V конденсатора тоже бы хватило. Но если при настройке Boost #2 случайно получится 12V вместо 5V (например, забыли разомкнуть пады A/B на модуле) — 10V кондёр вздуется за минуту. А 16V переживёт ошибку и даст время заметить и перенастроить boost. Запас по напряжению 3.4× — это твоя страховка.</div>
+    </div>
+    </div>
+  </div>
+
+  <div class="substep">
+    <div class="n">7</div>
+    <div><b>Теперь зови папу.</b> Вместе проверяете каждое соединение по списку ниже, мультиметром. <b>Батарей пока нет в холдерах!</b></div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Предварительная проверка (без батарей и адаптера):</h4>
+    <ul>
+      <li>Все провода плотно воткнуты в дырочки breadboard</li>
+      <li>Полоска на Schottky A смотрит в сторону красной шины</li>
+      <li>Полоска на Schottky B смотрит в сторону красной шины</li>
+      <li>Длинная ножка электролита — в красной шине, короткая — в чёрной</li>
+      <li>Нет торчащих оголённых проводов, которые могут замкнуться</li>
+      <li>Мультиметр в режиме Ω между красной и чёрной шинами показывает >1000 Ω (не короткое замыкание)</li>
+    </ul>
+  </div>
+
+  <div class="substep">
+    <div class="n">8</div>
+    <div><b>Первое включение — с папой.</b> Сначала вставьте батарейки в холдеры. Мультиметром проверяете шину → должно быть ~4.7V. Потом втыкаете адаптер → та же ~4.7V, но TP4056 загорается красным (заряжается).</div>
+  </div>
+
+  <div class="callout ok">
+    <div class="icon">🎉</div>
+    <div class="body">Если получилось — это <b>самая сложная часть позади</b>. Дальше будет проще и веселее!</div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Шаг 3 готов, если:</h4>
+    <ul>
+      <li>На красной шине — 4.6–4.8V, когда воткнут адаптер</li>
+      <li>На красной шине — 4.5–4.8V, когда адаптер выдернут (работает на батарее)</li>
+      <li>TP4056 светится красным (заряжается) или синим/зелёным (заряжен)</li>
+      <li>Ничего не греется и не пахнет</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ STAGE 4 ============ -->
+<div class="step" id="stage4">
+  <h2><span class="num">4</span>Ставим «мозг» — ESP32</h2>
+  <p class="subtitle">Это маленькая плата с антенной. Она будет управлять всем.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg">
+      <!-- ESP32 board -->
+      <rect x="100" y="40" width="320" height="120" rx="6" fill="#1e40af" stroke="#0c1e4a" stroke-width="2"/>
+      <!-- ESP module -->
+      <rect x="200" y="55" width="120" height="50" rx="2" fill="#334155" stroke="#111"/>
+      <text x="260" y="85" font-size="11" fill="#fff" text-anchor="middle">ESP-WROOM-32</text>
+
+      <!-- USB-C at bottom -->
+      <rect x="240" y="150" width="40" height="18" fill="#6b7280"/>
+      <rect x="245" y="152" width="30" height="14" fill="#9ca3af"/>
+      <text x="260" y="190" font-size="11" text-anchor="middle" fill="#111">USB-C (к компьютеру)</text>
+
+      <!-- Pins on sides -->
+      <g fill="#9ca3af">
+        <rect x="100" y="60" width="8" height="4"/>
+        <rect x="100" y="70" width="8" height="4"/>
+        <rect x="100" y="80" width="8" height="4"/>
+        <rect x="100" y="90" width="8" height="4"/>
+        <rect x="100" y="100" width="8" height="4"/>
+        <rect x="100" y="110" width="8" height="4"/>
+        <rect x="100" y="120" width="8" height="4"/>
+        <rect x="100" y="130" width="8" height="4"/>
+
+        <rect x="412" y="60" width="8" height="4"/>
+        <rect x="412" y="70" width="8" height="4"/>
+        <rect x="412" y="80" width="8" height="4"/>
+        <rect x="412" y="90" width="8" height="4"/>
+        <rect x="412" y="100" width="8" height="4"/>
+        <rect x="412" y="110" width="8" height="4"/>
+        <rect x="412" y="120" width="8" height="4"/>
+        <rect x="412" y="130" width="8" height="4"/>
+      </g>
+
+      <!-- Highlight VIN and GND -->
+      <circle cx="104" cy="132" r="10" fill="none" stroke="#fbbf24" stroke-width="2"/>
+      <text x="70" y="136" font-size="11" fill="#dc2626" text-anchor="end" font-weight="700">VIN</text>
+      <text x="70" y="148" font-size="9" fill="#6b7280" text-anchor="end">(+питание)</text>
+
+      <circle cx="104" cy="122" r="10" fill="none" stroke="#fbbf24" stroke-width="2"/>
+      <text x="70" y="125" font-size="11" fill="#111" text-anchor="end" font-weight="700">GND</text>
+      <text x="70" y="115" font-size="9" fill="#6b7280" text-anchor="end">(земля)</text>
+
+      <!-- Buttons -->
+      <circle cx="140" cy="150" r="4" fill="#fbbf24" stroke="#78350f"/>
+      <text x="140" y="175" font-size="9" text-anchor="middle" fill="#111">BOOT</text>
+      <circle cx="380" cy="150" r="4" fill="#fbbf24" stroke="#78350f"/>
+      <text x="380" y="175" font-size="9" text-anchor="middle" fill="#111">EN</text>
+
+      <!-- PWR LED -->
+      <circle cx="350" cy="130" r="3" fill="#ef4444"/>
+      <text x="355" y="145" font-size="9" fill="#dc2626">PWR</text>
+
+      <!-- Antenna -->
+      <path d="M 260 40 L 280 30 L 260 20 L 240 30 Z" fill="#fbbf24"/>
+      <text x="260" y="18" font-size="9" text-anchor="middle" fill="#111">WiFi антенна</text>
+    </svg>
+    <div class="cap">ESP32 DevKit V1. Красным обведены VIN (питание) и GND (земля) — то, что сейчас подключаем</div>
+  </div>
+
+  <h3>Что делаешь:</h3>
+  <div class="substep">
+    <div class="n">1</div>
+    <div><b>Воткни ESP32 в breadboard через «каньон»</b> (большой промежуток по центру). Одна сторона ножек в левой половине, другая — в правой. USB-C должен смотреть НАРУЖУ (за край платы), чтобы кабель потом не мешал.</div>
+  </div>
+  <div class="substep">
+    <div class="n">2</div>
+    <div><b>Дави равномерно двумя большими пальцами</b> с обоих концов платы. Если криво — вытащи, выровняй, снова воткни. Не насильно!</div>
+  </div>
+  <div class="substep">
+    <div class="n">3</div>
+    <div><b>Найди пин VIN.</b> Это один из крайних нижних пинов (ищи надпись «VIN» на плате). Dupont-проводом соедини VIN → красная шина breadboard.</div>
+  </div>
+  <div class="substep">
+    <div class="n">4</div>
+    <div><b>Найди пин GND</b> (рядом с VIN, таких пинов несколько — любой подойдёт). Dupont-проводом → чёрная шина GND.</div>
+  </div>
+  <div class="substep">
+    <div class="n">5</div>
+    <div><b>Фильтр питания:</b> возьми керамический конденсатор 100нФ (маленький с надписью «104»). Воткни его двумя ножками в дырочки прямо рядом с VIN и GND ESP32 — одну ножку к VIN, другую к GND. Полярности у него нет, хоть как.</div>
+  </div>
+  <div class="substep">
+    <div class="n">6</div>
+    <div><b>Проверка!</b> Адаптер в розетку (или батареи в холдерах).
+      <ul>
+        <li>Мультиметр на V=, чёрный щуп на GND ESP32, красный на VIN → должно быть <b>4.6–4.8V</b></li>
+        <li>Красный щуп переставь на пин 3V3 → должно быть <b>3.2–3.3V</b></li>
+        <li>Глазами: на плате ESP32 должен <b>гореть маленький красный LED</b> (написано PWR)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="icon">⚠️</div>
+    <div class="body"><b>USB-кабель в ESP32 пока НЕ втыкай!</b> Сейчас ESP32 питается от шины. Если ещё и USB воткнуть — будет два источника питания, могут конфликтовать. USB подключим только на шаге 8.</div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Шаг 4 готов, если:</h4>
+    <ul>
+      <li>ESP32 плотно сидит в breadboard через каньон</li>
+      <li>PWR LED на плате горит красным</li>
+      <li>На VIN — 4.6–4.8V</li>
+      <li>На 3V3 — 3.2–3.3V</li>
+    </ul>
+  </div>
+</div>
+<!-- END of stages 1-4 -->
+<!-- ============ STAGE 5 ============ -->
+<div class="step" id="stage5">
+  <h2><span class="num">5</span>Делители для датчика</h2>
+  <p class="subtitle">Датчик выдаёт сигнал 0–5V, а ESP32 может «читать» максимум 2V. Делитель — это «уменьшитель» напряжения.</p>
+
+  <p>Делитель из двух резисторов — это как <b>деление пиццы</b>. Два резистора стоят в ряд, и если у одного в 1.5 раза больше сопротивления — он «забирает» 60% напряжения, а второй — 40%. Нам нужно, чтобы 5V превратилось в 2V. Делаем <b>сверху 10кΩ + 5кΩ последовательно (=15кΩ)</b> и <b>10кΩ снизу</b>. Отдельного резистора 15кΩ в наборе нет, поэтому верхнее плечо собираем из двух: 10к + 5к.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 460 280" xmlns="http://www.w3.org/2000/svg">
+      <!-- Input -->
+      <text x="50" y="30" font-size="14" fill="#dc2626" font-weight="700">Вход от датчика</text>
+      <text x="50" y="48" font-size="13" fill="#111">(сигнал 0–5V)</text>
+      <line x1="120" y1="55" x2="120" y2="70" stroke="#dc2626" stroke-width="3"/>
+
+      <!-- Resistor 10k (верхнее плечо, 1-й в серии) -->
+      <rect x="95" y="70" width="50" height="36" rx="6" fill="#fef3c7" stroke="#78350f" stroke-width="2"/>
+      <text x="120" y="90" font-size="12" fill="#111" text-anchor="middle" font-weight="700">10 кΩ</text>
+      <text x="120" y="101" font-size="9" fill="#6b7280" text-anchor="middle">(верх, 1-й)</text>
+
+      <line x1="120" y1="106" x2="120" y2="114" stroke="#111" stroke-width="2"/>
+
+      <!-- Resistor 5k (верхнее плечо, 2-й в серии) -->
+      <rect x="95" y="114" width="50" height="36" rx="6" fill="#fef3c7" stroke="#78350f" stroke-width="2"/>
+      <text x="120" y="134" font-size="12" fill="#111" text-anchor="middle" font-weight="700">5 кΩ</text>
+      <text x="120" y="145" font-size="9" fill="#6b7280" text-anchor="middle">(верх, 2-й)</text>
+
+      <line x1="120" y1="150" x2="120" y2="170" stroke="#111" stroke-width="2"/>
+
+      <!-- Junction -->
+      <circle cx="120" cy="170" r="4" fill="#111"/>
+      <line x1="120" y1="170" x2="250" y2="170" stroke="#16a34a" stroke-width="3"/>
+      <rect x="250" y="155" width="140" height="30" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+      <text x="320" y="175" font-size="13" fill="#14532d" text-anchor="middle" font-weight="700">→ GPIO34 ESP32</text>
+
+      <!-- Cap -->
+      <line x1="160" y1="170" x2="160" y2="200" stroke="#111" stroke-width="2"/>
+      <rect x="150" y="200" width="20" height="10" fill="#eab308"/>
+      <line x1="160" y1="210" x2="160" y2="230" stroke="#111" stroke-width="2"/>
+      <text x="195" y="210" font-size="11" fill="#6b7280">100нФ (фильтр)</text>
+
+      <line x1="120" y1="170" x2="120" y2="200" stroke="#111" stroke-width="2"/>
+      <!-- Resistor 10k -->
+      <rect x="95" y="200" width="50" height="50" rx="6" fill="#fef3c7" stroke="#78350f" stroke-width="2"/>
+      <text x="120" y="225" font-size="13" fill="#111" text-anchor="middle" font-weight="700">10 кΩ</text>
+      <text x="120" y="242" font-size="10" fill="#6b7280" text-anchor="middle">(нижний)</text>
+
+      <line x1="120" y1="250" x2="120" y2="265" stroke="#111" stroke-width="3"/>
+      <text x="100" y="275" font-size="13" fill="#111" text-anchor="end">GND</text>
+      <line x1="160" y1="230" x2="120" y2="265" stroke="#111" stroke-width="2"/>
+
+      <!-- Math note -->
+      <rect x="280" y="70" width="160" height="80" rx="6" fill="#fff" stroke="#cbd5e1"/>
+      <text x="360" y="90" font-size="12" text-anchor="middle" fill="#111" font-weight="700">Как работает:</text>
+      <text x="360" y="110" font-size="11" text-anchor="middle" fill="#111">5V × 10/((10+5)+10)</text>
+      <text x="360" y="128" font-size="13" text-anchor="middle" fill="#16a34a" font-weight="700">= 5V × 0.4 = 2.0V</text>
+      <text x="360" y="143" font-size="10" text-anchor="middle" fill="#6b7280">ESP32 читает 2.0V ✓</text>
+    </svg>
+    <div class="cap">Один делитель для <b>скорости</b> ветра (GPIO34). Точно такой же — для <b>направления</b> (GPIO35)</div>
+  </div>
+
+  <div class="callout warn">
+    <div class="icon">🔄</div>
+    <div class="body"><b>Не перепутай!</b> Верхнее плечо (со стороны сигнала) = <b>10 кΩ + 5 кΩ последовательно (=15 кΩ)</b>. Нижний (к GND) = <b>10 кΩ</b>. Если поставить большее плечо снизу — получится 3V на выходе, это слишком много для ESP32.</div>
+  </div>
+
+  <h3>Собираем один делитель (для скорости, GPIO34):</h3>
+  <div class="substep">
+    <div class="n">1</div>
+    <div>Возьми <b>резистор 10 кΩ</b> (коричневый-чёрный-оранжевый) и <b>резистор 5 кΩ</b> (зелёный-чёрный-красный) — верхнее плечо собирается из них последовательно (10к + 5к = 15к). <b>Проверь мультиметром!</b> 10 кΩ → ~10000 Ом, 5 кΩ → ~5000 Ом.</div>
+  </div>
+  <div class="substep">
+    <div class="n">2</div>
+    <div>Воткни резистор <b>10кΩ</b>: одну ножку в свободный ряд breadboard (назовём `a10`), другую — в ряд `a11`. Затем резистор <b>5кΩ</b>: одну ножку в `a11`, другую — в ряд `a12`. Так верхнее плечо (10к + 5к) собрано последовательно: `a10` — входная точка, `a12` — «средняя» точка делителя.</div>
+  </div>
+  <div class="substep">
+    <div class="n">3</div>
+    <div>Возьми резистор <b>10 кΩ</b> (коричневый-чёрный-оранжевый). <b>Проверь мультиметром!</b> ~10000 Ом.</div>
+  </div>
+  <div class="substep">
+    <div class="n">4</div>
+    <div>Воткни нижний <b>10кΩ</b>: одна ножка в `a12` (там же, где нижний вывод 5кΩ верхнего плеча), другая — в <b>чёрную шину GND</b>.</div>
+  </div>
+  <div class="substep">
+    <div class="n">5</div>
+    <div>Возьми керамический конденсатор <b>100 нФ</b> (маркировка «104» на корпусе). Одну ножку в `a12`, другую в GND. Это фильтр от помех, обязательно ставим!</div>
+  </div>
+  <div class="substep">
+    <div class="n">6</div>
+    <div>Проведи провод dupont из `a12` → пин <b>GPIO34</b> ESP32.</div>
+  </div>
+  <div class="substep">
+    <div class="n">7</div>
+    <div><b>Временная проверка:</b> вместо сигнала от датчика (его пока нет) подключи провод из `a10` к красной шине 4.7V. Мультиметр на точку `a12`:
+      <ul>
+        <li>Должно показать <b>~1.88V</b> (4.7V × 0.4)</li>
+        <li>Если 0V — обрыв, прозвонка всех соединений</li>
+        <li>Если ~4.7V — не подключён нижний 10кΩ к GND</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Второй делитель (для направления, GPIO35):</h3>
+  <div class="substep">
+    <div class="n">8</div>
+    <div>Повтори всё ровно то же самое, но в другом свободном месте breadboard. Выход делителя идёт на <b>GPIO35</b>.</div>
+  </div>
+
+  <div class="callout tip">
+    <div class="icon">✋</div>
+    <div class="body"><b>После проверки убери временный провод</b> от `a10` к 4.7V — туда потом придёт сигнал от датчика.</div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Шаг 5 готов, если:</h4>
+    <ul>
+      <li>Собраны два одинаковых делителя ((10кΩ+5кΩ) + 10кΩ)</li>
+      <li>На обоих при временном подключении к 4.7V на выходе ~1.88V</li>
+      <li>Выход первого идёт на GPIO34, второго — на GPIO35</li>
+      <li>У каждого делителя есть конденсатор 100нФ на GND</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ STAGE 6 ============ -->
+<div class="step" id="stage6">
+  <h2><span class="num">6</span>Делитель для батареи</h2>
+  <p class="subtitle">Чтобы ESP32 мог следить за зарядом батареи — как у телефона показывает проценты.</p>
+
+  <p>Батарея 3.7V – 4.2V. Это тоже больше, чем максимум ESP32 (2V). Нужен ещё один делитель — но попроще. Два одинаковых резистора <b>100кΩ</b> — они делят напряжение <b>ровно пополам</b>.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 460 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="50" y="30" font-size="14" fill="#dc2626" font-weight="700">От батареи (после PTC)</text>
+      <text x="50" y="48" font-size="13" fill="#111">~3.7–4.2V</text>
+      <line x1="120" y1="55" x2="120" y2="90" stroke="#dc2626" stroke-width="3"/>
+
+      <rect x="95" y="90" width="50" height="50" rx="6" fill="#fef3c7" stroke="#78350f" stroke-width="2"/>
+      <text x="120" y="120" font-size="13" fill="#111" text-anchor="middle" font-weight="700">100 кΩ</text>
+
+      <line x1="120" y1="140" x2="120" y2="170" stroke="#111" stroke-width="2"/>
+      <circle cx="120" cy="170" r="4" fill="#111"/>
+      <line x1="120" y1="170" x2="250" y2="170" stroke="#16a34a" stroke-width="3"/>
+      <rect x="250" y="155" width="140" height="30" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+      <text x="320" y="175" font-size="13" fill="#14532d" text-anchor="middle" font-weight="700">→ GPIO32 ESP32</text>
+
+      <line x1="160" y1="170" x2="160" y2="200" stroke="#111" stroke-width="2"/>
+      <rect x="150" y="200" width="20" height="10" fill="#eab308"/>
+      <line x1="160" y1="210" x2="160" y2="230" stroke="#111" stroke-width="2"/>
+      <text x="195" y="210" font-size="11" fill="#6b7280">100нФ</text>
+
+      <line x1="120" y1="170" x2="120" y2="200" stroke="#111" stroke-width="2"/>
+      <rect x="95" y="200" width="50" height="50" rx="6" fill="#fef3c7" stroke="#78350f" stroke-width="2"/>
+      <text x="120" y="230" font-size="13" fill="#111" text-anchor="middle" font-weight="700">100 кΩ</text>
+
+      <line x1="120" y1="250" x2="120" y2="265" stroke="#111" stroke-width="3"/>
+      <text x="100" y="275" font-size="13" fill="#111" text-anchor="end">GND</text>
+      <line x1="160" y1="230" x2="120" y2="265" stroke="#111" stroke-width="2"/>
+
+      <rect x="280" y="70" width="160" height="70" rx="6" fill="#fff" stroke="#cbd5e1"/>
+      <text x="360" y="95" font-size="12" text-anchor="middle" fill="#111" font-weight="700">Делит пополам:</text>
+      <text x="360" y="115" font-size="11" text-anchor="middle" fill="#111">4.0V → 2.0V</text>
+      <text x="360" y="132" font-size="11" text-anchor="middle" fill="#111">3.7V → 1.85V</text>
+    </svg>
+    <div class="cap">Два одинаковых резистора 100кΩ делят напряжение батареи ровно пополам</div>
+  </div>
+
+  <h3>Что делаешь:</h3>
+  <div class="substep">
+    <div class="n">1</div>
+    <div>Возьми два резистора <b>100 кΩ</b> (коричневый-чёрный-жёлтый). Оба проверь мультиметром — должно быть ~100000 Ом.</div>
+  </div>
+  <div class="substep">
+    <div class="n">2</div>
+    <div>В свободном месте breadboard: верхний 100кΩ одной ножкой в точку B+ (где провод от TP4056), другой — в новый ряд `d20`.</div>
+  </div>
+  <div class="substep">
+    <div class="n">3</div>
+    <div>Нижний 100кΩ: одна ножка в `d20`, другая в GND.</div>
+  </div>
+  <div class="substep">
+    <div class="n">4</div>
+    <div>Конденсатор 100нФ: одна ножка в `d20`, другая в GND.</div>
+  </div>
+  <div class="substep">
+    <div class="n">5</div>
+    <div>Провод из `d20` → пин <b>GPIO32</b> ESP32.</div>
+  </div>
+  <div class="substep">
+    <div class="n">6</div>
+    <div><b>Проверка!</b> Мультиметром измерь напряжение на B+ (например, 4.0V). Потом — на `d20` (GPIO32). Должно быть <b>ровно в 2 раза меньше</b> (2.0V). Если нет — сверь, что оба резистора 100кΩ, и они правильно подключены.</div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Шаг 6 готов, если:</h4>
+    <ul>
+      <li>Два резистора 100кΩ стоят в ряд на breadboard</li>
+      <li>Конденсатор 100нФ на выходе к GND</li>
+      <li>Напряжение на GPIO32 = половина напряжения батареи</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ STAGE 7 ============ -->
+<div class="step" id="stage7">
+  <h2 class="fun"><span class="num">7</span>Светодиоды ✨ (весёлая часть!)</h2>
+  <p class="subtitle">Пять разноцветных «лампочек», которые будут мигать при разных событиях.</p>
+
+  <div class="callout ok">
+    <div class="icon">🎉</div>
+    <div class="body">Этот шаг самый простой и красивый. Ты будешь втыкать резисторы и светодиоды в breadboard — как LEGO.</div>
+  </div>
+
+  <div class="fig">
+    <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+      <!-- LED with longer leg = anode -->
+      <line x1="80" y1="160" x2="80" y2="110" stroke="#fbbf24" stroke-width="3"/>
+      <line x1="120" y1="160" x2="120" y2="85" stroke="#fbbf24" stroke-width="3"/>
+      <ellipse cx="100" cy="70" rx="30" ry="14" fill="#86efac" opacity=".7"/>
+      <circle cx="100" cy="60" r="20" fill="#16a34a"/>
+      <ellipse cx="93" cy="52" rx="5" ry="3" fill="#fff" opacity=".7"/>
+      <text x="50" y="180" font-size="12" fill="#111">катод</text>
+      <text x="40" y="195" font-size="10" fill="#6b7280">(короткая)</text>
+      <text x="110" y="180" font-size="12" fill="#dc2626" font-weight="700">анод +</text>
+      <text x="105" y="195" font-size="10" fill="#6b7280">(длинная)</text>
+
+      <!-- Flat side indicator -->
+      <path d="M 82 56 L 82 66" stroke="#111" stroke-width="2"/>
+      <text x="85" y="38" font-size="10" fill="#6b7280">плоский край</text>
+      <text x="85" y="50" font-size="10" fill="#6b7280">= катод</text>
+
+      <!-- Arrow -->
+      <path d="M 170 100 L 230 100" stroke="#111" stroke-width="2" marker-end="url(#aa)"/>
+
+      <!-- Circuit -->
+      <g transform="translate(250,0)">
+        <rect x="30" y="30" width="90" height="30" rx="4" fill="#dbeafe" stroke="#2563eb"/>
+        <text x="75" y="50" font-size="12" text-anchor="middle" fill="#1e3a8a" font-weight="700">GPIO26</text>
+
+        <line x1="75" y1="60" x2="75" y2="85" stroke="#111" stroke-width="2"/>
+        <rect x="55" y="85" width="40" height="20" rx="10" fill="#fef3c7" stroke="#78350f"/>
+        <text x="75" y="99" font-size="11" text-anchor="middle" fill="#111">220Ω</text>
+
+        <line x1="75" y1="105" x2="75" y2="125" stroke="#111" stroke-width="2"/>
+
+        <!-- LED -->
+        <line x1="75" y1="125" x2="75" y2="155" stroke="#fbbf24" stroke-width="2"/>
+        <circle cx="75" cy="145" r="10" fill="#16a34a"/>
+
+        <line x1="75" y1="155" x2="75" y2="175" stroke="#111" stroke-width="2"/>
+        <text x="95" y="180" font-size="11" fill="#111">GND</text>
+      </g>
+
+      <defs>
+        <marker id="aa" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#111"/>
+        </marker>
+      </defs>
+    </svg>
+    <div class="cap">Слева: длинная ножка = плюс (анод), короткая = минус (катод). Справа: одна ветка «GPIO → резистор 220Ω → светодиод → GND»</div>
+  </div>
+
+  <h3>Пять светодиодов и что они означают:</h3>
+  <table style="width:100%;border-collapse:collapse;margin:10px 0">
+    <thead>
+      <tr style="background:#f3f4f6">
+        <th style="padding:8px;text-align:left;border:1px solid #e5e7eb">Цвет</th>
+        <th style="padding:8px;text-align:left;border:1px solid #e5e7eb">GPIO</th>
+        <th style="padding:8px;text-align:left;border:1px solid #e5e7eb">Что показывает</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding:8px;border:1px solid #e5e7eb">🟢 Зелёный</td><td style="padding:8px;border:1px solid #e5e7eb">26</td><td style="padding:8px;border:1px solid #e5e7eb">Станция работает нормально</td></tr>
+      <tr><td style="padding:8px;border:1px solid #e5e7eb">🟡 Жёлтый</td><td style="padding:8px;border:1px solid #e5e7eb">27</td><td style="padding:8px;border:1px solid #e5e7eb">Ветер сильнее 5 м/с</td></tr>
+      <tr><td style="padding:8px;border:1px solid #e5e7eb">🔴 Красный</td><td style="padding:8px;border:1px solid #e5e7eb">14</td><td style="padding:8px;border:1px solid #e5e7eb">Ветер сильнее 15 м/с (буря!)</td></tr>
+      <tr><td style="padding:8px;border:1px solid #e5e7eb">🟢 Зелёный</td><td style="padding:8px;border:1px solid #e5e7eb">25</td><td style="padding:8px;border:1px solid #e5e7eb">WiFi подключён</td></tr>
+      <tr><td style="padding:8px;border:1px solid #e5e7eb">🔴 Красный</td><td style="padding:8px;border:1px solid #e5e7eb">33</td><td style="padding:8px;border:1px solid #e5e7eb">Ошибка</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Собираем один светодиод (повтори 5 раз):</h3>
+  <div class="substep">
+    <div class="n">1</div>
+    <div>Возьми <b>резистор 220Ω</b> (красный-красный-коричневый). Одну ножку в ряд `X` (произвольный свободный), другую в ряд `Y`.</div>
+  </div>
+  <div class="substep">
+    <div class="n">2</div>
+    <div>Возьми светодиод. Посмотри на ножки — одна длиннее. <b>Длинная (анод)</b> втыкается в тот же ряд `Y`, где нижняя ножка резистора. <b>Короткая (катод)</b> — в чёрную шину GND.</div>
+  </div>
+  <div class="substep">
+    <div class="n">3</div>
+    <div>Провод dupont: из ряда `X` → на соответствующий пин ESP32 (26/27/14/25/33).</div>
+  </div>
+
+  <div class="callout tip">
+    <div class="icon">💡</div>
+    <div class="body"><b>Совет:</b> два LED (зелёный на GPIO25 и красный на GPIO33) сделай на <b>длинных проводах</b> dupont (30 см), чтобы потом их можно было прикрепить к крышке корпуса. Остальные три можно поставить рядом с ESP32.</div>
+  </div>
+
+  <h3>Проверка каждого светодиода:</h3>
+  <div class="substep">
+    <div class="n">4</div>
+    <div>Возьми провод dupont «папа-папа». Один конец в пин <b>3V3</b> на ESP32. Другой конец временно втыкай в <b>ряд `X`</b> (вход резистора) каждого светодиода по очереди.</div>
+  </div>
+  <div class="substep">
+    <div class="n">5</div>
+    <div>Если светодиод загорелся — ура, работает. Если не горит — переверни его (перепутал анод с катодом).</div>
+  </div>
+
+  <div class="callout warn">
+    <div class="icon">🔄</div>
+    <div class="body"><b>Если светодиод горит тускло</b> — это нормально! Ток ~5 мА, яркости хватает. Если надо ярче — скажешь папе, возьмём резистор 150Ω вместо 220Ω.</div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Шаг 7 готов, если:</h4>
+    <ul>
+      <li>Все 5 светодиодов проверены и загораются от 3V3</li>
+      <li>Каждый светодиод подключён через свой резистор 220Ω</li>
+      <li>Короткая ножка каждого — в GND</li>
+      <li>Провода от каждого резистора идут на правильные GPIO (26/27/14/25/33)</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ STAGE 8 ============ -->
+<div class="step" id="stage8">
+  <h2><span class="num">8</span>Первая прошивка</h2>
+  <p class="subtitle">Заливаем программу в ESP32 с компьютера через USB.</p>
+
+  <div class="callout dad">
+    <div class="icon">👨</div>
+    <div class="body"><b>Этот шаг делается вместе с папой.</b> Нужно установить на компьютер специальную программу Arduino IDE, настроить её, правильно выбрать порт. Это не сложно, но с непривычки страшно.</div>
+  </div>
+
+  <h3>Что делает папа на компьютере:</h3>
+  <div class="substep">
+    <div class="n">1</div>
+    <div>Скачивает и устанавливает <b>Arduino IDE</b> (это программа, которая заливает код в ESP32).</div>
+  </div>
+  <div class="substep">
+    <div class="n">2</div>
+    <div>Устанавливает поддержку ESP32 (через меню Tools → Boards Manager).</div>
+  </div>
+  <div class="substep">
+    <div class="n">3</div>
+    <div>Вписывает в код название WiFi-сети и пароль (чтобы станция сама подключилась к домашнему роутеру).</div>
+  </div>
+
+  <h3>Что делаешь ты:</h3>
+  <div class="substep">
+    <div class="n">4</div>
+    <div><b>Выключи адаптер из розетки!</b> Пока ESP32 подключён к компьютеру через USB — пусть питается только от USB. Два источника одновременно — конфликт.</div>
+  </div>
+  <div class="substep">
+    <div class="n">5</div>
+    <div>Воткни USB-кабель в ESP32 и в компьютер. На плате ESP32 должен загореться красный PWR LED.</div>
+  </div>
+  <div class="substep">
+    <div class="n">6</div>
+    <div>Папа в Arduino IDE нажимает кнопку <b>Upload</b> (стрелка вправо, сверху). Внизу появится надпись «Connecting...» и пойдут проценты загрузки.</div>
+  </div>
+  <div class="substep">
+    <div class="n">7</div>
+    <div><b>Если зависло на «Connecting...»:</b> <b>зажми и держи кнопку BOOT</b> на плате ESP32, попроси папу нажать Upload ещё раз. Как только пошла загрузка (проценты) — отпускай BOOT.</div>
+  </div>
+
+  <div class="fig">
+    <svg viewBox="0 0 600 180" xmlns="http://www.w3.org/2000/svg">
+      <rect x="20" y="40" width="260" height="100" rx="6" fill="#1e40af"/>
+      <rect x="30" y="50" width="240" height="20" rx="2" fill="#334155"/>
+      <text x="150" y="65" font-size="12" fill="#fff" text-anchor="middle">ESP-WROOM-32</text>
+      <circle cx="60" cy="120" r="10" fill="#fbbf24" stroke="#78350f" stroke-width="2"/>
+      <text x="60" y="155" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">BOOT</text>
+      <text x="60" y="170" font-size="10" fill="#fef3c7" text-anchor="middle">↑ держи эту!</text>
+      <circle cx="240" cy="120" r="10" fill="#9ca3af" stroke="#374151"/>
+      <text x="240" y="155" font-size="12" fill="#fff" text-anchor="middle">EN</text>
+      <text x="240" y="170" font-size="10" fill="#d1d5db" text-anchor="middle">(сброс)</text>
+
+      <path d="M 290 90 L 340 90" stroke="#111" stroke-width="2" marker-end="url(#a2)"/>
+
+      <rect x="350" y="40" width="230" height="100" rx="6" fill="#111"/>
+      <text x="365" y="65" font-size="11" fill="#10b981" font-family="monospace">Connecting.......</text>
+      <text x="365" y="85" font-size="11" fill="#10b981" font-family="monospace">Writing at 0x10000...</text>
+      <text x="365" y="105" font-size="11" fill="#10b981" font-family="monospace">(30%)  [=====    ]</text>
+      <text x="365" y="125" font-size="11" fill="#6b7280" font-family="monospace">Arduino IDE на ПК</text>
+
+      <defs>
+        <marker id="a2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#111"/>
+        </marker>
+      </defs>
+    </svg>
+    <div class="cap">Зажми BOOT, пока Arduino IDE пытается подключиться — и отпусти, когда началась загрузка</div>
+  </div>
+
+  <div class="substep">
+    <div class="n">8</div>
+    <div>Когда загрузка закончится — на экране появится «Hard resetting via RTS pin...». Прошивка залита! 🎉</div>
+  </div>
+  <div class="substep">
+    <div class="n">9</div>
+    <div>Откройте <b>Serial Monitor</b> (иконка лупы в Arduino IDE), скорость <b>115200</b>. Нажмите EN на ESP32. Должно появиться:
+    <pre style="background:#111;color:#10b981;padding:10px;border-radius:6px;font-size:12px;overflow-x:auto">=== Метеостанция ветра ===
+WiFi.......... OK
+IP: 192.168.x.x
+mDNS: http://windstation.local
+OTA готов
+V=0.0 m/s  D=0°  Bat=3.85V (50%)</pre>
+    </div>
+  </div>
+  <div class="substep">
+    <div class="n">10</div>
+    <div><b>Запиши IP-адрес на бумажке!</b> Например, `192.168.1.42`. Он пригодится на следующем шаге.</div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Шаг 8 готов, если:</h4>
+    <ul>
+      <li>В Arduino IDE загрузка дошла до 100% без ошибок</li>
+      <li>В Serial Monitor видно «WiFi.......... OK»</li>
+      <li>Виден IP-адрес</li>
+      <li>На ESP32 начал гореть зелёный светодиод (WiFi OK)</li>
+    </ul>
+  </div>
+</div>
+<!-- ============ STAGE 9 ============ -->
+<div class="step" id="stage9">
+  <h2><span class="num">9</span>Проверка через браузер</h2>
+  <p class="subtitle">Смотрим дашборд на компьютере или телефоне.</p>
+
+  <p>Станция работает — теперь убедимся, что мы можем видеть её данные на любом устройстве в нашей WiFi-сети.</p>
+
+  <div class="substep">
+    <div class="n">1</div>
+    <div>На любом устройстве в той же WiFi-сети открой браузер и введи: <br><code style="background:#eef2ff;padding:4px 8px;border-radius:4px">http://windstation.local</code></div>
+  </div>
+  <div class="substep">
+    <div class="n">2</div>
+    <div>Если не открывается — попробуй по IP-адресу, который записал на прошлом шаге: <br><code style="background:#eef2ff;padding:4px 8px;border-radius:4px">http://192.168.1.42</code> (твой IP будет другим!)</div>
+  </div>
+  <div class="substep">
+    <div class="n">3</div>
+    <div>Откроется простая страничка «Wind Station». Нажми на ссылку <b>/api/data</b> — увидишь JSON типа такого:
+    <pre style="background:#111;color:#10b981;padding:10px;border-radius:6px;font-size:11px;overflow-x:auto;white-space:pre-wrap">{"speed":0.0,"direction":0,"gust":0.0,
+"battery":3.85,"batteryPercent":50,
+"wifiRssi":-58,"adcError":true}</pre>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <div class="icon">💡</div>
+    <div class="body"><b>Что такое <code>adcError: true</code>?</b> Это прошивка говорит: «Я не вижу датчик». И это ПРАВИЛЬНО, потому что датчик ещё не подключён! На следующем шаге этот флаг станет <code>false</code>.</div>
+  </div>
+
+  <h3>Бонус — управляем светодиодами через браузер:</h3>
+  <div class="substep">
+    <div class="n">4</div>
+    <div>Введи в браузере: <br><code style="background:#eef2ff;padding:4px 8px;border-radius:4px;font-size:13px">http://windstation.local/api/led?auto=false&green=true&yellow=true&red=true</code></div>
+  </div>
+  <div class="substep">
+    <div class="n">5</div>
+    <div>Зелёный, жёлтый и красный светодиоды должны загореться! Можешь по очереди менять `true` на `false` и смотреть, как они меняются.</div>
+  </div>
+  <div class="substep">
+    <div class="n">6</div>
+    <div>Чтобы вернуть автоматический режим: <br><code style="background:#eef2ff;padding:4px 8px;border-radius:4px">http://windstation.local/api/led?auto=true</code></div>
+  </div>
+
+  <div class="callout ok">
+    <div class="icon">🎉</div>
+    <div class="body"><b>Поздравляю!</b> Ты только что <b>включил и выключил реальный электронный прибор через интернет</b>. Это круто — попробуй показать маме или другу.</div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Шаг 9 готов, если:</h4>
+    <ul>
+      <li>Открывается страница по адресу windstation.local или по IP</li>
+      <li>JSON на /api/data показывает реальное напряжение батареи</li>
+      <li>Можешь управлять светодиодами через браузер</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ STAGE 10 ============ -->
+<div class="step" id="stage10">
+  <h2><span class="num">10</span>Подключаем датчик ветра</h2>
+  <p class="subtitle">Самая ожидаемая часть — заставим станцию показывать настоящий ветер!</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg">
+      <!-- Sensor anemometer -->
+      <line x1="300" y1="180" x2="300" y2="100" stroke="#6b7280" stroke-width="4"/>
+      <circle cx="300" cy="95" r="6" fill="#4b5563"/>
+      <ellipse cx="250" cy="85" rx="22" ry="14" fill="#fff" stroke="#4b5563" stroke-width="2"/>
+      <ellipse cx="350" cy="85" rx="22" ry="14" fill="#fff" stroke="#4b5563" stroke-width="2"/>
+      <ellipse cx="300" cy="55" rx="22" ry="14" fill="#fff" stroke="#4b5563" stroke-width="2"/>
+      <line x1="278" y1="85" x2="322" y2="85" stroke="#6b7280" stroke-width="2"/>
+      <line x1="300" y1="95" x2="300" y2="69" stroke="#6b7280" stroke-width="2"/>
+      <rect x="290" y="180" width="20" height="30" fill="#374151"/>
+
+      <!-- Wires coming down -->
+      <path d="M 300 210 L 300 230 L 100 230" fill="none" stroke="#dc2626" stroke-width="2"/>
+      <path d="M 300 210 L 300 240 L 100 240" fill="none" stroke="#111" stroke-width="2"/>
+      <path d="M 300 210 L 300 250 L 100 250" fill="none" stroke="#eab308" stroke-width="2"/>
+      <path d="M 300 210 L 300 260 L 100 260" fill="none" stroke="#2563eb" stroke-width="2"/>
+
+      <text x="95" y="233" font-size="11" text-anchor="end" fill="#111">красный — VCC (+12V)</text>
+      <text x="95" y="243" font-size="11" text-anchor="end" fill="#111">чёрный — GND (−)</text>
+      <text x="95" y="253" font-size="11" text-anchor="end" fill="#111">жёлтый — скорость</text>
+      <text x="95" y="263" font-size="11" text-anchor="end" fill="#111">синий — направление</text>
+
+      <text x="300" y="30" font-size="14" text-anchor="middle" fill="#111" font-weight="700">Датчик ветра (анемометр)</text>
+    </svg>
+    <div class="cap">У датчика 4 провода. Цвета могут отличаться — всегда сверяйся с инструкцией к твоему датчику!</div>
+  </div>
+
+  <div class="callout warn">
+    <div class="icon">🎨</div>
+    <div class="body"><b>Цвета проводов могут быть другими!</b> У каждого производителя свои. Смотри в коробке от датчика — там есть бумажка с расшифровкой. Если нет — зови папу, мультиметром разберёмся.</div>
+  </div>
+
+  <h3>Подключение (выключи адаптер перед этим!):</h3>
+  <div class="substep">
+    <div class="n">1</div>
+    <div><b>Выключи адаптер!</b> Все подключения делаем на обесточенной схеме.</div>
+  </div>
+  <div class="substep">
+    <div class="n">2</div>
+    <div><b>Красный (VCC)</b> датчика → к <b>OUT+ на Boost #1</b> (12V). <br>
+    <b>Чёрный (GND)</b> датчика → в чёрную шину GND на breadboard.</div>
+  </div>
+  <div class="substep">
+    <div class="n">3</div>
+    <div><b>Жёлтый (сигнал скорости)</b> → в <b>вход первого делителя</b> (точка `a10`, где верхняя ножка 10кΩ верхнего плеча из шага 5).</div>
+  </div>
+  <div class="substep">
+    <div class="n">4</div>
+    <div><b>Синий (сигнал направления)</b> → в <b>вход второго делителя</b>.</div>
+  </div>
+  <div class="substep">
+    <div class="n">5</div>
+    <div><b>Подключи Boost #1</b> (12V) к шине: его IN+ → красная шина 4.7V, IN− → чёрная GND, OUT+ → красный провод датчика, OUT− → чёрный провод датчика.</div>
+  </div>
+
+  <div class="callout dad">
+    <div class="icon">👨</div>
+    <div class="body">Папа проверяет <b>ещё раз мультиметром</b>, что Boost #1 действительно выдаёт 12V, а не 5V. Иначе датчик не заработает (ему нужно минимум 10V).</div>
+  </div>
+
+  <h3>Первое включение с датчиком:</h3>
+  <div class="substep">
+    <div class="n">6</div>
+    <div>Включи адаптер в розетку. Подожди 10 секунд. Открой <code>http://windstation.local/api/data</code>.</div>
+  </div>
+  <div class="substep">
+    <div class="n">7</div>
+    <div><b>Подуй на чашки</b> датчика (или покрути их пальцем):
+      <ul>
+        <li><code>speed</code> должна подняться с 0 до 5–30 м/с</li>
+        <li><code>adcError</code> должно стать <code>false</code></li>
+      </ul>
+    </div>
+  </div>
+  <div class="substep">
+    <div class="n">8</div>
+    <div><b>Поверни флюгер:</b> <code>direction</code> должна меняться от 0 до 359°.</div>
+  </div>
+
+  <div class="callout ok">
+    <div class="icon">🌬️</div>
+    <div class="body"><b>Получилось?</b> Дуй, показывай папе и маме! Ты собрал настоящий прибор, который измеряет ветер. В магазине такой стоит тысячи гривен — а ты собрал сам.</div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Шаг 10 готов, если:</h4>
+    <ul>
+      <li>При дутье на чашки скорость меняется</li>
+      <li>При повороте флюгера направление меняется</li>
+      <li><code>adcError</code> стало <code>false</code></li>
+      <li>Зелёный LED (GPIO26) горит стабильно</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ STAGE 11 ============ -->
+<div class="step" id="stage11">
+  <h2><span class="num">11</span>Тестируем</h2>
+  <p class="subtitle">Проверяем, что всё работает правильно — как автомобилист перед дальней дорогой.</p>
+
+  <h3>Быстрые тесты:</h3>
+
+  <div class="substep">
+    <div class="n">1</div>
+    <div><b>В тихой комнате:</b> speed должна быть близко к 0 (максимум 0.3 м/с). Если показывает 2+ м/с всегда — наводки на кабель. Скажи папе, поставим экранированный кабель.</div>
+  </div>
+  <div class="substep">
+    <div class="n">2</div>
+    <div><b>Дуй ртом:</b> speed поднимется на 3–8 м/с, через 1–2 секунды упадёт обратно. Это нормально.</div>
+  </div>
+  <div class="substep">
+    <div class="n">3</div>
+    <div><b>Поверни флюгер на 360°:</b> направление должно пройти весь круг. Не должно зависать на одном значении.</div>
+  </div>
+  <div class="substep">
+    <div class="n">4</div>
+    <div><b>Дуй сильнее (5+ м/с):</b> должен загореться <b>жёлтый светодиод</b>.</div>
+  </div>
+  <div class="substep">
+    <div class="n">5</div>
+    <div><b>Автономный режим:</b> выдерни адаптер из розетки. Станция должна продолжить работу от батареи. Проверь дашборд — всё ещё должно быть доступно.</div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Шаг 11 готов, если:</h4>
+    <ul>
+      <li>В тишине speed ≈ 0</li>
+      <li>При дутье speed растёт и падает плавно</li>
+      <li>Флюгер крутится на полный круг</li>
+      <li>При ветре 5+ м/с зажигается жёлтый LED</li>
+      <li>Без адаптера станция продолжает работать от батареи</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ STAGE 12 ============ -->
+<div class="step" id="stage12">
+  <h2><span class="num">12</span>Собираем в корпус</h2>
+  <p class="subtitle">Финальный шаг. Превращаем «кучу деталей на breadboard» в готовый прибор, который не боится дождя.</p>
+
+  <div class="callout dad">
+    <div class="icon">👨</div>
+    <div class="body"><b>Сверление корпуса</b> — папина работа (тиски, дрель, сверло). Ты помогаешь, но саму дрель крутит папа.</div>
+  </div>
+
+  <h3>Что делает папа:</h3>
+  <div class="substep">
+    <div class="n">1</div>
+    <div>Сверлит в боковой стенке корпуса <b>два отверстия диаметром 12 мм</b> — под гермовводы PG7. Одно для кабеля датчика, одно для кабеля адаптера.</div>
+  </div>
+  <div class="substep">
+    <div class="n">2</div>
+    <div>Вставляет гермовводы, затягивает гайки.</div>
+  </div>
+
+  <h3>Что делаешь ты:</h3>
+  <div class="substep">
+    <div class="n">3</div>
+    <div><b>Продумай раскладку.</b> На дне корпуса — холдеры батарей (их приклеиваем двусторонним скотчем). Выше — модули (TP4056, два Boost). На стенке — breadboard с ESP32.</div>
+  </div>
+
+  <div class="fig">
+    <svg viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg">
+      <!-- Case -->
+      <rect x="50" y="30" width="500" height="220" rx="8" fill="none" stroke="#78716c" stroke-width="3"/>
+      <text x="300" y="25" font-size="12" text-anchor="middle" fill="#6b7280" font-style="italic">Корпус IP65 190×150×75 мм</text>
+
+      <!-- Battery holders at bottom -->
+      <rect x="70" y="210" width="180" height="30" rx="4" fill="#1f2937"/>
+      <rect x="80" y="215" width="160" height="20" rx="10" fill="#3b82f6"/>
+      <text x="160" y="230" font-size="11" fill="#fff" text-anchor="middle">Холдер 1</text>
+
+      <rect x="270" y="210" width="180" height="30" rx="4" fill="#1f2937"/>
+      <rect x="280" y="215" width="160" height="20" rx="10" fill="#3b82f6"/>
+      <text x="360" y="230" font-size="11" fill="#fff" text-anchor="middle">Холдер 2</text>
+
+      <!-- Modules middle -->
+      <rect x="70" y="140" width="90" height="50" rx="4" fill="#16a34a"/>
+      <text x="115" y="170" font-size="11" fill="#fff" text-anchor="middle">TP4056</text>
+
+      <rect x="180" y="140" width="80" height="50" rx="4" fill="#065f46"/>
+      <text x="220" y="170" font-size="10" fill="#fff" text-anchor="middle">Boost #1</text>
+
+      <rect x="280" y="140" width="80" height="50" rx="4" fill="#065f46"/>
+      <text x="320" y="170" font-size="10" fill="#fff" text-anchor="middle">Boost #2</text>
+
+      <rect x="380" y="140" width="70" height="50" rx="4" fill="#fbbf24"/>
+      <text x="415" y="170" font-size="10" fill="#111" text-anchor="middle">Schottky</text>
+
+      <!-- Breadboard top -->
+      <rect x="70" y="55" width="460" height="70" rx="4" fill="#fafaf9" stroke="#78716c"/>
+      <text x="300" y="85" font-size="11" fill="#6b7280" text-anchor="middle">Breadboard с ESP32</text>
+      <rect x="250" y="65" width="100" height="40" rx="3" fill="#1e40af"/>
+      <text x="300" y="90" font-size="11" fill="#fff" text-anchor="middle">ESP32</text>
+
+      <!-- Cable glands on right -->
+      <rect x="540" y="100" width="30" height="15" fill="#111"/>
+      <text x="580" y="112" font-size="10" fill="#6b7280">датчик →</text>
+      <rect x="540" y="160" width="30" height="15" fill="#111"/>
+      <text x="580" y="172" font-size="10" fill="#6b7280">адаптер →</text>
+
+      <!-- Silica gel -->
+      <rect x="470" y="220" width="50" height="20" rx="2" fill="#f3e8ff"/>
+      <text x="495" y="234" font-size="9" fill="#6b21a8" text-anchor="middle">силикагель</text>
+    </svg>
+    <div class="cap">Примерное расположение компонентов в корпусе</div>
+  </div>
+
+  <div class="substep">
+    <div class="n">4</div>
+    <div><b>Приклей холдеры и модули</b> двусторонним скотчем 3М или термоклеем (с папой).</div>
+  </div>
+  <div class="substep">
+    <div class="n">5</div>
+    <div><b>Светодиоды</b> на длинных проводах выведи на крышку (прозрачную) — чтобы их было видно снаружи.</div>
+  </div>
+  <div class="substep">
+    <div class="n">6</div>
+    <div><b>Положи пакетик силикагеля</b> в угол — он будет вбирать влагу, чтобы внутри не запотевало.</div>
+  </div>
+  <div class="substep">
+    <div class="n">7</div>
+    <div><b>Продень кабели</b> через гермовводы (ослабь гайку, протяни кабель, затяни гайку).</div>
+  </div>
+  <div class="substep">
+    <div class="n">8</div>
+    <div><b>Закрой крышку.</b> Проверь, что резиновая прокладка плотно прилегает.</div>
+  </div>
+
+  <div class="callout warn">
+    <div class="icon">☀️</div>
+    <div class="body"><b>Не оставляй корпус на прямом солнце!</b> ESP32 и батарея могут перегреться. Лучше в тени или под крышей.</div>
+  </div>
+
+  <div class="check">
+    <h4>✅ Шаг 12 готов, если:</h4>
+    <ul>
+      <li>Все детали внутри корпуса, ничего не болтается</li>
+      <li>Кабели проходят через гермовводы, а не через щели</li>
+      <li>Светодиоды видны через прозрачную крышку</li>
+      <li>Внутри есть пакетик силикагеля</li>
+      <li>Крышка закрывается плотно</li>
+      <li>Станция работает в закрытом состоянии</li>
+    </ul>
+  </div>
+
+  <div class="callout ok">
+    <div class="icon">🏆</div>
+    <div class="body"><b>ТЫ ЕЁ СОБРАЛ!</b> Это серьёзный проект, и ты справился. Теперь станцию можно вешать на мачту на балконе или во дворе — и следить за ветром с телефона откуда угодно в доме. Покажи бабушке и дедушке 😊</div>
+  </div>
+</div>
+
+<!-- ============ EXTERNAL REFERENCES ============ -->
+<div class="step" id="references">
+  <h2 class="tools"><span class="num">📚</span>Картинки и схемы в интернете</h2>
+  <p class="subtitle">Здесь собраны ссылки на сайты с <b>большими цветными схемами</b> по нашим деталям. Если что-то непонятно на картинке в этой инструкции — открой ссылку и посмотри, как это показано там. Много фоток с разных ракурсов всегда помогает понять.</p>
+
+  <div class="callout tip">
+    <div class="icon">💡</div>
+    <div class="body"><b>Как пользоваться:</b> открой ссылку рядом с инструкцией (на телефоне или во второй вкладке). Сравни картинку с тем, что у тебя на столе — должно совпадать. Если не совпадает — зови папу, разберёмся.</div>
+  </div>
+
+  <h3 style="margin-top:28px">📷 Главные картинки прямо здесь</h3>
+  <p>Вот самые важные схемы — запомни как они выглядят. Картинки загружаются с серверов Random Nerd Tutorials и Components101 (крупнейшие туториальные сайты мира, не исчезнут).</p>
+
+  <div class="callout goal" style="margin:16px 0;background:#ecfdf5;border-color:#10b981">
+    <div class="icon">💾</div>
+    <div class="body"><b>Хочешь чтобы всё работало без интернета?</b> Смотри раздел «<a href="#offline">Как сохранить картинки для офлайн</a>» ниже — там готовый список того что нужно скачать.</div>
+  </div>
+
+  <div style="margin:20px 0;padding:16px;background:#f0f9ff;border:2px solid #0369a1;border-radius:12px">
+    <p style="margin:0 0 10px;font-weight:bold;color:#0369a1">🧠 ESP32 DevKit V1 — распиновка (30 pin версия)</p>
+    <img src="images/esp32-pinout.jpg" onerror="this.onerror=null;this.src='https://i0.wp.com/randomnerdtutorials.com/wp-content/uploads/2018/08/ESP32-DOIT-DEVKIT-V1-Board-Pinout-36-GPIOs-updated.jpg'" alt="ESP32 pinout" style="width:100%;max-width:700px;display:block;margin:0 auto;border-radius:8px">
+    <p style="margin:10px 0 0;font-size:14px;color:#64748b;text-align:center"><i>Источник: Random Nerd Tutorials. <a href="https://randomnerdtutorials.com/esp32-pinout-reference-gpios/" target="_blank">Открыть большую</a>.</i></p>
+  </div>
+
+  <div style="margin:20px 0;padding:16px;background:#fef3c7;border:2px solid #d97706;border-radius:12px">
+    <p style="margin:0 0 10px;font-weight:bold;color:#92400e">⚠️ ESP32 — какие пины безопасные (зелёные), какие опасные (красные)</p>
+    <img src="images/esp32-safe-pins.jpg" onerror="this.onerror=null;this.src='https://i0.wp.com/randomnerdtutorials.com/wp-content/uploads/2018/08/how-to-use-esp32-gpios.jpg'" alt="ESP32 safe GPIOs" style="width:100%;max-width:700px;display:block;margin:0 auto;border-radius:8px">
+    <p style="margin:10px 0 0;font-size:14px;color:#64748b;text-align:center"><i>Зелёные пины — можно использовать. Жёлтые — осторожно. Красные — не трогать! Мы используем GPIO 26, 27, 14, 25, 33 (светодиоды), GPIO 34, 35 (входы сенсора), GPIO 32 (батарея).</i></p>
+  </div>
+
+  <div style="margin:20px 0;padding:16px;background:#fef2f2;border:2px solid #dc2626;border-radius:12px">
+    <p style="margin:0 0 10px;font-weight:bold;color:#991b1b">🔋 TP4056 — модуль зарядки 18650 (как выглядит)</p>
+    <img src="images/tp4056-module.jpg" onerror="this.onerror=null;this.src='https://components101.com/sites/default/files/components/TP4056A-Li-ion-Battery-Charging-Module_1_0.jpg'" alt="TP4056 module" style="width:100%;max-width:500px;display:block;margin:0 auto;border-radius:8px">
+    <p style="margin:10px 0 0;font-size:14px;color:#64748b;text-align:center"><i>Источник: Components101. Твой модуль выглядит именно так — с USB разъёмом и двумя светодиодами (красный и зелёный).</i></p>
+  </div>
+
+  <div style="margin:20px 0;padding:16px;background:#fef2f2;border:2px solid #dc2626;border-radius:12px">
+    <p style="margin:0 0 10px;font-weight:bold;color:#991b1b">🔌 TP4056 — распиновка (какой пин за что отвечает)</p>
+    <img src="images/tp4056-pinout.png" onerror="this.onerror=null;this.src='https://components101.com/sites/default/files/component_pin/TP4056A-Li-ion-Battery-Charging-Module-Pinout_0.png'" alt="TP4056 pinout" style="width:100%;max-width:700px;display:block;margin:0 auto;border-radius:8px">
+    <p style="margin:10px 0 0;font-size:14px;color:#64748b;text-align:center"><i><b>IN+/IN−</b> — сюда приходит 5V с USB. <b>B+/B−</b> — сюда подключается батарея 18650. <b>OUT+/OUT−</b> — отсюда снимаем напряжение батареи для питания схемы. <a href="https://components101.com/modules/tp4056a-li-ion-battery-chargingdischarging-module" target="_blank">Открыть источник</a>.</i></p>
+  </div>
+
+  <div style="margin:20px 0;padding:16px;background:#f0fdf4;border:2px solid #16a34a;border-radius:12px">
+    <p style="margin:0 0 10px;font-weight:bold;color:#166534">⬆️ MT3608 — повышающий модуль (как выглядит)</p>
+    <img src="images/mt3608-module.jpg" onerror="this.onerror=null;this.src='https://components101.com/sites/default/files/components/MT3608-Step-Up-Power-Module.jpg'" alt="MT3608 module" style="width:100%;max-width:500px;display:block;margin:0 auto;border-radius:8px">
+    <p style="margin:10px 0 0;font-size:14px;color:#64748b;text-align:center"><i>Синий прямоугольник с винтиком в середине — это <b>потенциометр</b>. Крути его отвёрткой ПРОТИВ часовой стрелки чтобы снизить напряжение, и ПО часовой — чтобы поднять. Нужно крутить 15–20 оборотов перед тем как появится регулировка!</i></p>
+  </div>
+
+  <div style="margin:20px 0;padding:16px;background:#f0fdf4;border:2px solid #16a34a;border-radius:12px">
+    <p style="margin:0 0 10px;font-weight:bold;color:#166534">🔌 MT3608 — распиновка (4 пина: VIN+/VIN−/VOUT+/VOUT−)</p>
+    <img src="images/mt3608-pinout.jpg" onerror="this.onerror=null;this.src='https://components101.com/sites/default/files/component_pin/MT3608-Step-Up-Power-Module-Pinout.jpg'" alt="MT3608 pinout" style="width:100%;max-width:700px;display:block;margin:0 auto;border-radius:8px">
+    <p style="margin:10px 0 0;font-size:14px;color:#64748b;text-align:center"><i><b>VIN+/VIN−</b> — вход (от батареи или TP4056). <b>VOUT+/VOUT−</b> — выход с поднятым напряжением (у нас 5V для ESP32). <a href="https://components101.com/modules/mt3608-2a-dc-dc-step-up-power-module" target="_blank">Открыть источник</a>.</i></p>
+  </div>
+
+  <div class="callout warn" style="margin-top:16px">
+    <div class="icon">ℹ️</div>
+    <div class="body"><b>Если картинки не загрузились</b> — значит нет интернета или картинку удалили с сайта. Сохрани их локально (см. раздел «Как сохранить картинки для офлайн» ниже) — тогда всё будет работать всегда.</div>
+  </div>
+
+  <h3 id="offline" style="margin-top:32px">💾 Как сохранить картинки для офлайн</h3>
+  <p>Если хочешь чтобы инструкция работала 100% без интернета, надо скачать картинки. Проси помощи у папы. Инструкция:</p>
+
+  <ol>
+    <li><b>Создай папку <code>images</code></b> рядом с файлом <code>sobirayem-meteostantsiyu.html</code>. Должно получиться так:
+      <pre style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;overflow-x:auto;font-size:13px">📁 Моя-метеостанция/
+   📄 sobirayem-meteostantsiyu.html
+   📁 images/
+      🖼️ esp32-pinout.jpg
+      🖼️ esp32-safe-pins.jpg
+      🖼️ ...</pre>
+    </li>
+    <li><b>Скачай каждую картинку</b> из таблицы ниже. Кликни на ссылку → ПКМ по картинке → «Сохранить как…» → <b>сохрани с точно таким именем файла как в таблице</b> в папку <code>images</code>.</li>
+    <li>После скачивания просто обнови страницу (F5). Если картинка найдена локально — будет грузиться с диска, если нет — с интернета.</li>
+  </ol>
+
+  <div class="callout tip">
+    <div class="icon">🧑‍💻</div>
+    <div class="body"><b>Почему так удобно:</b> HTML написан хитро — сначала ищет картинку на диске (<code>images/xxx.jpg</code>), а если не нашёл, берёт из интернета. Так что можно скачать не все, а только те которые хочешь сохранить.</div>
+  </div>
+
+  <table style="width:100%;border-collapse:collapse;margin-top:20px;font-size:14px">
+    <thead>
+      <tr style="background:#1e293b;color:white">
+        <th style="padding:10px;text-align:left;border:1px solid #334155">Имя файла (сохрани именно так)</th>
+        <th style="padding:10px;text-align:left;border:1px solid #334155">Откуда скачать</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:10px;border:1px solid #cbd5e1"><code>esp32-pinout.jpg</code></td>
+        <td style="padding:10px;border:1px solid #cbd5e1"><a href="https://i0.wp.com/randomnerdtutorials.com/wp-content/uploads/2018/08/ESP32-DOIT-DEVKIT-V1-Board-Pinout-36-GPIOs-updated.jpg" target="_blank">ESP32 распиновка</a></td>
+      </tr>
+      <tr style="background:#f8fafc">
+        <td style="padding:10px;border:1px solid #cbd5e1"><code>esp32-safe-pins.jpg</code></td>
+        <td style="padding:10px;border:1px solid #cbd5e1"><a href="https://i0.wp.com/randomnerdtutorials.com/wp-content/uploads/2018/08/how-to-use-esp32-gpios.jpg" target="_blank">ESP32 безопасные пины</a></td>
+      </tr>
+      <tr>
+        <td style="padding:10px;border:1px solid #cbd5e1"><code>tp4056-module.jpg</code></td>
+        <td style="padding:10px;border:1px solid #cbd5e1"><a href="https://components101.com/sites/default/files/components/TP4056A-Li-ion-Battery-Charging-Module_1_0.jpg" target="_blank">TP4056 модуль</a></td>
+      </tr>
+      <tr style="background:#f8fafc">
+        <td style="padding:10px;border:1px solid #cbd5e1"><code>tp4056-pinout.png</code></td>
+        <td style="padding:10px;border:1px solid #cbd5e1"><a href="https://components101.com/sites/default/files/component_pin/TP4056A-Li-ion-Battery-Charging-Module-Pinout_0.png" target="_blank">TP4056 распиновка</a></td>
+      </tr>
+      <tr>
+        <td style="padding:10px;border:1px solid #cbd5e1"><code>mt3608-module.jpg</code></td>
+        <td style="padding:10px;border:1px solid #cbd5e1"><a href="https://components101.com/sites/default/files/components/MT3608-Step-Up-Power-Module.jpg" target="_blank">MT3608 модуль</a></td>
+      </tr>
+      <tr style="background:#f8fafc">
+        <td style="padding:10px;border:1px solid #cbd5e1"><code>mt3608-pinout.jpg</code></td>
+        <td style="padding:10px;border:1px solid #cbd5e1"><a href="https://components101.com/sites/default/files/component_pin/MT3608-Step-Up-Power-Module-Pinout.jpg" target="_blank">MT3608 распиновка</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn" style="margin-top:20px">
+    <div class="icon">🖥️</div>
+    <div class="body"><b>Быстрый способ для папы (Windows/Mac):</b> открой терминал в папке с HTML и выполни:<br>
+    <pre style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;overflow-x:auto;font-size:12px;margin-top:8px">mkdir -p images &amp;&amp; cd images &amp;&amp; \
+curl -o esp32-pinout.jpg "https://i0.wp.com/randomnerdtutorials.com/wp-content/uploads/2018/08/ESP32-DOIT-DEVKIT-V1-Board-Pinout-36-GPIOs-updated.jpg" &amp;&amp; \
+curl -o esp32-safe-pins.jpg "https://i0.wp.com/randomnerdtutorials.com/wp-content/uploads/2018/08/how-to-use-esp32-gpios.jpg" &amp;&amp; \
+curl -o tp4056-module.jpg "https://components101.com/sites/default/files/components/TP4056A-Li-ion-Battery-Charging-Module_1_0.jpg" &amp;&amp; \
+curl -o tp4056-pinout.png "https://components101.com/sites/default/files/component_pin/TP4056A-Li-ion-Battery-Charging-Module-Pinout_0.png" &amp;&amp; \
+curl -o mt3608-module.jpg "https://components101.com/sites/default/files/components/MT3608-Step-Up-Power-Module.jpg" &amp;&amp; \
+curl -o mt3608-pinout.jpg "https://components101.com/sites/default/files/component_pin/MT3608-Step-Up-Power-Module-Pinout.jpg"</pre></div>
+  </div>
+
+  <h3 style="margin-top:28px">🧠 ESP32 DevKit V1 — распиновка (какая ножка за что отвечает)</h3>
+  <ul>
+    <li><a href="https://lastminuteengineers.com/esp32-pinout-reference/" target="_blank">Last Minute Engineers — ESP32 Pinout Reference</a> — самая популярная схема, на которой видно все 30 ножек и что они делают. <b>Обязательно посмотри перед Этапом 4.</b></li>
+    <li><a href="https://randomnerdtutorials.com/esp32-pinout-reference-gpios/" target="_blank">Random Nerd Tutorials — какие GPIO можно использовать</a> — здесь ножки раскрашены: <span style="color:#16a34a">зелёные</span> — безопасные, <span style="color:#eab308">жёлтые</span> — с осторожностью, <span style="color:#dc2626">красные</span> — не трогать. Мы используем только зелёные.</li>
+    <li><a href="https://www.circuitstate.com/pinouts/doit-esp32-devkit-v1-wifi-development-board-pinout-diagram-and-reference/" target="_blank">CircuitState — очень детальная распиновка в PDF</a> — если хочешь распечатать и положить рядом.</li>
+  </ul>
+
+  <h3 style="margin-top:28px">🔋 TP4056 — зарядка Li-ion (Этап 3)</h3>
+  <ul>
+    <li><a href="https://components101.com/modules/tp4056a-li-ion-battery-chargingdischarging-module" target="_blank">Components101 — TP4056 pinout и схема</a> — видно где IN+/IN−/B+/B−/OUT+/OUT−.</li>
+    <li><a href="https://docs.cirkitdesigner.com/component/d3a17ee0-5b4e-5e5b-9008-cbac1cd40de8/tp4056" target="_blank">Cirkit Designer — TP4056 с примерами</a> — интерактивные схемы, можно посмотреть реальные проекты с ESP32 + TP4056 + boost converter.</li>
+    <li><a href="https://www.electrothinks.com/2024/02/tp4056-lithium-cell-charger-module.html" target="_blank">Electrothinks — подробное объяснение работы TP4056</a> — как работают красная и синяя индикаторные лампочки.</li>
+  </ul>
+
+  <h3 style="margin-top:28px">⬆️ MT3608 — повышайка напряжения (Этап 1)</h3>
+  <ul>
+    <li><a href="https://components101.com/modules/mt3608-2a-dc-dc-step-up-power-module" target="_blank">Components101 — MT3608 модуль</a> — схема и как крутить потенциометр чтобы настроить 5V или 12V.</li>
+  </ul>
+
+  <h3 style="margin-top:28px">🪜 Макетная плата (breadboard) — как она устроена</h3>
+  <ul>
+    <li><a href="https://learn.sparkfun.com/tutorials/how-to-use-a-breadboard/all" target="_blank">SparkFun — How to Use a Breadboard</a> — самое понятное объяснение с картинками: какие дырочки между собой соединены, а какие нет. <b>Посмотри до того как начнёшь втыкать детали.</b></li>
+    <li><a href="https://learn.adafruit.com/breadboards-for-beginners/breadboard" target="_blank">Adafruit — Breadboards for Beginners</a> — тоже очень наглядно, с фотками разрезанной платы.</li>
+  </ul>
+
+  <h3 style="margin-top:28px">🌈 Резисторы — как читать цветные полоски</h3>
+  <ul>
+    <li><a href="https://www.digikey.com/en/resources/conversion-calculators/conversion-calculator-resistor-color-code-4-band" target="_blank">DigiKey — калькулятор резисторов</a> — выбираешь цвета полосок мышкой, он показывает сопротивление. <b>Очень удобно если сомневаешься.</b></li>
+    <li><a href="https://www.allaboutcircuits.com/tools/resistor-color-code-calculator/" target="_blank">All About Circuits — калькулятор + таблица</a> — с большой цветной таблицей.</li>
+  </ul>
+
+  <h3 style="margin-top:28px">📏 Мультиметр — как измерять</h3>
+  <ul>
+    <li><a href="https://learn.sparkfun.com/tutorials/how-to-use-a-multimeter/all" target="_blank">SparkFun — How to Use a Multimeter</a> — самая лучшая статья для новичков. С видео, фотками, примерами. <b>Обязательно посмотри перед началом работы.</b></li>
+    <li><a href="https://learn.adafruit.com/multimeters/overview" target="_blank">Adafruit — Multimeters Overview</a> — короткое и понятное объяснение.</li>
+  </ul>
+
+  <h3 style="margin-top:28px">💡 Светодиоды с резистором (Этап 7)</h3>
+  <ul>
+    <li><a href="https://learn.adafruit.com/all-about-leds/forward-voltage-and-kvl" target="_blank">Adafruit — All About LEDs</a> — почему нужен резистор и как его считать. Большие понятные картинки.</li>
+    <li><a href="https://docs.arduino.cc/built-in-examples/basics/Blink/" target="_blank">Arduino — Blink</a> — простейшая схема мигания светодиода, посмотри как её рисуют.</li>
+  </ul>
+
+  <h3 style="margin-top:28px">➗ Делитель напряжения (Этапы 5 и 6)</h3>
+  <ul>
+    <li><a href="https://learn.sparkfun.com/tutorials/voltage-dividers/all" target="_blank">SparkFun — Voltage Dividers</a> — что такое делитель напряжения, с картинками и формулой. Нам нужно понижать 5V → 3.3V для ESP32.</li>
+    <li><a href="https://randomnerdtutorials.com/esp32-adc-analog-read-arduino-ide/" target="_blank">Random Nerd Tutorials — ESP32 ADC</a> — как ESP32 читает аналоговые сигналы и почему нельзя подавать больше 3.3V.</li>
+  </ul>
+
+  <h3 style="margin-top:28px">🔌 18650 Li-ion батарейки</h3>
+  <ul>
+    <li><a href="https://batteryuniversity.com/article/bu-808-how-to-prolong-lithium-based-batteries" target="_blank">Battery University — как правильно обращаться с Li-ion</a> — правила безопасности. <b>Прочитай вместе с папой.</b></li>
+  </ul>
+
+  <h3 style="margin-top:28px">🎓 Большие туториалы про ESP32 на русском и английском</h3>
+  <ul>
+    <li><a href="https://randomnerdtutorials.com/projects-esp32/" target="_blank">Random Nerd Tutorials — проекты на ESP32</a> — сотни готовых проектов с фотками и схемами. Можно посмотреть похожие станции погоды и сравнить.</li>
+    <li><a href="https://randomnerdtutorials.com/esp32-web-server-arduino-ide/" target="_blank">ESP32 Web Server — как работает веб-страница в ESP32</a> — как раз то, что мы делаем на Этапе 9 (windstation.local).</li>
+  </ul>
+
+  <div class="callout goal" style="margin-top:28px">
+    <div class="icon">🎯</div>
+    <div class="body"><b>Совет:</b> если застрял на каком-то этапе — найди на YouTube видео по теме. Например набери «<i>TP4056 wiring</i>», «<i>ESP32 breadboard tutorial</i>» или «<i>18650 battery holder</i>». Видео с живой сборкой часто понятнее чем схемы на бумаге.</div>
+  </div>
+</div>
+
+<!-- ============ TROUBLESHOOT ============ -->
+<div class="step" id="troubleshoot">
+  <h2 class="tools"><span class="num">🚑</span>Если что-то не работает</h2>
+  <p class="subtitle">Частые проблемы и что делать.</p>
+
+  <div class="callout tip">
+    <div class="icon">🧘</div>
+    <div class="body"><b>Главное правило:</b> не паникуй. Если что-то не работает — это нормально. <b>95% ошибок</b> — это забытый провод, перепутанные плюс/минус или плохо воткнутый dupont. Спокойно, пошагово, мультиметром.</div>
+  </div>
+
+  <h3>Таблица проблем:</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px">
+    <thead>
+      <tr style="background:#fef3c7">
+        <th style="padding:8px;text-align:left;border:1px solid #e5e7eb">Что не так</th>
+        <th style="padding:8px;text-align:left;border:1px solid #e5e7eb">Что проверить</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:8px;border:1px solid #e5e7eb"><b>PWR LED на ESP32 не горит</b></td>
+        <td style="padding:8px;border:1px solid #e5e7eb">Мультиметром: есть ли 4.7V на VIN? Если нет — проверь шину, адаптер, диод Schottky_A (полоска в правильную сторону?)</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border:1px solid #e5e7eb"><b>WiFi не подключается</b></td>
+        <td style="padding:8px;border:1px solid #e5e7eb">Правильное имя сети и пароль в коде? Роутер должен быть на 2.4 ГГц (ESP32 не видит 5 ГГц)</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border:1px solid #e5e7eb"><b>Датчик не реагирует</b></td>
+        <td style="padding:8px;border:1px solid #e5e7eb">На VCC датчика есть 12V? Сигнальные провода в правильные делители? Цвета проводов датчика сверены с инструкцией?</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border:1px solid #e5e7eb"><b>Значения скачут беспорядочно</b></td>
+        <td style="padding:8px;border:1px solid #e5e7eb">Конденсаторы 100нФ на делителях стоят? Кабель датчика длинный? Попробуйте экранированный.</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border:1px solid #e5e7eb"><b>Батарея всегда 0%</b></td>
+        <td style="padding:8px;border:1px solid #e5e7eb">Делитель батареи (100кΩ + 100кΩ) подключён к B+, а не к шине 5V? Мультиметром: на GPIO32 должно быть ~2V</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border:1px solid #e5e7eb"><b>Дашборд не открывается</b></td>
+        <td style="padding:8px;border:1px solid #e5e7eb">Попробуй по IP (из Serial Monitor) вместо windstation.local. Одна WiFi сеть с компьютером/телефоном?</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border:1px solid #e5e7eb"><b>ESP32 перезагружается каждую секунду</b></td>
+        <td style="padding:8px;border:1px solid #e5e7eb">Слабое питание. Проверь электролит 1000мкФ (в правильной полярности?), провода VIN короче сделай.</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border:1px solid #e5e7eb"><b>От батареи не работает</b></td>
+        <td style="padding:8px;border:1px solid #e5e7eb">Boost #2 выдаёт 5V? (Проверь пресет!) Schottky_B полоской к шине? Батареи заряжены?</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout dad">
+    <div class="icon">👨</div>
+    <div class="body"><b>Если ничего не помогает:</b> зови папу. Вместе разложите схему, пройдите по шагам и проверьте всё мультиметром — от адаптера до ESP32.</div>
+  </div>
+
+  <div class="callout ok" style="margin-top:20px">
+    <div class="icon">💪</div>
+    <div class="body"><b>Помни:</b> ты учишься делать то, что умеет <b>очень мало людей твоего возраста</b>. Каждая ошибка — это новое знание. Не сдавайся!</div>
+  </div>
+</div>
+
+<!-- FINAL HERO -->
+<div class="hero" style="margin-top:40px;background:linear-gradient(135deg,#16a34a 0%,#2563eb 100%)">
+  <div class="big">🎉</div>
+  <h1>Ты справился!</h1>
+  <p>Это был долгий путь, но ты прошёл его до конца. Теперь ты не просто знаешь электронику — ты её <b>делал руками</b>. Это совсем другой уровень.</p>
+  <p style="margin-top:14px;font-size:16px;opacity:.9">Покажи работающую станцию папе, маме, друзьям. Пусть гордятся 🌬️</p>
+</div>
+
+</div>
+</body>
+</html>

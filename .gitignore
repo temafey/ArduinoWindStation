@@ -1,0 +1,46 @@
+# === Артефакты сборки ===
+# Arduino/ESP32 build (пересобирается arduino-cli, ~35 МБ)
+esp32_wind_station/build/
+# Vite / npm
+node_modules/
+wind-ui/dist/
+dist/
+
+# === Большие снапшоты-архивы (пересобираются из исходников) ===
+esp32_wind_station.zip
+wind-ui.zip
+# WindStation-kit.zip НЕ игнорируем: только в нём лежат tools/*.ps1 и SETUP.md
+
+# === Рабочие копии и черновики правок ===
+*.bak
+*.bak-*
+*.orig
+*.rej
+
+# === Временное ===
+temp/
+tmp/
+logs/
+*.log
+
+# === KiCad ===
+*.kicad_prl
+*.lck
+~*
+*-backups/
+fp-info-cache
+# local-history плагина KiCad/IDE — внутри свой .git, вложенным репозиторием в наш не берём
+.history/
+.mcp-backups/
+
+# === IDE / OS ===
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Инструменты ===
+.claude/settings.local.json
+.remember/logs/
+.remember/tmp/

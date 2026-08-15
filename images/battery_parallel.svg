@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 560" font-family="Segoe UI, Arial, sans-serif">
+  <rect x="0" y="0" width="920" height="560" fill="#ffffff"/>
+  <text x="30" y="40" font-size="23" font-weight="700" fill="#1a1a1a">Как соединить 2×18650 в ПАРАЛЛЕЛЬ (два отдельных холдера)</text>
+  <text x="30" y="66" font-size="14" fill="#666">Оба «+» вместе, оба «−» вместе. Напряжение то же (~3.7–4В), ёмкость складывается (6000 мАч).</text>
+
+  <!-- legend -->
+  <g font-size="13" fill="#333">
+    <line x1="620" y1="60" x2="650" y2="60" stroke="#d23b2e" stroke-width="4"/><text x="656" y="65">«+» провод</text>
+    <line x1="760" y1="60" x2="790" y2="60" stroke="#1a1a1a" stroke-width="4"/><text x="796" y="65">«−» провод</text>
+  </g>
+
+  <!-- ===== Holder 1 ===== -->
+  <rect x="230" y="120" width="440" height="70" rx="35" fill="#eceadf" stroke="#c7c1ae" stroke-width="2"/>
+  <rect x="255" y="133" width="390" height="44" rx="22" fill="#333"/>
+  <text x="360" y="160" font-size="13" fill="#eee">18650  LG HG2  ·  3.96В</text>
+  <!-- minus terminal (left, spring) -->
+  <rect x="205" y="143" width="22" height="24" rx="3" fill="#555"/>
+  <text x="216" y="112" font-size="18" font-weight="700" fill="#1a1a1a" text-anchor="middle">−</text>
+  <!-- plus terminal (right) -->
+  <rect x="653" y="143" width="22" height="24" rx="3" fill="#d23b2e"/>
+  <text x="664" y="112" font-size="18" font-weight="700" fill="#d23b2e" text-anchor="middle">+</text>
+  <text x="450" y="212" font-size="12" fill="#888" text-anchor="middle">холдер 1</text>
+
+  <!-- ===== Holder 2 ===== -->
+  <rect x="230" y="300" width="440" height="70" rx="35" fill="#eceadf" stroke="#c7c1ae" stroke-width="2"/>
+  <rect x="255" y="313" width="390" height="44" rx="22" fill="#333"/>
+  <text x="360" y="340" font-size="13" fill="#eee">18650  LG HG2  ·  3.96В</text>
+  <rect x="205" y="323" width="22" height="24" rx="3" fill="#555"/>
+  <text x="216" y="395" font-size="18" font-weight="700" fill="#1a1a1a" text-anchor="middle">−</text>
+  <rect x="653" y="323" width="22" height="24" rx="3" fill="#d23b2e"/>
+  <text x="664" y="395" font-size="18" font-weight="700" fill="#d23b2e" text-anchor="middle">+</text>
+  <text x="450" y="392" font-size="12" fill="#888" text-anchor="middle">холдер 2</text>
+
+  <!-- ===== PLUS wiring (right) ===== -->
+  <path d="M675 155 L712 155 L712 335 L675 335" fill="none" stroke="#d23b2e" stroke-width="4"/>
+  <path d="M712 245 L820 245" fill="none" stroke="#d23b2e" stroke-width="4"/>
+  <circle cx="712" cy="155" r="4" fill="#d23b2e"/><circle cx="712" cy="335" r="4" fill="#d23b2e"/>
+  <text x="828" y="242" font-size="15" font-weight="700" fill="#d23b2e">«+» пакета</text>
+  <text x="828" y="260" font-size="11" fill="#999">→ в задачу 04</text>
+
+  <!-- ===== MINUS wiring (left) ===== -->
+  <path d="M205 155 L168 155 L168 335 L205 335" fill="none" stroke="#1a1a1a" stroke-width="4"/>
+  <path d="M168 245 L60 245" fill="none" stroke="#1a1a1a" stroke-width="4"/>
+  <circle cx="168" cy="155" r="4" fill="#1a1a1a"/><circle cx="168" cy="335" r="4" fill="#1a1a1a"/>
+  <text x="52" y="242" font-size="15" font-weight="700" fill="#1a1a1a" text-anchor="end">«−» пакета</text>
+  <text x="52" y="260" font-size="11" fill="#999" text-anchor="end">→ в задачу 04</text>
+
+  <!-- center callout -->
+  <text x="450" y="250" font-size="13" fill="#2a7de1" text-anchor="middle" font-weight="600">оба «+» вместе  ·  оба «−» вместе</text>
+
+  <!-- ===== Notes ===== -->
+  <rect x="30" y="430" width="860" height="110" rx="8" fill="#fbf7ec" stroke="#e6d9b0"/>
+  <text x="46" y="456" font-size="13.5" fill="#2e7d32">✓  Параллель: «+»↔«+», «−»↔«−». Напряжение = как у одной банки; ёмкость 3000+3000 = 6000 мАч.</text>
+  <text x="46" y="480" font-size="13.5" fill="#b3541e">⚠  Перед соединением обе банки должны быть ОДНОГО напряжения (у тебя обе 3.96В ✓), иначе большой ток между ними.</text>
+  <text x="46" y="504" font-size="13.5" fill="#c0392b">✗  НЕ соединяй «+» одной с «−» другой — это ПОСЛЕДОВАТЕЛЬНО (7.4В), нам это НЕ нужно и спалит ESP32.</text>
+  <text x="46" y="528" font-size="13.5" fill="#555">→  К ESP32 пакет пока НЕ подключаем — он войдёт в питание в задаче 04 (через TP4056 и boost).</text>
+</svg>

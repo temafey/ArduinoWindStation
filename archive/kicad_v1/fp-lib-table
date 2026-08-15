@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "WindStation")(type "KiCad")(uri "${KIPRJMOD}/WindStation.pretty")(options "")(descr "Project footprints for WindStation (ESP32 DevKit V1 30-pin module)"))
+)
