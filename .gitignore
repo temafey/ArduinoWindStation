@@ -1,5 +1,7 @@
 # === Артефакты сборки ===
-# Arduino/ESP32 build (пересобирается arduino-cli, ~35 МБ)
+# Arduino/ESP32 build (пересобирается arduino-cli, ~35 МБ).
+# Два пути: --output-dir из CLAUDE.md кладёт в корневой build/, скетч-каталог — в свой
+/build/
 esp32_wind_station/build/
 # Vite / npm
 node_modules/
