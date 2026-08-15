@@ -302,7 +302,8 @@ Captive portal: DHCP option 114 advertised
 mDNS: http://mywindprobebeta.local
 OTA ready
 HTTP: 80
-Uplink: joining 'HomeSSID' in the background (2.4 GHz only)
+Uplink: 1 network(s) to try in the background (2.4 GHz only)
+Uplink: trying 'HomeSSID' (1/1)
 V=0.0 m/s  D=0°  G=0.0  Bat=0.00V (0%) battery/absent  RSSI=-42
 Uplink 'HomeSSID' joined  IP: 192.168.1.87  RSSI=-58
 ```
@@ -310,6 +311,8 @@ Uplink 'HomeSSID' joined  IP: 192.168.1.87  RSSI=-58
 Нечитаемые символы в самом начале — это ROM-загрузчик, он говорит на 74880 baud. Норма, не баг. Дальше должен пойти читаемый текст.
 
 **`Uplink ... joined` и адрес в ней** — то, ради чего этот лог стоит смотреть после заливки: другого способа узнать адрес платы в домашней сети без роутера нет (кроме поля `staIp` в `/api/data`). Строка приходит через несколько секунд после `HTTP: 80`, не мгновенно. Если её нет — плата не нашла сеть: проверь, что указана половина **2.4 ГГц**, а не `-5G`, и что пароль верен. Отсутствие аплинка ничего больше не ломает, точка доступа работает как работала.
+
+Когда сетей в списке несколько, строки `Uplink: trying '…' (N/M)` идут одна за другой с шагом 12 секунд — это перебор кандидатов, а не ошибка. После неудачного прохода по всему списку следующий начнётся не раньше чем через 30 секунд, и дальше пауза удваивается до десяти минут.
 
 Строк `Scanning for N known network(s)...` и `WiFi OK: …` быть не должно: их печатал **старый** станционный режим, который выключал точку доступа. Нынешний аплинк печатает `Uplink ...`. Если увидел старые строки — залита прошивка до 2026-08-07.
 
@@ -350,7 +353,7 @@ Invoke-WebRequest http://192.168.4.1/ -UseBasicParsing | Select-Object StatusCod
 | пароль OTA | `<OTA-пароль>` | `esp32_wind_station.ino`, `otaPassword` |
 | SSID точки | `WindStation` | `esp32_wind_station.ino`, `apSsid` |
 | пароль точки | `<AP-пароль>` (WPA2) | `esp32_wind_station.ino`, `apPassword` |
-| домашняя сеть | `HomeSSID` (2.4 ГГц) | `esp32_wind_station.ino`, `staSsid` |
+| домашние сети | список, сейчас одна — `HomeSSID` (2.4 ГГц) | `esp32_wind_station.ino`, `homeNetworks[]` |
 | аплинк вкл/выкл | `1` | `esp32_wind_station.ino`, `HAS_HOME_NETWORK` |
 | OTA-порт платы | 3232 (UDP) | дефолт ArduinoOTA |
 | HTTP-порт | 80 | прошивка |

@@ -81,16 +81,36 @@ const int   apMaxClients = 4;
 // Set to 0 for a pure access point (mast, field, anywhere the home net is out of
 // range) — the retry loop below then does not exist at all.
 #define HAS_HOME_NETWORK 1
+
+// The networks to try, in order of preference: home first, then the places the
+// station actually travels to. Tried one per attempt, round-robin — never scanned.
+// A scan would cost the AP a stall of its own before a single association is even
+// attempted, and the list is short enough that walking it blind is cheaper.
+//
 // 2.4 GHz ONLY. The ESP32 has no 5 GHz radio, so the "-5G" twin of a dual-band
-// router is invisible to it no matter what is configured here.
-const char* staSsid     = "HomeSSID";
-const char* staPassword = "<HOME_WIFI_PASSWORD_REMOVED>";
-// Retry backoff. Association is not free: the driver leaves the AP's channel to
-// scan, and every client on the AP stalls for the duration. That is tolerable once
-// in a while and intolerable every 30 s forever, which is exactly what happens when
-// the home network is simply not there (the board on the mast). So the interval
-// doubles on each failure up to the cap, and resets the moment a link comes up.
-const unsigned long STA_RETRY_MIN_MS = 30000;    // first retry, 30 s
+// router is invisible to it no matter what is written here.
+//
+// Plain text on purpose: there is nowhere better to put it. The firmware never
+// writes NVS, so a password typed into a form would not survive a reboot anyway.
+struct HomeNetwork {
+  const char* ssid;
+  const char* password;
+};
+const HomeNetwork homeNetworks[] = {
+  { "HomeSSID", "<HOME_WIFI_PASSWORD_REMOVED>" },
+};
+const int homeNetworkCount = sizeof(homeNetworks) / sizeof(homeNetworks[0]);
+
+// One association attempt gets this long before the next candidate is tried. A
+// successful join takes 2-5 s; the rest is margin for a router that answers slowly.
+const unsigned long STA_ASSOC_MS = 12000;
+// Backoff between full passes over the list — NOT between individual candidates.
+// Association is not free: the driver leaves the AP's channel to do it, and every
+// client on the AP stalls for the duration. Tolerable now and then, intolerable
+// every 30 s forever, which is exactly what happens when none of these networks is
+// there (the board on the mast). So the wait doubles after each failed pass and
+// resets the moment a link comes up.
+const unsigned long STA_RETRY_MIN_MS = 30000;    // after the first failed pass, 30 s
 const unsigned long STA_RETRY_MAX_MS = 600000;   // ceiling, 10 min
 
 // ===== PINS =====
@@ -284,7 +304,8 @@ bool apUp = false;   // softAP() came up; false only if the radio failed outrigh
 // decides when to associate — otherwise the driver's own retries and the backoff
 // below would both be scanning, and the AP would stall twice as often for it.
 bool staUp = false;                              // last observed link state
-unsigned long staBackoffMs  = STA_RETRY_MIN_MS;  // current wait, doubles on failure
+int  staIndex = 0;                               // next candidate in homeNetworks[]
+unsigned long staBackoffMs  = STA_RETRY_MIN_MS;  // wait after a full failed pass
 unsigned long staNextAttempt = 0;                // millis() of the next WiFi.begin()
 #endif
 
@@ -611,8 +632,11 @@ String buildDataJson() {
   // Uplink status. Added fields, not changed ones — a dashboard build that predates
   // them ignores what it does not know. staIp is the only way to learn the address
   // the board answers on at home without opening the router or a serial console.
+  // staSsid is which network of the list actually answered, so it is read from the
+  // driver rather than from homeNetworks[] — with several candidates the constant
+  // would only say which one was tried last.
 #if HAS_HOME_NETWORK
-  json += "\"staSsid\":\""      + String(staSsid) + "\",";
+  json += "\"staSsid\":"        + (staUp ? "\"" + WiFi.SSID() + "\"" : String("null")) + ",";
   json += "\"staConnected\":"   + String(staUp ? "true" : "false") + ",";
   json += "\"staIp\":"          + (staUp ? "\"" + WiFi.localIP().toString() + "\"" : String("null")) + ",";
 #else
@@ -790,15 +814,24 @@ void handleWifiControl() {
   json += "\"clients\":" + String(apClients()) + ",";
   json += "\"host\":\"" + String(portalHost) + "\",";
 #if HAS_HOME_NETWORK
-  json += "\"uplinkSsid\":\"" + String(staSsid) + "\",";
+  json += "\"uplinkSsid\":" + (staUp ? "\"" + WiFi.SSID() + "\"" : String("null")) + ",";
   json += "\"uplinkConnected\":" + String(staUp ? "true" : "false") + ",";
   json += "\"uplinkIp\":" + (staUp ? "\"" + WiFi.localIP().toString() + "\"" : String("null")) + ",";
   json += "\"uplinkRssi\":" + String(staUp ? WiFi.RSSI() : 0) + ",";
+  // Names only, never passwords. Answers "which networks will this build even try",
+  // which is otherwise only visible by reading the source or the serial log.
+  json += "\"uplinkKnown\":[";
+  for (int i = 0; i < homeNetworkCount; i++) {
+    if (i) json += ",";
+    json += "\"" + String(homeNetworks[i].ssid) + "\"";
+  }
+  json += "],";
 #else
   json += "\"uplinkSsid\":null,";
   json += "\"uplinkConnected\":false,";
   json += "\"uplinkIp\":null,";
   json += "\"uplinkRssi\":0,";
+  json += "\"uplinkKnown\":[],";
 #endif
   json += "\"max\":0,";
   json += "\"nets\":[]}";
@@ -872,6 +905,11 @@ void startNetworkServices() {
 //
 // The AP is not touched anywhere in here. There is no path in this function that
 // can take the station off the air.
+//
+// With several candidates it walks homeNetworks[] one entry per attempt, giving each
+// STA_ASSOC_MS to answer, and only after a whole pass has failed does it wait out the
+// backoff. Order is preference: the first network that happens to be in range wins,
+// because the pass stops the moment a link comes up.
 void serviceUplink() {
   bool now = (WiFi.status() == WL_CONNECTED);
 
@@ -879,8 +917,9 @@ void serviceUplink() {
     staUp = now;
     if (now) {
       staBackoffMs = STA_RETRY_MIN_MS;   // a good link earns a fast retry next time
+      staIndex = 0;                      // and the next search starts from the top
       Serial.printf("Uplink '%s' joined  IP: %s  RSSI=%d\n",
-                    staSsid, WiFi.localIP().toString().c_str(), WiFi.RSSI());
+                    WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(), WiFi.RSSI());
       // mDNS was started when the AP was the only interface, so its responder is
       // bound to that one and the name stays invisible from the house. Restarting
       // it now re-announces on both.
@@ -890,7 +929,7 @@ void serviceUplink() {
         Serial.printf("mDNS: http://%s.local (also on the home network)\n", hostname);
       }
     } else {
-      Serial.printf("Uplink '%s' lost — AP unaffected\n", staSsid);
+      Serial.println("Uplink lost — AP unaffected");
       staNextAttempt = millis() + staBackoffMs;
     }
   }
@@ -899,10 +938,22 @@ void serviceUplink() {
   // Signed comparison so the wrap of millis() at 49.7 days cannot park this forever.
   if ((long)(millis() - staNextAttempt) < 0) return;
 
-  WiFi.begin(staSsid, staPassword);
-  staNextAttempt = millis() + staBackoffMs;
-  if (staBackoffMs < STA_RETRY_MAX_MS) {
-    staBackoffMs = min(staBackoffMs * 2, STA_RETRY_MAX_MS);
+  const HomeNetwork& candidate = homeNetworks[staIndex];
+  Serial.printf("Uplink: trying '%s' (%d/%d)\n",
+                candidate.ssid, staIndex + 1, homeNetworkCount);
+  WiFi.begin(candidate.ssid, candidate.password);
+
+  staIndex++;
+  if (staIndex < homeNetworkCount) {
+    staNextAttempt = millis() + STA_ASSOC_MS;   // next candidate, no long wait
+  } else {
+    // Whole list exhausted: back off before starting over, so a station on a mast
+    // with none of these networks in range stops interrupting its own AP.
+    staIndex = 0;
+    staNextAttempt = millis() + staBackoffMs;
+    if (staBackoffMs < STA_RETRY_MAX_MS) {
+      staBackoffMs = min(staBackoffMs * 2, STA_RETRY_MAX_MS);
+    }
   }
 }
 #endif
@@ -1006,9 +1057,12 @@ void setup() {
   // the AP drop and rejoin once for that — unavoidable on a single-radio part, and
   // the reason this is the last thing setup() does.
   WiFi.setAutoReconnect(false);   // serviceUplink() owns retries, see staBackoffMs
-  WiFi.begin(staSsid, staPassword);
-  staNextAttempt = millis() + staBackoffMs;
-  Serial.printf("Uplink: joining '%s' in the background (2.4 GHz only)\n", staSsid);
+  // No WiFi.begin() here on purpose: staNextAttempt in the past makes the first pass
+  // through loop() start the search, so the list is walked by one piece of code
+  // instead of two that could disagree about which candidate is next.
+  staNextAttempt = millis();
+  Serial.printf("Uplink: %d network(s) to try in the background (2.4 GHz only)\n",
+                homeNetworkCount);
 #endif
 
   server.on("/api/data",   HTTP_GET, handleData);
