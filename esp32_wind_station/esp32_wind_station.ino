@@ -128,7 +128,7 @@ const unsigned long STA_RETRY_MAX_MS = 600000;   // ceiling, 10 min
 #define PIN_LED_RED       4   // Red — wind > 15 m/s OR battery 10-30% (blink <10%) (col 5, was 14)
 #define PIN_LED_YELLOW   16   // Yellow — wind > 5 m/s OR battery 30-60%            (col 6, was 27)
 #define PIN_LED_GREEN    17   // Green — battery > 60% (was "station OK")           (col 7, was 26)
-#define PIN_LED_WIFI      5   // Green — AP: blink when idle, solid with a client on  (col 8, was 25; strapping, boot flicker)
+#define PIN_LED_WIFI      5   // Green — solid when reachable (AP client or uplink)  (col 8, was 25; strapping, boot flicker)
 #define PIN_LED_ERROR    18   // Red — error (ADC/WiFi)                             (col 9, was 33)
 
 // TP4056 status, open-drain: the IC pulls the pin to GND, so INPUT_PULLUP and LOW=active.
