@@ -97,7 +97,10 @@ struct HomeNetwork {
   const char* password;
 };
 const HomeNetwork homeNetworks[] = {
-  { "HomeSSID", "<HOME_WIFI_PASSWORD_REMOVED>" },
+  { "HomeSSID", "<HOME_WIFI_PASSWORD_REMOVED>" },   // home, the one the board normally lives on
+  { "temafey",        "<HOME_WIFI_PASSWORD_REMOVED>" },   // same house, older SSID — note the lowercase t
+  { "HomeSSID-2",      "<HOME_WIFI_PASSWORD_REMOVED>"    },
+  { "AndroidAP",      "<HOME_WIFI_PASSWORD_REMOVED>"    },   // phone hotspot, last resort in the field
 };
 const int homeNetworkCount = sizeof(homeNetworks) / sizeof(homeNetworks[0]);
 
@@ -928,6 +931,13 @@ void serviceUplink() {
         MDNS.addService("http", "tcp", 80);
         Serial.printf("mDNS: http://%s.local (also on the home network)\n", hostname);
       }
+      // Joining brought the station interface up and moved the AP to the router's
+      // channel — both are driver re-inits, and the radio tuning from setup() is
+      // exactly the kind of setting that does not always survive one. Cheap to
+      // reassert, and silently losing half the TX power here would look like
+      // "the AP got weaker after a while" and be almost impossible to trace.
+      WiFi.setSleep(false);
+      WiFi.setTxPower(WIFI_POWER_21dBm);
     } else {
       Serial.println("Uplink lost — AP unaffected");
       staNextAttempt = millis() + staBackoffMs;
@@ -1036,7 +1046,14 @@ void setup() {
   // Max TX power. Throughput is not the issue here (a frame is ~330 bytes), retries
   // are: every 802.11 retransmit costs a full airtime slot and surfaces as a latency
   // spike, so buy link margin with power this station has no reason to conserve.
-  WiFi.setTxPower(WIFI_POWER_19_5dBm);
+  //
+  // Asks for the top of the enum rather than a value known to be reachable: the
+  // driver clamps to whatever the PHY and the calibration data actually allow, so
+  // this yields the chip's ceiling instead of a guess about it. Which is why the
+  // result is read back and printed — the number in the log is measured, not assumed.
+  WiFi.setTxPower(WIFI_POWER_21dBm);
+  Serial.printf("TX power: %.1f dBm (asked for the maximum the radio allows)\n",
+                (int)WiFi.getTxPower() / 4.0);
 
   if (apUp) {
     startNetworkServices();
