@@ -553,10 +553,16 @@ void updateLEDs() {
       ledRed = (windSpeed > 15.0f || batRed) ? LED_MODE_ON : LED_MODE_OFF;
     }
 
-    // WiFi LED: solid once something is associated to the AP, blink while it waits.
-    // The old "blink = still connecting" is gone with STA mode; the AP is up within
-    // a moment of boot, so a permanently solid LED would carry no information at all.
-    ledWifi = (wifiOk && apClients() > 0) ? LED_MODE_ON : LED_MODE_BLINK;
+    // WiFi LED: solid when the station is reachable by someone, blinking when it is
+    // shouting into an empty room. "Reachable" is either a client on the AP or a live
+    // uplink — a board sitting on the home network with nobody's phone attached is
+    // working perfectly, and it used to blink anyway, which trained the eye to ignore
+    // the one LED that is supposed to mean "look at me". Blink is now the exception.
+    bool reachable = apClients() > 0;
+#if HAS_HOME_NETWORK
+    reachable = reachable || staUp;
+#endif
+    ledWifi = (wifiOk && reachable) ? LED_MODE_ON : LED_MODE_BLINK;
   }
 
   applyLed(PIN_LED_GREEN,  ledGreen);
