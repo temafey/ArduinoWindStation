@@ -189,7 +189,10 @@ def cap_ceramic(col_l, col_r, row, label="C 100нФ"):
 
 # ============================================================= ДИОД ШОТТКИ (полоска-катод)
 def diode_schottky(col_l, col_r, row, label="D · 1N5819", cathode="right", label_dy=-14):
-    x1, x2, y = colx(col_l), colx(col_r), ROWY[row]
+    return diode_xy(colx(col_l), colx(col_r), ROWY[row], label, cathode, label_dy)
+
+def diode_xy(x1, x2, y, label="D · 1N5819", cathode="right", label_dy=-14):
+    """Тот же диод, но по координатам — для деталей ВНЕ макетки (монтаж точка-в-точку)."""
     bx, bw = x1+16, 22
     stripe_x = bx+bw-5 if cathode == "right" else bx
     return (f'<line x1="{x1}" y1="{y}" x2="{bx}" y2="{y}" stroke="#8d8d8d" stroke-width="2.4"/>'
@@ -202,7 +205,10 @@ def diode_schottky(col_l, col_r, row, label="D · 1N5819", cathode="right", labe
 # ============================================================= ЭЛЕКТРОЛИТ (полярный)
 def cap_electrolytic(col_p, col_m, row, label="1000µF"):
     """col_p — «+» (длинная ножка), col_m — «−» (полоса)."""
-    xp, xm, y = colx(col_p), colx(col_m), ROWY[row]
+    return cap_electrolytic_xy(colx(col_p), colx(col_m), ROWY[row], label)
+
+def cap_electrolytic_xy(xp, xm, y, label="1000µF"):
+    """Тот же электролит по координатам — для монтажа вне макетки."""
     x0 = min(xp, xm)
     return (f'<line x1="{xp}" y1="{y}" x2="{xp}" y2="{y-10}" stroke="#8d8d8d" stroke-width="2.4"/>'
             f'<line x1="{xm}" y1="{y}" x2="{xm}" y2="{y-10}" stroke="#8d8d8d" stroke-width="2.4"/>'
@@ -402,6 +408,98 @@ def switch_rocker(x, y, w, h, terminals, title="SW1", subtitle="клавишны
     txt = (f'<text x="{cx}" y="{y-8}" font-size="13" font-weight="700" fill="#1a1a1a" text-anchor="middle">{title}</text>'
            f'<text x="{cx}" y="{y+h+16}" font-size="10" fill="#666" text-anchor="middle">{subtitle}</text>')
     return frame+rocker+term+txt
+
+# ============================================================= 4G/GPS-плата BK-A7670 (задача 10)
+# Контакты CN101 идут по ЛЕВОЙ кромке платы: провода подходят слева и не прячутся
+# под корпусом. Шаг гребёнки 2.54 мм = 17 px, как у макетки.
+A7670_CN_DX, A7670_CN_DY, A7670_CN_PITCH = 17, 64, 17
+
+# CN101, 7 контактов сверху вниз (мануал BK-A7670 V1)
+CN101 = ["SLEEP", "GND", "VCC", "PWRKEY", "TXD", "RXD", "GND"]
+
+def a7670_cn(x, y, i):
+    """Точка подключения к контакту CN101 №i (1..7) для платы, посаженной в (x, y)."""
+    return (x + A7670_CN_DX, y + A7670_CN_DY + (i - 1) * A7670_CN_PITCH)
+
+def mod_a7670(x, y, w, h, used=None, subtitle="SIMCom A7670E · 37×37 мм"):
+    """Плата BK-A7670 V1. Задействованные контакты CN101 красятся цветом своего провода,
+       незадействованные остаются тусклыми. used: {номер контакта: цвет}."""
+    used = used or {}
+    body = (f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="9" fill="{PCB_DARK}" '
+            f'stroke="{PCB_EDGE}" stroke-width="1.6"/>'
+            f'<rect x="{x+4}" y="{y+4}" width="{w-8}" height="{h-8}" rx="7" fill="none" '
+            f'stroke="#000" stroke-opacity="0.45"/>')
+    holes = "".join(f'<circle cx="{hx}" cy="{hy}" r="4" fill="#0b0b0d" stroke="{GOLD}" stroke-width="1.4"/>'
+                    for hx, hy in [(x+w-13, y+13), (x+w-13, y+h-13)])
+    # гребёнка CN101 — уже распаяна с завода, паять нечего
+    hy0 = y + A7670_CN_DY - 11
+    hh  = 6 * A7670_CN_PITCH + 22
+    hdr = (f'<rect x="{x+9}" y="{hy0}" width="16" height="{hh}" rx="3" fill="#1c1d21" stroke="#000"/>'
+           f'<text x="{x+8}" y="{hy0-6}" font-size="7.5" font-weight="700" fill="{SILK_DIM}">CN101 · гребёнка распаяна</text>')
+    pads = ""
+    for i, name in enumerate(CN101, 1):
+        px, py = a7670_cn(x, y, i)
+        col = used.get(i)
+        pads += (f'<circle cx="{px}" cy="{py}" r="6" fill="{col or "#4a4d55"}" '
+                 f'stroke="{GOLD if col else "#6a6d75"}" stroke-width="1.5"/>'
+                 f'<circle cx="{px}" cy="{py}" r="2.3" fill="#0b0b0d"/>'
+                 f'<text x="{px+11}" y="{py+3}" font-size="8" font-weight="700" '
+                 f'fill="{SILK if col else SILK_DIM}">{i} · {name}</text>')
+    # экран модуля SIMCom
+    sx, sy, sw, sh = x + 120, y + 50, 130, 86
+    shield = (f'<rect x="{sx}" y="{sy}" width="{sw}" height="{sh}" rx="4" fill="#26272c" stroke="#3f4149"/>'
+              f'<rect x="{sx+5}" y="{sy+5}" width="{sw-10}" height="{sh-10}" rx="3" fill="none" stroke="#3f4149"/>'
+              f'<text x="{sx+sw/2:.0f}" y="{sy+38}" font-size="12" font-weight="700" fill="{SILK}" text-anchor="middle">A7670E</text>'
+              f'<text x="{sx+sw/2:.0f}" y="{sy+54}" font-size="7.5" fill="{SILK_DIM}" text-anchor="middle">SIMCom · LTE Cat-1</text>')
+    # антенные разъёмы: J1 (LTE) и J2 (GPS) распаяны, J3 (BT) — голые пятаки
+    ants = ""
+    for k, (nm, sub, live) in enumerate([("J1", "LTE", True), ("J2", "GPS", True), ("J3", "BT", False)]):
+        ax, ay = x + w - 40, y + 52 + k * 40
+        if live:
+            ants += (f'<circle cx="{ax}" cy="{ay}" r="10" fill="{SILVER}" stroke="#7d828a" stroke-width="1.4"/>'
+                     f'<circle cx="{ax}" cy="{ay}" r="4" fill="#2a2b30"/>')
+        else:
+            ants += (f'<rect x="{ax-9}" y="{ay-7}" width="18" height="14" rx="2" fill="#3a3d43" '
+                     f'stroke="#5a5d65" stroke-dasharray="2 2"/>')
+        ants += (f'<text x="{ax}" y="{ay+23}" font-size="7.5" font-weight="700" '
+                 f'fill="{SILK if live else SILK_DIM}" text-anchor="middle">{nm} · {sub}</text>')
+    # нижний ряд: держатель SIM · линейный U2 (1084, DPAK) · тестовая точка TP1.
+    # Дросселя на плате нет ни одного — это и есть доказательство, что U2 линейный.
+    ux, uy = x + 205, y + 152
+    u2 = (f'<rect x="{ux}" y="{uy}" width="38" height="26" rx="2.5" fill="#0e0e11" stroke="#000"/>'
+          f'<rect x="{ux+4}" y="{uy-5}" width="30" height="6" rx="1.5" fill="#b8b8b8"/>'
+          f'<text x="{ux+19}" y="{uy+17}" font-size="8" font-weight="700" fill="#cfd2d8" text-anchor="middle">1084</text>'
+          f'<circle cx="{x+252}" cy="{y+165}" r="5.5" fill="{GOLD}" stroke="#8a6d1a"/>'
+          f'<text x="{x+186}" y="{y+196}" font-size="7.5" font-weight="700" fill="#e8a33a" '
+          f'text-anchor="middle">U2 · линейный 1084 (~0.8 Вт) → TP1 = 4.0 В</text>')
+    simx, simy = x + 120, y + 148
+    sim = (f'<rect x="{simx}" y="{simy}" width="70" height="30" rx="3" fill="#2a2b30" stroke="#4a4d55"/>'
+           f'<text x="{simx+35}" y="{simy+19}" font-size="8" fill="{SILK_DIM}" text-anchor="middle">SIM · nano</text>')
+    ub = (f'<rect x="{x+w/2-17:.0f}" y="{y+h-11}" width="34" height="16" rx="4" fill="{SILVER}" stroke="#7d828a"/>'
+          f'<text x="{x+w/2:.0f}" y="{y+h+18}" font-size="7.5" fill="#666" text-anchor="middle">micro-USB · AT-консоль</text>')
+    txt = (f'<text x="{x+12}" y="{y+24}" font-size="13" font-weight="700" fill="{SILK}">BK-A7670 V1</text>'
+           f'<text x="{x+12}" y="{y+38}" font-size="8" fill="{SILK_DIM}">{subtitle}</text>'
+           f'<text x="{x+w-12}" y="{y+24}" font-size="7.5" font-weight="700" fill="#e8a33a" '
+           f'text-anchor="end">R104: PWRKEY на GND — стартует сам</text>')
+    return body + holes + hdr + shield + ants + u2 + sim + ub + txt + pads
+
+# ============================================================= КЛЮЧ ПИТАНИЯ (P-MOSFET)
+def mod_pmos_switch(x, y, w, h, title="Ключ питания модема", planned=True,
+                    subtitle="P-MOSFET high-side · затвор ← GPIO25"):
+    """Верхний ключ на входе буста. planned=True рисует пунктиром — деталь ещё не куплена.
+       Клеммы: вход (x, y+h/2), выход (x+w, y+h/2), затвор (x+w/2, y+h)."""
+    dash = ' stroke-dasharray="6 4"' if planned else ""
+    op = ' opacity="0.62"' if planned else ""
+    cy = y + h / 2
+    return (f'<g{op}><rect x="{x}" y="{y}" width="{w}" height="{h}" rx="8" fill="#fdfaf2" '
+            f'stroke="#b08a2a" stroke-width="2"{dash}/>'
+            f'<rect x="{x+w/2-16:.0f}" y="{cy-15:.0f}" width="32" height="30" rx="3" fill="#2b2b2b" stroke="#111"/>'
+            f'<text x="{x+w/2:.0f}" y="{cy+4:.0f}" font-size="8" fill="#e8e8e8" text-anchor="middle">P-FET</text>'
+            f'<line x1="{x}" y1="{cy:.0f}" x2="{x+w/2-16:.0f}" y2="{cy:.0f}" stroke="#8d8d8d" stroke-width="2.4"/>'
+            f'<line x1="{x+w/2+16:.0f}" y1="{cy:.0f}" x2="{x+w}" y2="{cy:.0f}" stroke="#8d8d8d" stroke-width="2.4"/>'
+            f'<line x1="{x+w/2:.0f}" y1="{cy+15:.0f}" x2="{x+w/2:.0f}" y2="{y+h}" stroke="#8d8d8d" stroke-width="2.4"/>'
+            f'<text x="{x+w/2:.0f}" y="{y+16}" font-size="10" font-weight="700" fill="#8a6a1a" text-anchor="middle">{title}</text>'
+            f'<text x="{x+w/2:.0f}" y="{y+h-8}" font-size="7.5" fill="#8a6a1a" text-anchor="middle">{subtitle}</text></g>')
 
 # ============================================================= БАТАРЕЙНЫЙ ПАКЕТ (эталон)
 def battery_pack(x, y, title="2×18650 LG HG2 · ПАРАЛЛЕЛЬ (задача 03 ✓)",
