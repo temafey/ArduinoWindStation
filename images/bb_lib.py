@@ -483,6 +483,49 @@ def mod_a7670(x, y, w, h, used=None, subtitle="SIMCom A7670E · 37×37 мм"):
            f'text-anchor="end">R104: PWRKEY на GND — стартует сам</text>')
     return body + holes + hdr + shield + ants + u2 + sim + ub + txt + pads
 
+# ============================================================= ГНЕЗДОВАЯ ПЛАНКА (PLS «мама»)
+def header_socket(col_l, col_r, row, pins, title="", title_dx=-14):
+    """Планка гнёзд, воткнутая в ОДИН ряд макетки: в неё сверху садится модуль штырями.
+       На колонку приходится 17 px, поэтому назначение контакта пишется коротко (VCC, RXD),
+       а номер — прямо в гнезде. pins слева направо: (номер, короткая метка, цвет или None);
+       None = контакт никуда не разведён и красится тускло."""
+    y = ROWY[row]
+    x0, x1 = colx(col_l) - 8, colx(col_r) + 8
+    g = (f'<rect x="{x0}" y="{y-11}" width="{x1-x0}" height="22" rx="3" '
+         f'fill="#1c1d21" stroke="#000" stroke-width="1.2"/>')
+    for k, (num, lab, col) in enumerate(pins):
+        cx = colx(col_l + k)
+        g += (f'<rect x="{cx-6.5}" y="{y-7.5}" width="13" height="15" rx="1.5" '
+              f'fill="{col or "#3a3d43"}" stroke="{GOLD if col else "#5a5d65"}" stroke-width="1.2"/>'
+              f'<text x="{cx}" y="{y+3.5}" font-size="8.5" font-weight="700" '
+              f'fill="{"#fff" if col else "#8a8a8a"}" text-anchor="middle">{num}</text>'
+              f'<text x="{cx}" y="{y-15}" font-size="7.5" font-weight="700" '
+              f'fill="{col or "#8a8a8a"}" text-anchor="middle">{lab}</text>')
+    if title:
+        g += (f'<text x="{x0+title_dx}" y="{y+5}" font-size="9" font-weight="700" '
+              f'fill="#1a1a1a" text-anchor="end">{title}</text>')
+    return g
+
+# ============================================================= ПРОЕКЦИЯ НАВИСАЮЩЕЙ ПЛАТЫ
+def overlay_outline(x, y, w, h, title, sub="", cut_top=True):
+    """Пунктирный контур платы, которая лежит ПОВЕРХ макетки: видно, какие отверстия
+       она закрывает и куда свисает. cut_top=True рисует верхнюю кромку рваной —
+       в масштабе плата сюда не влезает и продолжается за пределы рисунка."""
+    if cut_top:
+        step = w / 12.0
+        zz = "".join(f'L{x + k*step:.0f} {y + (0 if k % 2 else 9)} ' for k in range(1, 13))
+        d = f'M{x} {y+h} L{x} {y} {zz}L{x+w} {y+h} Z'
+    else:
+        d = f'M{x} {y} L{x+w} {y} L{x+w} {y+h} L{x} {y+h} Z'
+    g = (f'<path d="{d}" fill="#3a3d43" fill-opacity="0.12" stroke="#3a3d43" '
+         f'stroke-width="1.8" stroke-dasharray="7 5" stroke-linejoin="round"/>')
+    g += (f'<text x="{x+w/2:.0f}" y="{y+h/2+2:.0f}" font-size="9.5" font-weight="700" '
+          f'fill="#3a3d43" text-anchor="middle">{title}</text>')
+    if sub:
+        g += (f'<text x="{x+w/2:.0f}" y="{y+h/2+15:.0f}" font-size="8" fill="#5a5d65" '
+              f'text-anchor="middle">{sub}</text>')
+    return g
+
 # ============================================================= КЛЮЧ ПИТАНИЯ (P-MOSFET)
 def mod_pmos_switch(x, y, w, h, title="Ключ питания модема", planned=True,
                     subtitle="P-MOSFET high-side · затвор ← GPIO25"):
