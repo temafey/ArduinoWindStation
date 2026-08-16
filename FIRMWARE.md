@@ -192,7 +192,7 @@ V_датчика = мВ_средн / 1000 × 2.5           (при мВ_сред
 | | |
 |---|---|
 | SSID | `WindStation` |
-| пароль | `<AP-пароль>` (WPA2-PSK) |
+| пароль | из `secrets.h` (WPA2-PSK) |
 | адрес | `http://MyWindProbeBETA.org` |
 | он же | 192.168.4.1 и `mywindprobebeta.local` |
 | клиентов | до 4 |

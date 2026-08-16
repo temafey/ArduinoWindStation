@@ -4,7 +4,7 @@
 
 **Основной путь — OTA по WiFi.** Он быстрее (~20 секунд), не требует кабеля и не требует плясок с кнопками. USB нужен только когда OTA недоступен: точка доступа не поднялась, залита неисправная прошивка, или меняется схема разделов.
 
-**Где искать плату.** Своя точка `WindStation` (пароль `<AP-пароль>`, плата всегда на 192.168.4.1) есть всегда — она не выключается ни при каких условиях. С 2026-08-15 плата вдобавок входит в домашнюю сеть `HomeSSID`, и тогда её видно оттуда по адресу от роутера. Заливать можно с любой из двух сторон; по домашней сети удобнее, потому что ПК не теряет интернет.
+**Где искать плату.** Своя точка `WindStation` (пароль из `secrets.h`, плата всегда на 192.168.4.1) есть всегда — она не выключается ни при каких условиях. С 2026-08-15 плата вдобавок входит в домашнюю сеть `HomeSSID`, и тогда её видно оттуда по адресу от роутера. Заливать можно с любой из двух сторон; по домашней сети удобнее, потому что ПК не теряет интернет.
 
 > **Разовая оговорка про первый переход.** Плата с *прежней* прошивкой сидит в домашней сети на 192.168.31.235 — именно туда и надо залить первое обновление, по старым адресам из истории этого файла (`-i 192.168.31.235 -I 192.168.31.150`). После перезагрузки она уже поднимет свою точку, и дальше действует раздел 2 в его нынешнем виде.
 
@@ -125,7 +125,7 @@ Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "Wi-Fi" |
 | | |
 |---|---|
 | SSID | `WindStation` |
-| пароль | `<AP-пароль>` |
+| пароль | из `secrets.h` |
 | IP платы | всегда **192.168.4.1** |
 | дашборд | `http://MyWindProbeBETA.org` |
 | IP ПК | выдаётся платой, обычно 192.168.4.2 |
@@ -148,13 +148,18 @@ Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -like "192.16
 $ota = "$env:LOCALAPPDATA\Arduino15\packages\esp32\hardware\esp32\3.3.10\tools\espota.py"
 $bin = "C:\Users\temaf\OneDrive\Documents\Projects\TymurWindStation\build\esp32_wind_station.ino.bin"
 
+# пароль OTA берём из secrets.h, а не пишем в командную строку: репозиторий публичный,
+# а история PowerShell (ConsoleHost_history.txt) хранит всё, что было набрано руками
+$otapw = (Select-String -Path C:\Users\temaf\OneDrive\Documents\Projects\TymurWindStation\esp32_wind_station\secrets.h `
+  -Pattern 'SECRET_OTA_PASSWORD\s+"(.+)"').Matches.Groups[1].Value
+
 # путь Б, через точку доступа платы
 python $ota -i 192.168.4.1 -I 192.168.4.2 -p 3232 -P 45678 `
-  -a <OTA-пароль> -f $bin -r -d
+  -a $otapw -f $bin -r -d
 
 # путь А, по домашней сети — подставить staIp платы и свой адрес
 python $ota -i 192.168.1.xxx -I 192.168.1.yyy -p 3232 -P 45678 `
-  -a <OTA-пароль> -f $bin -r -d
+  -a $otapw -f $bin -r -d
 ```
 
 `-I` — реальный адрес ПК из предыдущего шага; если DHCP платы выдал не `.2`, подставь свой.
@@ -329,9 +334,11 @@ Uplink 'HomeSSID' joined  IP: 192.168.1.87  RSSI=-58
 
 # залить по воздуху. -i = адрес платы, -I = адрес ПК в той же сети:
 #   из домашней сети — staIp платы и свой IP от роутера (интернет не пропадает)
-#   через точку платы — 192.168.4.1 и 192.168.4.2 (сначала подключиться к 'WindStation'/<AP-пароль>)
+#   через точку платы — 192.168.4.1 и 192.168.4.2 (сначала подключиться к 'WindStation', пароль из secrets.h)
+$otapw = (Select-String -Path C:\Users\temaf\OneDrive\Documents\Projects\TymurWindStation\esp32_wind_station\secrets.h `
+  -Pattern 'SECRET_OTA_PASSWORD\s+"(.+)"').Matches.Groups[1].Value
 python "$env:LOCALAPPDATA\Arduino15\packages\esp32\hardware\esp32\3.3.10\tools\espota.py" `
-  -i 192.168.4.1 -I 192.168.4.2 -p 3232 -P 45678 -a <OTA-пароль> `
+  -i 192.168.4.1 -I 192.168.4.2 -p 3232 -P 45678 -a $otapw `
   -f C:\Users\temaf\OneDrive\Documents\Projects\TymurWindStation\build\esp32_wind_station.ino.bin -r -d
 
 # убедиться, что живая
@@ -350,9 +357,9 @@ Invoke-WebRequest http://192.168.4.1/ -UseBasicParsing | Select-Object StatusCod
 |---|---|---|
 | адрес дашборда | `MyWindProbeBETA.org` | `esp32_wind_station.ino`, `portalHost` |
 | hostname / mDNS | `mywindprobebeta` → `mywindprobebeta.local` | `esp32_wind_station.ino`, `hostname` |
-| пароль OTA | `<OTA-пароль>` | **`secrets.h`**, `SECRET_OTA_PASSWORD` |
+| пароль OTA | в документе не печатается | **`secrets.h`**, `SECRET_OTA_PASSWORD` |
 | SSID точки | `WindStation` | `esp32_wind_station.ino`, `apSsid` |
-| пароль точки | `<AP-пароль>` (WPA2) | **`secrets.h`**, `SECRET_AP_PASSWORD` |
+| пароль точки | в документе не печатается (WPA2) | **`secrets.h`**, `SECRET_AP_PASSWORD` |
 | домашние сети | список, 2.4 ГГц | **`secrets.h`**, `SECRET_HOME_NETWORKS` |
 | аплинк вкл/выкл | `1` | **`secrets.h`**, `SECRET_HAS_HOME_NETWORK` |
 | OTA-порт платы | 3232 (UDP) | дефолт ArduinoOTA |

@@ -56,7 +56,7 @@ Changing physical resistors without updating the constant produces silently wron
 **Build & flash firmware:**
 - Arduino IDE with ESP32 Board Manager
 - Board: `ESP32 Dev Module`, 115200 baud
-- First flash over USB. Subsequent flashes over WiFi: `Tools → Port → Network Port → windstation`, password `<OTA-пароль>`
+- First flash over USB. Subsequent flashes over WiFi: `Tools → Port → Network Port → windstation`, password `<OTA password>` (rotated — see esp32_wind_station/secrets.h in the current firmware)
 - WiFi SSID/password are hardcoded constants at the top of the `.ino` — edit before flashing
 
 **Run the dashboard:**
@@ -72,7 +72,7 @@ Module is pre-assembly as of 2026-04-12. The assembly doc's BOM section is the s
 - TP4056 + Schottky 1N5819 for load sharing (not YX-850)
 - 10 kΩ bottom + **10 kΩ + 5 kΩ in series (= 15 kΩ)** top signal divider (top arm built as 10 kΩ + 5 kΩ in series — no 15 kΩ in the kit; not 20 kΩ — the older value pushed ADC into its non-linear range)
 - Battery voltage monitoring on GPIO32 via 100k/100k divider
-- mDNS hostname `windstation` and OTA password `<OTA-пароль>`
+- mDNS hostname `windstation` and OTA password `<OTA password>` (rotated — see esp32_wind_station/secrets.h in the current firmware)
 
 ## Editing conventions
 

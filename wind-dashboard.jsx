@@ -620,7 +620,7 @@ function AddStationModal({ g, onSave, onClose, onLocate, locating, coords, testR
         ]}
         onChange={(v) => { setVia(v); setHost(v === "ap" ? DEFAULT_HOST : ""); }}
         hint={via === "ap"
-          ? "Станция раздаёт собственную сеть и ни к чему не подключается — так она настроена по умолчанию. Подключитесь к сети WindStation (пароль <AP-пароль>), адрес тогда всегда MyWindProbeBETA.org."
+          ? "Станция раздаёт собственную сеть и ни к чему не подключается — так она настроена по умолчанию. Подключитесь к сети WindStation, и адрес тогда всегда MyWindProbeBETA.org."
           : "Если станцию вернули в домашнюю сеть, впишите имя или IP, который ей выдал роутер."}
       />
 

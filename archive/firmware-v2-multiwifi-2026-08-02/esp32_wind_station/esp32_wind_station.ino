@@ -31,7 +31,7 @@
 
 // ===== OTA SETTINGS =====
 const char* hostname    = "windstation";
-const char* otaPassword = "<OTA-пароль>";
+const char* otaPassword = "CHANGE_ME_ota_password";
 const char* setupApName = "WindStation-Setup";  // open AP when no known WiFi is in range
 
 // ===== PINS =====

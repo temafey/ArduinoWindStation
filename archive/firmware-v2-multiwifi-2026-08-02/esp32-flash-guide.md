@@ -148,7 +148,7 @@ V=0.0 m/s  D=0°  G=0.0  Bat=0.00V (0%)  RSSI=-30
 `Tools → Port → Network Ports → windstation`  
 → Upload (кнопки BOOT/EN не нужны)
 
-OTA-пароль: `<OTA-пароль>`
+OTA-пароль: `<OTA-пароль>` (сменён, старое значение больше ни к чему не подходит)
 
 ---
 

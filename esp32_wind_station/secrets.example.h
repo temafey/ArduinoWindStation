@@ -8,19 +8,19 @@
 //
 //   copy secrets.example.h secrets.h
 //
-// secrets.h is in .gitignore; this template is the only one of the two in git.
-// The two values below are the ones the documentation names, so a checkout with
-// no changes at all builds a station that behaves exactly as described in
-// wind-station-assembly.md — just without the home uplink.
+// secrets.h is in .gitignore; this template is the only one of the two in git,
+// so nothing here is a real credential. Every value below MUST be replaced —
+// they are placeholders, not defaults, and two of them are too short to work.
 // ============================================
 
 // WPA2-PSK of the station's own access point. The ESP32 needs 8..63 characters:
-// below 8, softAP() silently falls back to an OPEN network.
-#define SECRET_AP_PASSWORD  "<AP-пароль>"
+// below 8, softAP() silently falls back to an OPEN network with no error at all,
+// so pick a real passphrase here before the first flash.
+#define SECRET_AP_PASSWORD  "CHANGE_ME_8_to_63_chars"
 
 // ArduinoOTA. Anyone who can reach port 3232 on the board and knows this string
-// can replace the firmware.
-#define SECRET_OTA_PASSWORD "<OTA-пароль>"
+// can replace the firmware, so it deserves a random one rather than a memorable one.
+#define SECRET_OTA_PASSWORD "CHANGE_ME_ota_password"
 
 // 1 = also join a home network (AP+STA, additive — the AP is never taken down).
 // 0 = pure access point; the whole uplink retry machine is compiled out.
@@ -36,3 +36,12 @@
 #define SECRET_HOME_NETWORKS               \
   { "YourHomeSSID",   "YourPassword"   },  \
   { "YourPhoneAP",    "YourPassword2"  },
+
+// Where the station stands, for the map on the dashboard. The station is
+// stationary, so these are constants rather than something the firmware keeps
+// solving for — measure once with the GNSS module (or read them off any map) and
+// paste them here. Full precision is a home address, which is why they live in
+// the untracked file and not in the sketch.
+#define SECRET_STATION_LAT   0.0
+#define SECRET_STATION_LON   0.0
+#define SECRET_STATION_ALT_M 0.0

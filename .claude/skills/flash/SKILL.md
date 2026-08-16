@@ -32,8 +32,12 @@ Test-Connection -ComputerName "windstation.local" -Count 2
 `Test-Connection` и подставь в `-i`.
 
 ```powershell
+# пароль OTA читаем из secrets.h — он не должен попадать ни в документ, ни в историю консоли
+$otapw = (Select-String -Path C:\Users\temaf\OneDrive\Documents\Projects\TymurWindStation\esp32_wind_station\secrets.h `
+  -Pattern 'SECRET_OTA_PASSWORD\s+"(.+)"').Matches.Groups[1].Value
+
 python "$env:LOCALAPPDATA\Arduino15\packages\esp32\hardware\esp32\3.3.10\tools\espota.py" `
-  -i 192.168.31.235 -I 192.168.31.150 -p 3232 -P 45678 -a <OTA-пароль> `
+  -i 192.168.31.235 -I 192.168.31.150 -p 3232 -P 45678 -a $otapw `
   -f C:\Users\temaf\OneDrive\Documents\Projects\TymurWindStation\build\esp32_wind_station.ino.bin -r -d
 ```
 

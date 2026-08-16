@@ -12,7 +12,7 @@
     cd wind-ui && npm run build && cd ..
     python esp32_wind_station/gen_web_header.py
     arduino-cli compile --fqbn esp32:esp32:esp32 --export-binaries esp32_wind_station
-    python <espota.py> -i 192.168.1.223 -p 3232 -P 45678 -a <OTA-пароль> -f <bin>
+    python <espota.py> -i 192.168.1.223 -p 3232 -P 45678 -a <SECRET_OTA_PASSWORD> -f <bin>
 """
 import gzip
 import pathlib
