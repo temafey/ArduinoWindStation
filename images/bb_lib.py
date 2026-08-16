@@ -203,12 +203,15 @@ def diode_xy(x1, x2, y, label="D · 1N5819", cathode="right", label_dy=-14):
             f'<text x="{bx+bw/2:.0f}" y="{y+label_dy}" font-size="10.5" font-weight="700" fill="{COPPER}" text-anchor="middle">{label}</text>')
 
 # ============================================================= ЭЛЕКТРОЛИТ (полярный)
-def cap_electrolytic(col_p, col_m, row, label="1000µF"):
-    """col_p — «+» (длинная ножка), col_m — «−» (полоса)."""
-    return cap_electrolytic_xy(colx(col_p), colx(col_m), ROWY[row], label)
+def cap_electrolytic(col_p, col_m, row, label="1000µF", pol_dx=0):
+    """col_p — «+» (длинная ножка), col_m — «−» (полоса).
+       pol_dx разводит знаки полярности наружу, когда в те же колонки сверху
+       приходят провода и накрывают их собой."""
+    return cap_electrolytic_xy(colx(col_p), colx(col_m), ROWY[row], label, pol_dx)
 
-def cap_electrolytic_xy(xp, xm, y, label="1000µF"):
+def cap_electrolytic_xy(xp, xm, y, label="1000µF", pol_dx=0):
     """Тот же электролит по координатам — для монтажа вне макетки."""
+    sp = pol_dx if xp > xm else -pol_dx
     x0 = min(xp, xm)
     return (f'<line x1="{xp}" y1="{y}" x2="{xp}" y2="{y-10}" stroke="#8d8d8d" stroke-width="2.4"/>'
             f'<line x1="{xm}" y1="{y}" x2="{xm}" y2="{y-10}" stroke="#8d8d8d" stroke-width="2.4"/>'
@@ -216,8 +219,8 @@ def cap_electrolytic_xy(xp, xm, y, label="1000µF"):
             f'<rect x="{x0+23}" y="{y-48}" width="15" height="38" fill="#9aa9c2" opacity="0.6"/>'
             f'<text x="{x0+15}" y="{y-24}" font-size="8.5" fill="#fff" text-anchor="middle">{label}</text>'
             f'<circle cx="{xp}" cy="{y}" r="3.4" fill="#333"/><circle cx="{xm}" cy="{y}" r="3.4" fill="#333"/>'
-            f'<text x="{xp}" y="{y-54}" font-size="13" font-weight="700" fill="{PLUS}" text-anchor="middle">+</text>'
-            f'<text x="{xm}" y="{y-54}" font-size="13" font-weight="700" fill="{GNDc}" text-anchor="middle">−</text>')
+            f'<text x="{xp+sp}" y="{y-54}" font-size="13" font-weight="700" fill="{PLUS}" text-anchor="middle">+</text>'
+            f'<text x="{xm-sp}" y="{y-54}" font-size="13" font-weight="700" fill="{GNDc}" text-anchor="middle">−</text>')
 
 # ============================================================= PTC
 def ptc(col_l, col_r, row, label="F1 · PTC 2A", muted=False):
@@ -421,7 +424,8 @@ def a7670_cn(x, y, i):
     """Точка подключения к контакту CN101 №i (1..7) для платы, посаженной в (x, y)."""
     return (x + A7670_CN_DX, y + A7670_CN_DY + (i - 1) * A7670_CN_PITCH)
 
-def mod_a7670(x, y, w, h, used=None, subtitle="SIMCom A7670E · 37×37 мм"):
+def mod_a7670(x, y, w, h, used=None, subtitle="SIMCom A7670E · 37×37 мм",
+              hdr_note="CN101 · гребёнка распаяна"):
     """Плата BK-A7670 V1. Задействованные контакты CN101 красятся цветом своего провода,
        незадействованные остаются тусклыми. used: {номер контакта: цвет}."""
     used = used or {}
@@ -435,7 +439,7 @@ def mod_a7670(x, y, w, h, used=None, subtitle="SIMCom A7670E · 37×37 мм"):
     hy0 = y + A7670_CN_DY - 11
     hh  = 6 * A7670_CN_PITCH + 22
     hdr = (f'<rect x="{x+9}" y="{hy0}" width="16" height="{hh}" rx="3" fill="#1c1d21" stroke="#000"/>'
-           f'<text x="{x+8}" y="{hy0-6}" font-size="7.5" font-weight="700" fill="{SILK_DIM}">CN101 · гребёнка распаяна</text>')
+           f'<text x="{x+8}" y="{hy0-6}" font-size="7.5" font-weight="700" fill="{SILK_DIM}">{hdr_note}</text>')
     pads = ""
     for i, name in enumerate(CN101, 1):
         px, py = a7670_cn(x, y, i)
@@ -484,22 +488,28 @@ def mod_a7670(x, y, w, h, used=None, subtitle="SIMCom A7670E · 37×37 мм"):
     return body + holes + hdr + shield + ants + u2 + sim + ub + txt + pads
 
 # ============================================================= ГНЕЗДОВАЯ ПЛАНКА (PLS «мама»)
-def header_socket(col_l, col_r, row, pins, title="", title_dx=-14):
-    """Планка гнёзд, воткнутая в ОДИН ряд макетки: в неё сверху садится модуль штырями.
-       На колонку приходится 17 px, поэтому назначение контакта пишется коротко (VCC, RXD),
-       а номер — прямо в гнезде. pins слева направо: (номер, короткая метка, цвет или None);
-       None = контакт никуда не разведён и красится тускло."""
+def module_pin_row(col_l, col_r, row, pins, title="", title_dx=-14):
+    """Ряд контактов модуля, который воткнут штырями ПРЯМО в один ряд макетки —
+       без переходной планки. На колонку приходится 17 px, поэтому назначение контакта
+       пишется коротко (VCC, RXD), а номер — прямо в контакте. pins слева направо:
+       (номер, короткая метка, цвет или None); None = контакт никуда не разведён.
+       Порядок в списке = порядок НА МАКЕТКЕ: если модуль перевёрнут штырями вниз,
+       нумерация идёт зеркально его шелкографии — считать по факту, а не по мануалу."""
     y = ROWY[row]
     x0, x1 = colx(col_l) - 8, colx(col_r) + 8
     g = (f'<rect x="{x0}" y="{y-11}" width="{x1-x0}" height="22" rx="3" '
          f'fill="#1c1d21" stroke="#000" stroke-width="1.2"/>')
     for k, (num, lab, col) in enumerate(pins):
         cx = colx(col_l + k)
+        # метки в ДВА яруса: на 17 px колонки три буквы жирным не расходятся с соседом
+        ly = y - 13 if k % 2 == 0 else y - 24
         g += (f'<rect x="{cx-6.5}" y="{y-7.5}" width="13" height="15" rx="1.5" '
               f'fill="{col or "#3a3d43"}" stroke="{GOLD if col else "#5a5d65"}" stroke-width="1.2"/>'
               f'<text x="{cx}" y="{y+3.5}" font-size="8.5" font-weight="700" '
               f'fill="{"#fff" if col else "#8a8a8a"}" text-anchor="middle">{num}</text>'
-              f'<text x="{cx}" y="{y-15}" font-size="7.5" font-weight="700" '
+              f'<line x1="{cx}" y1="{ly+2}" x2="{cx}" y2="{y-9}" stroke="{col or "#8a8a8a"}" '
+              f'stroke-width="0.8" opacity="0.55"/>'
+              f'<text x="{cx}" y="{ly}" font-size="7.5" font-weight="700" '
               f'fill="{col or "#8a8a8a"}" text-anchor="middle">{lab}</text>')
     if title:
         g += (f'<text x="{x0+title_dx}" y="{y+5}" font-size="9" font-weight="700" '
