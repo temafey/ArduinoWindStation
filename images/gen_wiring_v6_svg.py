@@ -24,7 +24,7 @@ v5 держала модем на весу: пять проводов к пла�
   5. С платы уходят ВСЕГО ЧЕТЫРЕ провода: 49j → ключ → B3 IN+, 45i → земля блока,
      B3 OUT+ → кол.40, земля блока → кол.41. Всё остальное — перемычки на макетке.
 
-Ключ питания модема (P-MOSFET, затвор ← GPIO25) по-прежнему ПУНКТИРОМ: детали нет,
+Ключ питания модема (P-MOSFET, затвор ← GPIO33) по-прежнему ПУНКТИРОМ: детали нет,
 но без него нельзя уезжать на мачту — R104 держит PWRKEY на земле, выход из CMUX
 у A7670 сломан, повисший модем перезагружается только снятием VCC.
 """
@@ -39,8 +39,8 @@ RAIL_BP, RAIL_BM = 506, 518           # низ:  «+» LOAD / «−» GND (об�
 CUT = 606.5                           # разрез рельсов (между кол. 31 и 32)
 TEAL = "#0e9488"
 STDBY_C = "#a68bff"
-TX_C = "#e0218a"                      # GPIO27 → RXD модема
-RX_C = "#3949ab"                      # GPIO26 ← TXD модема
+TX_C = "#e0218a"                      # GPIO26 → RXD модема
+RX_C = "#3949ab"                      # GPIO25 ← TXD модема
 SIG, GND, PLUS, PURPLE = bb.SIG, bb.GNDc, bb.PLUS, bb.PURPLE
 W_CANVAS = 1900
 
@@ -280,13 +280,13 @@ gpio_res = "".join(
 
 # UART: с верхних пинов ESP32 прямо в колонки модуля, ряд c
 uart_wires = (
-    jmp([(bb.PIN_TOP["27"], 311), (bb.PIN_TOP["27"], UART_LANE["tx"]),
+    jmp([(bb.PIN_TOP["26"], 311), (bb.PIN_TOP["26"], UART_LANE["tx"]),
          (X(37), UART_LANE["tx"]), H(37, "c")], TX_C,
-        "GPIO27 (TX) → кол.37 = «R» RXD модема", "GPIO27", "37c", "4G · МОДЕМ", w=2.4,
+        "GPIO26 (TX) → кол.37 = «R» RXD модема", "GPIO26", "37c", "4G · МОДЕМ", w=2.4,
         note="буквы НЕ совпадают: TX платы идёт в RXD модема") +
-    jmp([(bb.PIN_TOP["26"], 311), (bb.PIN_TOP["26"], UART_LANE["rx"]),
+    jmp([(bb.PIN_TOP["25"], 311), (bb.PIN_TOP["25"], UART_LANE["rx"]),
          (X(38), UART_LANE["rx"]), H(38, "c")], RX_C,
-        "GPIO26 (RX) ← кол.38 = «T» TXD модема", "GPIO26", "38c", "4G · МОДЕМ", w=2.4,
+        "GPIO25 (RX) ← кол.38 = «T» TXD модема", "GPIO25", "38c", "4G · МОДЕМ", w=2.4,
         note="провод идёт под свесом платы модема на участке кол. 33–38"))
 
 # ═══════════════════════════════════════ 9. КРЫШКА КОРПУСА (снизу схемы)
@@ -472,7 +472,7 @@ power_panel = (
     f'<text x="{PAX+18}" y="{PAY+38}" font-size="10" fill="#8a6a1a">'
     f'один источник: OUT+ TP4056. Диодного ИЛИ нет — минус два Шоттки 3 А и адаптер на 3 А</text>' +
     bb.mod_pmos_switch(FETX, FETY, FETW, FETH, title="Ключ питания",
-                       subtitle="high-side · затвор GPIO25") +
+                       subtitle="high-side · затвор GPIO33") +
     boost3 +
     bb.mm_point(1626, 300, "5.2 В на выходе (проверять по TP1 модема)", dy=-8) +
     f'<text x="{PAX+18}" y="{PAY+PAH-42}" font-size="9" fill="#8a6a1a">'
@@ -503,13 +503,13 @@ power_wires = (
           "Boost#3 OUT+ (5.2 В) → кол.40 = «V» VCC модема", "B3 OUT+", "40c", "4G · ПИТАНИЕ",
           w=2.8, note="в этой же колонке сидит C4 — электролит стоит у самого модема"))
 
-# план: затвор ключа ← GPIO25
+# план: затвор ключа ← GPIO33
 gate_wire = (
     f'<path d="M{FETX+FETW/2:.0f} {FETY+FETH} L{FETX+FETW/2:.0f} 398 L{GATE_X} 398 '
     f'L{GATE_X} 152 L{bb.PIN_TOP["25"]} 152 L{bb.PIN_TOP["25"]} 311" fill="none" '
     f'stroke="#b08a2a" stroke-width="2.2" stroke-dasharray="6 4" opacity="0.7"/>'
     f'<text x="{GATE_X+8}" y="146" font-size="9" font-weight="700" fill="#8a6a1a">'
-    f'затвор ключа ← GPIO25 · ПЛАН</text>')
+    f'затвор ключа ← GPIO33 · ПЛАН</text>')
 
 # ═══════════════════════════════════════ 15. КАРТОЧКА МОДЕМА (справочная)
 PBX, PBY, PBW, PBH = 1090, 620, 640, 372
@@ -549,8 +549,8 @@ modem_panel = (
     f'⚠ 27 мм висят за краем без опоры: снимать строго ВВЕРХ, за гребёнку</text>')
 
 # ═══════════════════════════════════════ 16. ESP32 + КОЛЬЦА + ЛИНЕЙКА
-esp = bb.esp32(subtitle="v6 · 4G/GPS на UART2 (27/26)",
-               highlight=["VIN", "13", "32", "34", "27", "26"], usb_label="")
+esp = bb.esp32(subtitle="v6 · 4G/GPS на UART2 (26/25)",
+               highlight=["VIN", "13", "32", "34", "26", "25"], usb_label="")
 
 esp_fix = "".join(
     f'<rect x="{bb.PIN_TOP[n]-6}" y="311" width="12" height="10" rx="2" fill="{bb.PAD_UNUSED}"/>'
@@ -585,7 +585,7 @@ title = '''<text x="30" y="38" font-size="25" font-weight="700" fill="#1a1a1a">�
 rules = '''<rect x="30" y="70" width="1180" height="78" rx="8" fill="#f6f8fb" stroke="#ccd6e4"/>
   <text x="46" y="91" font-size="12.5" fill="#c0392b"><tspan font-weight="700">Модуль ложится НАКЛЕЙКОЙ ВНИЗ — штыри CN101 торчат со стороны наклейки.</tspan> Цифр у контактов на плате нет, есть буквы <tspan font-weight="700">S·G·V·K·T·R·G</tspan>. Ориентир: <tspan font-weight="700">«G» рядом с micro-USB садится в кол.36</tspan>, «S» — в кол.42.</text>
   <text x="46" y="109" font-size="12.5" fill="#1a1a1a"><tspan font-weight="700">Только 36–42.</tspan> Левее нельзя: <tspan font-weight="700">35a — низ делителя датчика</tspan>, то есть земля. Свес уходит вверх и накрывает рельсы — ряды b–e остаются рабочими; SIM и обе косички u.FL смотрят ВВЕРХ, micro-USB — вниз, к макетке.</text>
-  <text x="46" y="127" font-size="12.5" fill="#1a1a1a"><tspan font-weight="700">Один источник вместо диодного ИЛИ:</tspan> буст №3 с <tspan font-weight="700">OUT+ TP4056</tspan>; без банки модем не заведётся. <tspan font-weight="700">UART:</tspan> GPIO27 (TX) → кол.37 = «R» RXD, GPIO26 (RX) ← кол.38 = «T» TXD. <tspan font-weight="700">Serial2 по умолчанию на GPIO16/17 — это светодиоды</tspan>, пины задавать явно.</text>
+  <text x="46" y="127" font-size="12.5" fill="#1a1a1a"><tspan font-weight="700">Один источник вместо диодного ИЛИ:</tspan> буст №3 с <tspan font-weight="700">OUT+ TP4056</tspan>; без банки модем не заведётся. <tspan font-weight="700">UART:</tspan> GPIO26 (TX) → кол.37 = «R» RXD, GPIO25 (RX) ← кол.38 = «T» TXD. <tspan font-weight="700">Serial2 по умолчанию на GPIO16/17 — это светодиоды</tspan>, пины задавать явно.</text>
   <text x="46" y="144" font-size="12" fill="#555">Толстая линия с точками = жёсткая перемычка 22 AWG. Тонкая с квадратом = внешний провод. Пунктир = ещё не куплено. Пересечение без точки = провод лежит поверх.</text>'''
 
 # ═══════════════════════════════════════ 18. ТАБЛИЦА
