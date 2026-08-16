@@ -152,6 +152,57 @@ const unsigned long STA_RETRY_MAX_MS = 600000;   // ceiling, 10 min
 #define PIN_CHARGE       13   // TP4056 CHRG  — LOW while charging
 #define PIN_STDBY        19   // TP4056 STDBY — LOW when charge complete (see HAS_STDBY)
 
+// ===== 4G MODEM (A7670E) — AT CONSOLE OVER THE NETWORK =====
+// Set to 0 on a board with no modem wired and none of this is compiled in. It is a flag
+// rather than plain code for two reasons: the spare board has no modem at all, and on the
+// mast the console has no business being reachable (see handleAt for what that buys).
+#define HAS_MODEM 1
+
+#if HAS_MODEM
+// v6 layout: the module sits label-DOWN across breadboard columns 36..42 and its pads are
+// identified by silkscreen letter, never by number. Two of them come back here:
+//   col 37 = "R" = modem RXD  <- GPIO26 (this board's TX)
+//   col 38 = "T" = modem TXD  -> GPIO25 (this board's RX)
+// The letters deliberately do NOT match across the link — this board's TX drives the
+// modem's RX. Swapping the pair leaves both ends deaf and looks exactly like a dead
+// modem, so the letters are spelled out here and not only in wiring-v6.html.
+//
+// The pins are 25/26 rather than the 26/27 the wiring diagram was drawn for: the harness
+// went in one position off and cannot be moved without taking the board apart, so the
+// firmware follows the copper. GPIO27 is free again; GPIO33 is the pin now reserved for
+// the P-FET gate that will cut modem power (it used to be planned for GPIO25).
+//
+// Both are ADC2 pins, which is allowed: the ADC2-vs-WiFi conflict is about analog reads
+// only, and these two are a UART. Same exemption as GPIO4 (LED) and GPIO13 (CHRG).
+#define PIN_MODEM_RX     25   // ESP32 receives here
+#define PIN_MODEM_TX     26   // ESP32 sends here
+// SIMCom's own default, and the module has never been moved off it. Serial2 defaults to
+// GPIO16/17 — the yellow and green LEDs — so begin() is always given the pins explicitly.
+const unsigned long MODEM_BAUD = 115200;
+
+// The wiring actually in force. Separate from the constants above because both are worth
+// changing without a reflash: which of the two wires landed on which pin is a coin flip
+// that costs a USB session to guess wrong, and a modem sitting at the wrong baud looks
+// exactly like a modem that is not wired at all. RAM only, same rule as /api/zero — the
+// value that works has to be copied back into the constants to survive a reboot.
+uint8_t       modemPinRx = PIN_MODEM_RX;
+uint8_t       modemPinTx = PIN_MODEM_TX;
+unsigned long modemBaud  = MODEM_BAUD;
+
+// Everything the modem has said since the last command went out. Sized for the longest
+// answer worth reading in one piece (AT+COPS=? runs a few hundred bytes) with room left
+// for the NMEA stream AT+CGNSSTST=1 turns on. That stream never stops, which is why an
+// overflow drops the OLDEST half instead of refusing new bytes: on a stream the part
+// worth having is always the tail.
+#define MODEM_BUF_CAP  2048
+char   modemBuf[MODEM_BUF_CAP];
+size_t modemLen = 0;
+// Bytes ever received. This is the number that tells a firmware problem from a wiring
+// problem: a console that echoes the command but leaves total at 0 means nothing is
+// coming back on GPIO26 — wrong pin, wrong baud, or the modem has no power.
+unsigned long modemRxTotal = 0;
+#endif
+
 // ===== CALIBRATION =====
 // Signal divider: 15k top + 10k bottom → Vout = Vin × 10/(15+10) = Vin × 0.4
 // Inverse: Vsensor = Vadc × (15+10)/10 = Vadc × 2.5
@@ -864,6 +915,162 @@ void handleWifiControl() {
   server.send(200, "application/json", json);
 }
 
+#if HAS_MODEM
+// ===== MODEM AT CONSOLE =====
+// (Re)opens UART2 on whatever pins and baud are currently in force. Called once from
+// setup() and again from handleAt when either is changed at runtime. end() first, so the
+// old pins are released instead of being left driven — moving TX without that would
+// leave the previous pin parked HIGH.
+static void modemUartStart() {
+  Serial2.end();
+  // 1 kB instead of the driver's 256 B: at 115200 the default holds only ~22 ms of
+  // traffic, and one OTA handshake is longer than that, so a running NMEA stream would
+  // lose characters in the gap. Must be called before begin().
+  Serial2.setRxBufferSize(1024);
+  Serial2.begin(modemBaud, SERIAL_8N1, modemPinRx, modemPinTx);
+  Serial.printf("Modem: UART2 RX=GPIO%u TX=GPIO%u @%lu\n", modemPinRx, modemPinTx, modemBaud);
+}
+
+// Drains the modem UART into modemBuf. Runs every pass through loop() and never blocks —
+// the same rule serviceUplink() and sseFlush() follow, and for the same reason: anything
+// that waits in here starves the 50 Hz sensor and the SSE stream along with it. Capped
+// per call so an NMEA stream cannot stretch one pass into something loopMax will notice.
+static void modemPump() {
+  int budget = 512;
+  while (Serial2.available() && budget-- > 0) {
+    if (modemLen >= MODEM_BUF_CAP) {
+      // Keep the tail, and pay one memmove for it rather than shifting per byte.
+      memmove(modemBuf, modemBuf + MODEM_BUF_CAP / 2, MODEM_BUF_CAP / 2);
+      modemLen = MODEM_BUF_CAP / 2;
+    }
+    modemBuf[modemLen++] = (char)Serial2.read();
+    modemRxTotal++;
+  }
+}
+
+// True once the buffer ends in a final result code. Lets a command return the moment the
+// modem is done instead of always burning the whole timeout — real answers land in
+// 20-60 ms, so the full wait is only ever paid by a command that got no reply at all.
+// The LAST LINE is tested rather than the tail of the buffer, because "+CME ERROR: 10"
+// ends in a number and would never match a word.
+static bool modemAnswered() {
+  size_t end = modemLen;
+  while (end > 0 && (modemBuf[end - 1] == '\r' || modemBuf[end - 1] == '\n')) end--;
+  if (end == 0) return false;
+  size_t start = end;
+  while (start > 0 && modemBuf[start - 1] != '\n' && modemBuf[start - 1] != '\r') start--;
+  const char* line = modemBuf + start;
+  size_t n = end - start;
+  if (n == 2  && memcmp(line, "OK",    2) == 0) return true;
+  if (n == 5  && memcmp(line, "ERROR", 5) == 0) return true;
+  if (n >= 10 && (memcmp(line, "+CME ERROR", 10) == 0 ||
+                  memcmp(line, "+CMS ERROR", 10) == 0)) return true;
+  if (line[0] == '>') return true;   // waiting for SMS text
+  return false;
+}
+
+// AT console for the 4G/GPS module, over the network instead of over a cable. It exists
+// because the module sits label-down on the breadboard with its own micro-USB facing the
+// table: the UART pair is the only way in, and the alternative was flashing a bridge
+// sketch that would have taken the whole station (dashboard, OTA, telemetry) with it.
+//
+//   GET  /api/at?cmd=AT%2BCSQ   from a browser's address bar. "+" MUST be written %2B —
+//                               WebServer decodes a literal + as a space.
+//   POST /api/at                body = the raw command, Content-Type: text/plain. No
+//                               escaping. The content type matters: with curl's default
+//                               form type the body is form-decoded and + becomes a space
+//                               all over again.
+//   GET  /api/at                no command — collect whatever the modem said since:
+//                               URCs, the NMEA stream, the answer to a slow command.
+//   &wait=N                     how long to wait for the reply, ms (default 500, clamped
+//                               to 0..3000). AT+COPS=? can take two minutes: fire it with
+//                               wait=0 and pick the answer up afterwards. That is the
+//                               whole reason the buffer outlives the request.
+//   &pins=RX,TX                 re-open UART2 on other pins, e.g. pins=26,25. Only 25, 26
+//                               and 27 are accepted — the three this harness can plausibly
+//                               sit on. Which of the two wires landed on which pin is a
+//                               coin flip, and guessing wrong otherwise costs a USB
+//                               session with the buttons.
+//   &baud=N                     re-open at another rate (9600..921600). A modem answering
+//                               at the wrong baud is indistinguishable from one that is
+//                               not wired at all.
+//
+// Both are RAM only, same rule as /api/zero: the combination that works has to go back
+// into PIN_MODEM_RX / PIN_MODEM_TX / MODEM_BAUD to survive a reboot.
+//
+// The wait DOES block loop() for its duration — up to 3 s of frozen dashboard if asked
+// for. That is a deliberate, operator-initiated, bounded stall and it shows up honestly
+// in loopMax; it is a different animal from the unbounded block on a lagging SSE client
+// that sseFlush() exists to avoid.
+//
+// Deliberately NOT wrapped in sendCors(): every other endpoint is read-only telemetry,
+// while a command here can send an SMS or reset the modem. Without the header a page open
+// in a browser on this network can still fire a request blind, but it cannot read the
+// reply — so it cannot lift the IMEI, the ICCID or the SIM contents out of a foreign tab.
+// That narrows the hole. HAS_MODEM 0 is what closes it.
+void handleAt() {
+  // Re-wiring first, so ?pins=26,25&cmd=AT does both in one request.
+  bool reopen = false;
+  if (server.hasArg("pins")) {
+    String v = server.arg("pins");
+    int comma = v.indexOf(',');
+    if (comma > 0) {
+      int rx = v.substring(0, comma).toInt();
+      int tx = v.substring(comma + 1).toInt();
+      // Whitelist, not a range check: an arbitrary number here would let a query string
+      // point the UART at an LED or a strapping pin.
+      bool okRx = (rx == 25 || rx == 26 || rx == 27);
+      bool okTx = (tx == 25 || tx == 26 || tx == 27);
+      if (okRx && okTx && rx != tx) { modemPinRx = rx; modemPinTx = tx; reopen = true; }
+    }
+  }
+  if (server.hasArg("baud")) {
+    long b = server.arg("baud").toInt();
+    if (b >= 9600 && b <= 921600) { modemBaud = (unsigned long)b; reopen = true; }
+  }
+  if (reopen) { modemUartStart(); modemLen = 0; }
+
+  String cmd;
+  if (server.hasArg("plain"))     cmd = server.arg("plain");   // POST body, not form-decoded
+  else if (server.hasArg("cmd"))  cmd = server.arg("cmd");
+  cmd.trim();
+
+  unsigned long waitMs = 500;
+  if (server.hasArg("wait")) waitMs = (unsigned long)constrain(server.arg("wait").toInt(), 0L, 3000L);
+
+  String out;
+  unsigned long waited = 0;
+
+  if (cmd.length()) {
+    modemLen = 0;              // the reply to THIS command and nothing older
+    Serial2.print(cmd);
+    Serial2.write('\r');       // SIMCom terminates on a bare CR, never on LF
+    unsigned long t0 = millis();
+    while (millis() - t0 < waitMs) {
+      modemPump();
+      if (modemAnswered()) break;
+      delay(2);                // vTaskDelay under the hood — the WiFi stack keeps running
+    }
+    waited = millis() - t0;
+    out = "> " + cmd + "\n";
+  } else {
+    modemPump();
+  }
+
+  // Raw bytes, not JSON: this is a console, and escaping a modem's CR/LF into a string
+  // literal makes every answer harder to read for no gain in a browser.
+  out.reserve(out.length() + modemLen + 96);
+  for (size_t i = 0; i < modemLen; i++) out += modemBuf[i];
+  // "uart=" is here so a silent modem is never ambiguous about which pins were listening.
+  out += "\n-- buf=" + String(modemLen) + " total=" + String(modemRxTotal)
+       + " waited=" + String(waited) + "ms"
+       + " uart=RX" + String(modemPinRx) + "/TX" + String(modemPinTx)
+       + "@" + String(modemBaud) + "\n";
+
+  server.send(200, "text/plain", out);
+}
+#endif
+
 // ===== NETWORK SERVICES =====
 // mDNS + OTA start once, right after the AP is up — the AP's subnet is ours and
 // fixed at 192.168.4.x, so on that interface nothing ever needs re-announcing and
@@ -1000,6 +1207,13 @@ void setup() {
   Serial.begin(115200);
   Serial.println("\n=== Wind Station ===");
 
+#if HAS_MODEM
+  // Below setCpuFrequencyMhz() for exactly the reason Serial is: the UART divisor comes
+  // from the CPU clock.
+  modemUartStart();
+  Serial.println("Modem: AT console on /api/at");
+#endif
+
   pinMode(PIN_LED_GREEN,  OUTPUT);
   pinMode(PIN_LED_YELLOW, OUTPUT);
   pinMode(PIN_LED_RED,    OUTPUT);
@@ -1109,6 +1323,12 @@ void setup() {
   server.on("/api/gust",   HTTP_GET, handleResetGust);
   server.on("/api/zero",   HTTP_GET, handleZero);
   server.on("/api/wifi",   HTTP_GET, handleWifiControl);
+#if HAS_MODEM
+  // Same handler both ways: GET carries the command in ?cmd= for a browser, POST carries
+  // it raw in the body for a terminal. See handleAt for why both forms exist.
+  server.on("/api/at",     HTTP_GET,  handleAt);
+  server.on("/api/at",     HTTP_POST, handleAt);
+#endif
   // Embedded dashboard: "/" is index.html, the rest are its hashed assets.
   for (size_t i = 0; i < WEB_ASSET_COUNT; i++) {
     const WebAsset* a = &WEB_ASSETS[i];
@@ -1155,6 +1375,12 @@ void loop() {
 
   ArduinoOTA.handle();
   server.handleClient();
+
+#if HAS_MODEM
+  // Every pass, not on a timer: the driver's ring holds well under a second of a running
+  // NMEA stream, and what is not drained in time is simply lost.
+  modemPump();
+#endif
 
   if (millis() - lastRead > READ_INTERVAL_MS) {
     readSensors();
