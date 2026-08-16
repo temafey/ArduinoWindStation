@@ -159,7 +159,7 @@ python $ota -i 192.168.1.xxx -I 192.168.1.yyy -p 3232 -P 45678 `
 
 `-I` — реальный адрес ПК из предыдущего шага; если DHCP платы выдал не `.2`, подставь свой.
 
-Параметры: `-i` — IP платы, `-I` — IP твоего ПК, `-p 3232` — OTA-порт платы, `-P 45678` — порт, который открывает у себя ПК, `-a` — пароль OTA (задан в `.ino`, константа `otaPassword`).
+Параметры: `-i` — IP платы, `-I` — IP твоего ПК, `-p 3232` — OTA-порт платы, `-P 45678` — порт, который открывает у себя ПК, `-a` — пароль OTA (задан в `esp32_wind_station/secrets.h`, `SECRET_OTA_PASSWORD`).
 
 Признак успеха:
 
@@ -182,7 +182,7 @@ Success
 | Симптом | Причина |
 |---|---|
 | `Waiting for device...` и таймаут | Брандмауэр Windows блокирует входящее TCP на `python.exe`. Разреши python в приватной сети или открой порт 45678 |
-| `Authentication Failed` | Пароль не совпал с `otaPassword` в прошивке, которая **сейчас на плате** |
+| `Authentication Failed` | Пароль не совпал с `SECRET_OTA_PASSWORD` той прошивки, которая **сейчас на плате** |
 | `No response from device` сразу после `Authenticating… OK` | Приглашение плата приняла, но обратное TCP-соединение к ПК не открыла. **Чаще всего транзиентно — просто повтори.** Наблюдалось 2026-08-07: первая попытка сорвалась, вторая с теми же параметрами прошла. Прошивка при неудаче не портится, на плате остаётся прежняя. Если повторяется устойчиво — проверь `-I` (адрес ПК мог смениться при переподключении) и брандмауэр: сеть станции Windows относит к профилю **Public**, а не Private |
 | Плата на другой подсети | `-I` обязателен, если у ПК несколько интерфейсов — иначе espota сообщит плате неправильный обратный адрес |
 | 192.168.4.1 не пингуется | ПК подключён не к `WindStation`, а к домашней сети. Проверь через `Get-NetIPAddress` из 2.1 |
@@ -350,11 +350,11 @@ Invoke-WebRequest http://192.168.4.1/ -UseBasicParsing | Select-Object StatusCod
 |---|---|---|
 | адрес дашборда | `MyWindProbeBETA.org` | `esp32_wind_station.ino`, `portalHost` |
 | hostname / mDNS | `mywindprobebeta` → `mywindprobebeta.local` | `esp32_wind_station.ino`, `hostname` |
-| пароль OTA | `<OTA-пароль>` | `esp32_wind_station.ino`, `otaPassword` |
+| пароль OTA | `<OTA-пароль>` | **`secrets.h`**, `SECRET_OTA_PASSWORD` |
 | SSID точки | `WindStation` | `esp32_wind_station.ino`, `apSsid` |
-| пароль точки | `<AP-пароль>` (WPA2) | `esp32_wind_station.ino`, `apPassword` |
-| домашние сети | список, сейчас одна — `HomeSSID` (2.4 ГГц) | `esp32_wind_station.ino`, `homeNetworks[]` |
-| аплинк вкл/выкл | `1` | `esp32_wind_station.ino`, `HAS_HOME_NETWORK` |
+| пароль точки | `<AP-пароль>` (WPA2) | **`secrets.h`**, `SECRET_AP_PASSWORD` |
+| домашние сети | список, 2.4 ГГц | **`secrets.h`**, `SECRET_HOME_NETWORKS` |
+| аплинк вкл/выкл | `1` | **`secrets.h`**, `SECRET_HAS_HOME_NETWORK` |
 | OTA-порт платы | 3232 (UDP) | дефолт ArduinoOTA |
 | HTTP-порт | 80 | прошивка |
 | IP платы | 192.168.4.1 | фиксированный, дефолт SoftAP |

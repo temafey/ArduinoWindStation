@@ -1,3 +1,13 @@
+# === Секреты ===
+# Все пароли прошивки (точка доступа, OTA, домашние сети) живут здесь.
+# В git лежит только шаблон esp32_wind_station/secrets.example.h.
+# Без secrets.h скетч НЕ собирается — это намеренно, см. #error в .ino
+esp32_wind_station/secrets.h
+# На будущее: ключи облака для задачи 10 (endpoint, HMAC) класть сюда же
+.env
+.env.*
+!.env.example
+
 # === Артефакты сборки ===
 # Arduino/ESP32 build (пересобирается arduino-cli, ~35 МБ).
 # Два пути: --output-dir из CLAUDE.md кладёт в корневой build/, скетч-каталог — в свой

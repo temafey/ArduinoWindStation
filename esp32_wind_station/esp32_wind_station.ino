@@ -26,6 +26,16 @@
 #include <lwip/sockets.h> // lwip_send — the SSE frame goes out non-blocking, see sseFlush()
 #include "web_content.h"  // dashboard build (gzip, PROGMEM) — see gen_web_header.py
 
+// Every password this firmware needs lives in secrets.h, which is NOT in git.
+// A missing file stops the build on purpose: the alternative is a board that
+// silently comes up on an open network, and that failure is invisible until
+// someone else is already on it.
+#if __has_include("secrets.h")
+  #include "secrets.h"
+#else
+  #error "secrets.h missing - copy esp32_wind_station/secrets.example.h to secrets.h and fill it in"
+#endif
+
 // ===== ACCESS POINT =====
 // The AP is the station's own network and it is unconditional: it comes up at boot
 // and nothing in this firmware ever takes it down. That is the whole lesson of the
@@ -57,11 +67,11 @@ const char* portalHost  = "MyWindProbeBETA.org";
 // mDNS label (single word, no dots) → also answers as mywindprobebeta.local, and
 // this is the name ArduinoOTA advertises in the IDE's network port list.
 const char* hostname    = "mywindprobebeta";
-const char* otaPassword = "<OTA-пароль>";
+const char* otaPassword = SECRET_OTA_PASSWORD;   // secrets.h
 const char* apSsid      = "WindStation";
 // WPA2-PSK. The ESP32 needs 8..63 characters here; below 8 softAP() silently
 // falls back to an open network, so this length is not incidental.
-const char* apPassword  = "<AP-пароль>";
+const char* apPassword  = SECRET_AP_PASSWORD;    // secrets.h
 // Four is the driver default and more than one dashboard ever needs — a lower cap
 // is one less way for a stranger to occupy a slot even without the password.
 const int   apMaxClients = 4;
@@ -80,8 +90,15 @@ const int   apMaxClients = 4;
 //
 // Set to 0 for a pure access point (mast, field, anywhere the home net is out of
 // range) — the retry loop below then does not exist at all.
-#define HAS_HOME_NETWORK 1
+// Comes from secrets.h so that a checkout whose secrets.h lists no networks still
+// builds — as a pure access point, which is a working station and not a broken one.
+#ifdef SECRET_HAS_HOME_NETWORK
+  #define HAS_HOME_NETWORK SECRET_HAS_HOME_NETWORK
+#else
+  #define HAS_HOME_NETWORK 0
+#endif
 
+#if HAS_HOME_NETWORK
 // The networks to try, in order of preference: home first, then the places the
 // station actually travels to. Tried one per attempt, round-robin — never scanned.
 // A scan would cost the AP a stall of its own before a single association is even
@@ -90,19 +107,17 @@ const int   apMaxClients = 4;
 // 2.4 GHz ONLY. The ESP32 has no 5 GHz radio, so the "-5G" twin of a dual-band
 // router is invisible to it no matter what is written here.
 //
-// Plain text on purpose: there is nowhere better to put it. The firmware never
-// writes NVS, so a password typed into a form would not survive a reboot anyway.
+// The list itself is SECRET_HOME_NETWORKS in secrets.h, which git does not track.
+// It still ends up in plain text inside the compiled binary — that has not changed
+// and cannot, since the firmware never writes NVS. What changed is that the
+// passwords are no longer in the repository or its history.
 struct HomeNetwork {
   const char* ssid;
   const char* password;
 };
-const HomeNetwork homeNetworks[] = {
-  { "HomeSSID", "<HOME_WIFI_PASSWORD_REMOVED>" },   // home, the one the board normally lives on
-  { "temafey",        "<HOME_WIFI_PASSWORD_REMOVED>" },   // same house, older SSID — note the lowercase t
-  { "HomeSSID-2",      "<HOME_WIFI_PASSWORD_REMOVED>"    },
-  { "AndroidAP",      "<HOME_WIFI_PASSWORD_REMOVED>"    },   // phone hotspot, last resort in the field
-};
+const HomeNetwork homeNetworks[] = { SECRET_HOME_NETWORKS };
 const int homeNetworkCount = sizeof(homeNetworks) / sizeof(homeNetworks[0]);
+#endif
 
 // One association attempt gets this long before the next candidate is tried. A
 // successful join takes 2-5 s; the rest is margin for a router that answers slowly.
