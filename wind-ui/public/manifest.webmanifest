@@ -4,8 +4,8 @@
   "description": "Метеостанция ветра — скорость, порывы, батарея, светодиоды",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#04070a",
+  "theme_color": "#04070a",
   "icons": [
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }

@@ -655,8 +655,82 @@ LedMode parseLedMode(const String& v) {
 }
 
 // ===== HTTP API =====
+// Read-only endpoints stay wide open. The wildcard is deliberate: the same
+// dashboard bundle is also published over HTTPS as a demo, and a browser there
+// must at least be able to try.
 void sendCors() {
   server.sendHeader("Access-Control-Allow-Origin", "*");
+}
+
+// Headers put on every embedded page. None of them make an http:// origin a
+// secure context — only real TLS does that, and a station on a private IP cannot
+// hold a CA-signed certificate — but they are the part that is actually free.
+// Permissions-Policy explicitly *allows* geolocation for our own origin so the
+// browser's own gate is the only thing left in the way, and shuts the doors
+// nothing here uses.
+void sendPageSecurity() {
+  server.sendHeader("X-Content-Type-Options", "nosniff");
+  server.sendHeader("Referrer-Policy", "no-referrer");
+  server.sendHeader("Permissions-Policy",
+                    "geolocation=(self), camera=(), microphone=(), usb=(), payment=()");
+  // https: is needed wholesale in img/connect: the world map pulls live warnings
+  // from api.weather.gov and radar rasters from NOAA, and those hostnames are not
+  // ours to pin. 'unsafe-inline' for styles because the whole dashboard is styled
+  // with inline style attributes on purpose — see the note in wind-dashboard.jsx.
+  server.sendHeader("Content-Security-Policy",
+                    "default-src 'self'; script-src 'self'; "
+                    "style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; "
+                    "connect-src 'self' https:; font-src 'self'; "
+                    "object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
+}
+
+// Guard for endpoints that change something. The threat is not a neighbour on the
+// LAN, it is any page the phone already has open: this API takes plain GETs, so a
+// random site can point a request at 192.168.4.1/api/led and the browser will
+// send it. A wildcard Access-Control-Allow-Origin hides the *reply* from that
+// script and does nothing to stop the request from arriving and taking effect.
+// With /api/at on the board that request could send an SMS.
+//
+// A same-origin GET from our own dashboard carries no Origin header at all, so
+// "Origin present and not ours" is exactly the cross-site case and nothing else.
+// One string compare, no password to type on a phone keyboard, no state to store.
+// localhost is allowed on purpose: that is `npm run dev` pointed at a real board,
+// and losing it would cost more than the guard is worth.
+bool crossSiteWrite() {
+  if (!server.hasHeader("Origin")) return false;
+  String o = server.header("Origin");
+  if (o == "null") return false;                                  // file:// and sandboxes
+  if (o == String("http://") + portalHost)             return false;
+  if (o == "http://" + WiFi.softAPIP().toString())     return false;
+  if (WiFi.status() == WL_CONNECTED &&
+      o == "http://" + WiFi.localIP().toString())      return false;
+  if (o.startsWith("http://localhost:") ||
+      o.startsWith("http://127.0.0.1:"))               return false;
+  sendCors();
+  server.send(403, "text/plain", "cross-site request refused\n");
+  Serial.printf("HTTP: refused cross-site write from %s\n", o.c_str());
+  return true;
+}
+
+// Where the station physically is. The coordinates have sat in secrets.h unused
+// since they were added -- nothing on the board needed them. The world map does:
+// it has to centre on something, and on a copy served over plain http:// the
+// browser flatly refuses to hand out the *viewer's* position, so the *station's*
+// is the only real coordinate in reach. Served at full precision because this is
+// the owner's own device on the owner's own network; the rounding rule in the docs
+// is about what goes into git, not about what the board tells its own dashboard.
+//
+// 0/0 means "not configured" rather than the Gulf of Guinea, and the dashboard
+// reads it that way.
+void handleSite() {
+  sendCors();
+  String j = "{";
+  j += "\"lat\":"  + String((double)SECRET_STATION_LAT, 5) + ",";
+  j += "\"lon\":"  + String((double)SECRET_STATION_LON, 5) + ",";
+  j += "\"altM\":" + String((double)SECRET_STATION_ALT_M, 1) + ",";
+  j += "\"host\":\"" + String(portalHost) + "\"";
+  j += "}";
+  server.send(200, "application/json", j);
 }
 
 String buildDataJson() {
@@ -808,6 +882,7 @@ void handleStream() {
 }
 
 void handleLedControl() {
+  if (crossSiteWrite()) return;
   if (server.hasArg("auto")) {
     ledAutoMode = server.arg("auto") == "true";
   }
@@ -832,6 +907,7 @@ void handleLedControl() {
 // as the source line to paste back into the constant, which is where it belongs anyway —
 // the value is a property of the resistors, and those do not change between reboots.
 void handleZero() {
+  if (crossSiteWrite()) return;
   if (server.hasArg("reset")) {
 #if HAS_LEVEL_SHIFT
     speedZeroMv = SPEED_BIAS_MV_DEFAULT;
@@ -867,6 +943,7 @@ void handleZero() {
 }
 
 void handleResetGust() {
+  if (crossSiteWrite()) return;
   windGust = windSpeed;
   gustResetTimer = millis();
   sendCors();
@@ -1009,6 +1086,7 @@ static bool modemAnswered() {
 // reply — so it cannot lift the IMEI, the ICCID or the SIM contents out of a foreign tab.
 // That narrows the hole. HAS_MODEM 0 is what closes it.
 void handleAt() {
+  if (crossSiteWrite()) return;
   // Re-wiring first, so ?pins=26,25&cmd=AT does both in one request.
   bool reopen = false;
   if (server.hasArg("pins")) {
@@ -1317,6 +1395,13 @@ void setup() {
                 homeNetworkCount);
 #endif
 
+  // WebServer keeps only the headers it is told to keep, and crossSiteWrite()
+  // needs Origin. Without this call server.header("Origin") is always empty and
+  // the guard silently passes everything.
+  static const char* kCollect[] = { "Origin" };
+  server.collectHeaders(kCollect, 1);
+
+  server.on("/api/site",   HTTP_GET, handleSite);
   server.on("/api/data",   HTTP_GET, handleData);
   server.on("/api/stream", HTTP_GET, handleStream);
   server.on("/api/led",    HTTP_GET, handleLedControl);
@@ -1335,6 +1420,7 @@ void setup() {
     server.on(a->path, HTTP_GET, [a]() {
       server.sendHeader("Content-Encoding", "gzip");
       server.sendHeader("Cache-Control", a->cacheControl);
+      sendPageSecurity();
       server.send_P(200, a->mime, (const char*)a->data, a->len);
     });
   }
