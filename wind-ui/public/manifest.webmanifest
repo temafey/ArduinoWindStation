@@ -1,6 +1,6 @@
 {
-  "name": "MyWindProbe",
-  "short_name": "WindProbe",
+  "name": "Weathered_Kiwi",
+  "short_name": "Weathered_Kiwi",
   "description": "Метеостанция ветра — скорость, порывы, батарея, светодиоды",
   "start_url": "/",
   "display": "standalone",

@@ -10,6 +10,8 @@ import Permissions from "./wind-permissions.jsx";
 import DemoControls from "./wind-demo.jsx";
 import { Compass, CameraWindow } from "./wind-instrument.jsx";
 import Meteorology from "./wind-meteo.jsx";
+import District, { useDistrict, districtToData } from "./wind-district.jsx";
+import Customize, { backdropCss, loadBgImage, CORNERS, CustomWidgets } from "./wind-custom.jsx";
 
 // Прошивка раздаёт этот дашборд сама (gzip из PROGMEM на порту 80). Если страница
 // открыта со станции — API живёт на том же хосте, настройка не нужна и localStorage
@@ -280,6 +282,15 @@ const DEFAULT_SETTINGS = {
   density: "normal",     // normal | compact — отступы панелей
   borders: true,         // рамки у панелей
   showCamera: true,      // окно камеры на вкладке «Основное»
+  // — кастомизация —
+  texture: "smooth",     // ключ из TEXTURES — материал подложки
+  scene: "none",         // ключ из SCENES, либо custom для своей картинки
+  bgTint: 35,            // затемнение фона, %. По умолчанию не ноль: любая
+                         // картинка под светящимся текстом требует притушения
+  customAccent: "",      // свой цвет; пусто — берётся из ACCENTS
+  corners: "sharp",      // sharp | soft | round — скругление панелей
+  panelFill: 0,          // заливка панелей, % — плотность фона под текстом
+  widgets: [],           // свои виджеты на вкладке «Основное»
 };
 
 function loadSettings() {
@@ -628,7 +639,10 @@ function Panel({ title, meta, children, style, g, delay = 0, bodyStyle }) {
       className="pnl"
       style={{
         border: `1px solid ${LINE}`,
-        background: "linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.008))",
+        borderRadius: "var(--ui-corner, 0px)",
+        // Второй слой — заливка из кастомизации: поверх картинки текст иначе
+        // не читается, а без картинки она равна нулю и ничего не меняет.
+        background: "linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.008)), rgba(255,255,255,var(--ui-fill, 0))",
         animationDelay: `${delay}ms`,
         ...style,
       }}
@@ -740,8 +754,9 @@ function SubTab({ id, active, onClick, children, g }) {
 // приходит извне. Карта и эфир стоят последними, потому что без интернета их
 // не будет вовсе.
 const SETTINGS_VIEWS = [
-  { id: "main",  label: "Основные" },
-  { id: "extra", label: "Дополнительные" },
+  { id: "main",   label: "Основные" },
+  { id: "extra",  label: "Дополнительные" },
+  { id: "custom", label: "Кастомизация" },
 ];
 
 const RADAR_VIEWS = [
@@ -1555,7 +1570,16 @@ export default function WindDashboard() {
   const [rose, setRose] = useState(() => ({
     sectors: Array.from({ length: 16 }, () => [0, 0, 0, 0, 0]), calm: 0, total: 0,
   }));
-  const [demoMode, setDemoMode] = useState(PUBLIC_COPY);
+  // Источник данных: сама станция, модель или район вокруг дома.
+  // Раньше это был булев demoMode; третье значение не влезало, а «не демо»
+  // перестало означать «плата» — теперь условия спрашивают про station явно.
+  const [source, setSource] = useState(PUBLIC_COPY ? "demo" : "station");
+  const demoMode = source === "demo";
+  const district = useDistrict(source === "district");
+  // Картинка живёт отдельно от настроек: она весит сотни килобайт, а настройки
+  // читаются и пишутся на каждый чих — держать их в одной записи значило бы
+  // гонять этот килобайтный хвост туда-сюда постоянно.
+  const [bgImage] = useState(loadBgImage);
   const [time, setTime] = useState(new Date());
   const [lastUpdate, setLastUpdate] = useState(null);
   // Когда был зафиксирован нынешний максимум порыва. Само по себе число «14.2»
@@ -1712,6 +1736,17 @@ export default function WindDashboard() {
       setLastUpdate(new Date());
       return;
     }
+    if (source === "district") {
+      // Район приходит из интернета своим темпом — раз в пять минут, как его
+      // и обновляет модель. Здесь только раскладываем последнее, что пришло.
+      const mapped = districtToData(district.weather);
+      if (!mapped) { setConnected(false); return; }
+      setData(mapped);
+      setConnected(true);
+      pushHistory(mapped.speed, mapped.direction);
+      setLastUpdate(new Date());
+      return;
+    }
     try {
       const res = await fetch(`http://${esp32Host}/api/data`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1719,22 +1754,22 @@ export default function WindDashboard() {
     } catch {
       setConnected(false);
     }
-  }, [demoMode, esp32Host, applyData, pushHistory, demo]);
+  }, [demoMode, source, district.weather, esp32Host, applyData, pushHistory, demo]);
 
   useEffect(() => {
     fetchData();
     // Основной канал — SSE. Опрос остаётся как heartbeat/фолбэк: 1000 ms, not 500 —
     // ESP32 отвечает Connection: close, и каждый опрос держит один из 16 TCP-блоков
     // lwIP все 60 с TIME_WAIT. При живом SSE опрос уходит на раз в 5 с.
-    const id = setInterval(fetchData, sseActive && !demoMode ? 5000 : settings.pollMs);
+    const id = setInterval(fetchData, sseActive && source === "station" ? 5000 : settings.pollMs);
     return () => clearInterval(id);
-  }, [fetchData, sseActive, demoMode, settings.pollMs]);
+  }, [fetchData, sseActive, source, settings.pollMs]);
 
   useEffect(() => {
     // Поток можно выключить: в сетях, которые рвут долгие соединения, опрос
     // надёжнее, хотя и реже. Без этого выключателя дашборд бесконечно
     // переподключался бы каждые 15 секунд и без толку.
-    if (demoMode || !settings.useSse) return;
+    if (source !== "station" || !settings.useSse) return;
     let es = null, retryId = null, closed = false;
     const open = () => {
       es = new EventSource(`http://${esp32Host}/api/stream`);
@@ -1757,7 +1792,7 @@ export default function WindDashboard() {
       if (retryId) clearTimeout(retryId);
       setSseActive(false);
     };
-  }, [demoMode, esp32Host, applyData, settings.useSse]);
+  }, [source, esp32Host, applyData, settings.useSse]);
 
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000);
@@ -1769,19 +1804,19 @@ export default function WindDashboard() {
   // копии, отданной платой по HTTP, браузер отказывается сообщать место
   // *смотрящего*, так что место *станции* остаётся единственной реальной точкой.
   useEffect(() => {
-    if (demoMode) { setSite(null); return; }
+    if (source !== "station") { setSite(null); return; }
     let alive = true;
     fetch(`http://${esp32Host}/api/site`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive && j) setSite(j); })
       .catch(() => { /* старая прошивка без этого эндпоинта — просто нет метки */ });
     return () => { alive = false; };
-  }, [demoMode, esp32Host]);
+  }, [source, esp32Host]);
 
   // Сведения о точке доступа нужны только на вкладке «система» и почти не меняются —
   // тянем их отдельно и редко, чтобы не мешать потоку данных.
   useEffect(() => {
-    if (demoMode || tab !== "system") return;
+    if (source !== "station" || tab !== "system") return;
     let alive = true;
     const load = async () => {
       try {
@@ -1792,7 +1827,7 @@ export default function WindDashboard() {
     load();
     const id = setInterval(load, 10000);
     return () => { alive = false; clearInterval(id); };
-  }, [demoMode, esp32Host, tab]);
+  }, [source, esp32Host, tab]);
 
   // Оптимистичный апдейт: сразу меняем локальный state, чтобы кнопка не ждала цикл
   // опроса. Следующий кадр подтвердит или откатит значение с железа.
@@ -1801,14 +1836,14 @@ export default function WindDashboard() {
     const k = `led${key.charAt(0).toUpperCase() + key.slice(1)}`;
     const nextValue = NEXT_MODE[data[k]] ?? "on";
     setData((prev) => ({ ...prev, [k]: nextValue }));
-    if (demoMode) return;
+    if (source !== "station") return;
     await fetch(`http://${esp32Host}/api/led?${key}=${nextValue}`);
   };
 
   const toggleAuto = async () => {
     const nextValue = !data.ledAuto;
     setData((prev) => ({ ...prev, ledAuto: nextValue }));
-    if (demoMode) return;
+    if (source !== "station") return;
     await fetch(`http://${esp32Host}/api/led?auto=${nextValue}`);
   };
 
@@ -1844,7 +1879,7 @@ export default function WindDashboard() {
   const selectStation = (st) => {
     setEsp32Host(st.host);
     try { localStorage.setItem("esp32_host", st.host); } catch { /* приватный режим */ }
-    if (!PUBLIC_COPY) setDemoMode(false);
+    if (!PUBLIC_COPY) setSource("station");
   };
 
   const findNearest = async () => {
@@ -1949,6 +1984,9 @@ export default function WindDashboard() {
       setData((prev) => ({ ...prev, gust: parseFloat(demoRef.current.speed.toFixed(2)) }));
       return;
     }
+    // Порыв района считает модель — сбрасывать его нечему и незачем:
+    // следующий же кадр вернул бы прежнее число.
+    if (source === "district") return;
     await fetch(`http://${esp32Host}/api/gust`);
   };
 
@@ -1959,7 +1997,8 @@ export default function WindDashboard() {
   // раскрашивать розу шестью оттенками поверх одноцветного интерфейса глупо.
   const accentPick = ACCENTS[settings.accent] || ACCENTS.bft;
   const monoAccent = settings.accent !== "bft";
-  const accent = accentPick.color || bf.color;
+  const accent = settings.customAccent || accentPick.color || bf.color;
+  const backdrop = backdropCss(settings, bgImage);
   const hasDir = data.dirPresent && data.direction != null;
   const hasBattery = data.batteryPresent && data.battery != null;
   const unit = UNITS[settings.unit] ?? UNITS.ms;
@@ -2073,10 +2112,12 @@ export default function WindDashboard() {
               <KiwiMark size={40} g={g} />
               <div>
                 <h1 style={{
-                  margin: 0, fontSize: 16, fontWeight: 700, letterSpacing: 4.5,
+                  // Разрядка меньше прежней: она ставилась под сплошные
+                  // прописные, а в смешанном начертании растаскивает слово.
+                  margin: 0, fontSize: 16, fontWeight: 700, letterSpacing: 1.6,
                   fontFamily: SANS, color: TEXT, textShadow: glow(g, 1),
                 }}>
-                  MYWINDPROBE
+                  Weathered_Kiwi
                 </h1>
                 <div style={{ color: DIM, fontSize: 9, letterSpacing: 1.8, marginTop: 4, textTransform: "uppercase" }}>
                   Автоматическая ветроизмерительная станция · {STATION_ID} · {APP_VERSION}
@@ -2141,14 +2182,19 @@ export default function WindDashboard() {
           <StatusCell g={g} first>
             <span style={{
               width: 6, height: 6, borderRadius: "50%", display: "inline-block", marginRight: 7,
-              background: connected ? (demoMode ? DIM : accent) : "rgba(231,238,246,0.3)",
-              boxShadow: connected && g !== "off" ? `0 0 8px ${demoMode ? DIM : accent}` : "none",
+              background: connected ? (source === "station" ? accent : DIM) : "rgba(231,238,246,0.3)",
+              boxShadow: connected && g !== "off" ? `0 0 8px ${source === "station" ? accent : DIM}` : "none",
               animation: connected ? undefined : "pulse 1.4s infinite",
               verticalAlign: "middle",
             }} />
-            {connected ? (demoMode ? "ДЕМО" : sseActive ? "ПОТОК SSE" : "ОПРОС HTTP") : "НЕТ СВЯЗИ"}
+            {!connected ? "НЕТ СВЯЗИ"
+              : demoMode ? "ДЕМО"
+              : source === "district" ? "РАЙОН"
+              : sseActive ? "ПОТОК SSE" : "ОПРОС HTTP"}
           </StatusCell>
-          <StatusCell g={g}>ИСТОЧНИК · {demoMode ? "МОДЕЛЬ" : esp32Host}</StatusCell>
+          <StatusCell g={g}>
+            ИСТОЧНИК · {demoMode ? "МОДЕЛЬ" : source === "district" ? "OPEN-METEO" : esp32Host}
+          </StatusCell>
           <StatusCell g={g}>КАДР · {lastUpdateStr}</StatusCell>
           <StatusCell g={g}>
             ПИТАНИЕ · {hasBattery ? `${data.batteryPercent}%` : data.powerSource === "external" ? "СЕТЬ" : "—"}
@@ -2189,7 +2235,7 @@ export default function WindDashboard() {
         {tab === "wind" && (
           <div key="wind" className="wind-grid tabfade" style={{
             display: "grid",
-            gridTemplateColumns: (hasDir && settings.showCompass) || demoMode ? "1fr 1fr" : "1fr",
+            gridTemplateColumns: (hasDir && settings.showCompass) || demoMode || source === "district" ? "1fr 1fr" : "1fr",
             gap: 18, alignItems: "start",
           }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -2232,7 +2278,9 @@ export default function WindDashboard() {
                   такого датчика: пустая рамка с прочерками выглядит поломкой. */}
               {(sensors.length > 0 || dew != null || chill != null) && (
                 <Panel title="Атмосфера" g={g} delay={60}
-                       meta={demoMode ? "МОДЕЛЬ · 6" : `ДАТЧИКОВ · ${sensors.length}`}>
+                       meta={demoMode ? "МОДЕЛЬ · 6"
+                         : source === "district" ? `РАЙОН · ${sensors.length}`
+                         : `ДАТЧИКОВ · ${sensors.length}`}>
                   <div className="stat-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     {sensors.map((sn) => (
                       <Stat key={sn.key} label={sn.label} unit={sn.unit} g={g}
@@ -2248,6 +2296,8 @@ export default function WindDashboard() {
                   <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 10 }}>
                     {demoMode
                       ? "Это демо-режим: атмосферных датчиков на станции нет, и все значения здесь смоделированы. Связаны они не случайно — влажность выведена из температуры при почти постоянной точке росы, а давление проседает на усилении ветра, как оно и бывает."
+                      : source === "district"
+                      ? "Это режим «район»: значения не с мачты, а из модели Open-Meteo для точки, которую ты указал. Давления, осадков и освещённости на плате нет вовсе — здесь они настоящие и потому появились."
                       : "Показания приходят с датчиков станции; карточка появляется только для тех, чьё присутствие подтвердила прошивка."}
                     {" "}
                     Точка росы и «ощущается как» не измеряются — они считаются: первая по формуле
@@ -2276,9 +2326,13 @@ export default function WindDashboard() {
                 </Panel>
               )}
 
+              {/* Свои виджеты — последними в колонке: они дополняют показания
+                  станции, а не соперничают с ними за первый экран. */}
+              <CustomWidgets widgets={settings.widgets} g={g} accent={accent} Panel={Panel} />
+
             </div>
 
-            {(hasDir && settings.showCompass) || demoMode ? (
+            {(hasDir && settings.showCompass) || demoMode || source === "district" ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {hasDir && settings.showCompass && (
                   <Panel title="Направление" meta={degToDir(data.direction).full.toUpperCase()} g={g} delay={40}>
@@ -2300,6 +2354,15 @@ export default function WindDashboard() {
                 {demoMode && (
                   <Panel title="Ручное управление" g={g} delay={140} meta="ТОЛЬКО ДЕМО">
                     <DemoControls demo={demo} setDemo={setDemo} g={g} accent={accent} alarmLevel={alarmLevel} />
+                  </Panel>
+                )}
+
+                {/* Район: то, чего мачта не меряет — давление, осадки, воздух.
+                    Ветер и температура уже ушли в общий дашборд выше, здесь
+                    остаётся остальное и происхождение каждой цифры. */}
+                {source === "district" && (
+                  <Panel title="Район" g={g} delay={140} meta="ИЗ ИНТЕРНЕТА">
+                    <District g={g} accent={accent} {...district} />
                   </Panel>
                 )}
               </div>
@@ -2460,9 +2523,12 @@ export default function WindDashboard() {
               autoMode={data.ledAuto} onToggle={toggleLed} onAutoToggle={toggleAuto} g={g} delay={60}
             />
 
-            <Panel title="Точка доступа" g={g} delay={120} meta={demoMode ? "НЕДОСТУПНО" : ap ? "ОТВЕТ ПОЛУЧЕН" : "НЕТ ОТВЕТА"}>
-              {demoMode ? (
-                <div style={{ color: DIM, fontSize: 11 }}>Недоступно в демо-режиме.</div>
+            <Panel title="Точка доступа" g={g} delay={120}
+                   meta={source !== "station" ? "НЕДОСТУПНО" : ap ? "ОТВЕТ ПОЛУЧЕН" : "НЕТ ОТВЕТА"}>
+              {source !== "station" ? (
+                <div style={{ color: DIM, fontSize: 11 }}>
+                  {demoMode ? "Недоступно в демо-режиме." : "Недоступно в режиме «район»: сеть есть у платы, а плата сейчас не опрашивается."}
+                </div>
               ) : ap ? (
                 <>
                   <Row k="Сеть" v={ap.current} g={g} />
@@ -2643,13 +2709,23 @@ export default function WindDashboard() {
                   hint={hasDir ? "Датчик направления подключён." : "Датчик направления не подключён — компас скрыт в любом случае."}
                 />
                 <Choice
-                  label="Источник данных" g={g} value={demoMode}
-                  options={[{ value: false, label: "станция" }, { value: true, label: "демо" }]}
-                  onChange={(v) => setDemoMode(v)}
+                  label="Источник данных" g={g} value={source}
+                  options={[
+                    { value: "station", label: "станция" },
+                    { value: "district", label: "район" },
+                    { value: "demo", label: "демо" },
+                  ]}
+                  onChange={(v) => setSource(v)}
                   hint={PUBLIC_COPY
-                    ? "На публичной копии «станция» всегда даст OFFLINE: с HTTPS-страницы браузер не пустит запрос на http:// к плате, и снаружи она всё равно не адресуема."
-                    : "Демо рисует правдоподобный ветер без железа — удобно для проверки интерфейса."}
+                    ? "На публичной копии «станция» всегда даст OFFLINE: с HTTPS-страницы браузер не пустит запрос на http:// к плате, и снаружи она всё равно не адресуема. «Район» работает везде, где есть интернет."
+                    : "«Район» — погода вокруг дома из интернета: она знает давление, осадки и воздух, которых на плате нет. «Демо» рисует правдоподобный ветер без железа."}
                 />
+              </div>
+            )}
+
+            {setView === "custom" && (
+              <div key="s-custom" className="tabfade">
+                <Customize settings={settings} setS={setS} g={g} accent={accent} />
               </div>
             )}
 
@@ -2771,13 +2847,19 @@ export default function WindDashboard() {
            выбранный шрифт пропсами через полсотни компонентов было бы адом. */
         :root { --ui-sans: ${FONT_SETS[settings.font]?.sans || FONT_SETS.grotesk.sans};
                 --ui-mono: ${FONT_SETS[settings.font]?.mono || FONT_SETS.grotesk.mono};
-                --ui-bg: ${(GROUNDS[settings.ground] || GROUNDS.black).bg}; }
+                --ui-bg: ${(GROUNDS[settings.ground] || GROUNDS.black).bg};
+                --ui-corner: ${CORNERS[settings.corners] ?? 0}px;
+                --ui-fill: ${(settings.panelFill || 0) / 100}; }
         * { -webkit-tap-highlight-color: transparent; }
         /* Подложка задаётся переменной во всех трёх местах сразу: инлайновый
            фон корневого div перекрыл бы выбор, а прозрачный body показал бы
            фон хоста. */
         body, html { background: var(--ui-bg, #04070a); margin: 0 }
-        #root, .app { background: var(--ui-bg, #04070a) }
+        /* Подложка кастомизации ложится слоями на body. Когда она есть,
+           корневые обёртки обязаны стать прозрачными — иначе своя заливка
+           перекрыла бы её целиком и выбор не дал бы никакого эффекта. */
+        body { ${backdrop} }
+        #root, .app { background: ${backdrop ? "transparent" : "var(--ui-bg, #04070a)"} }
         button:focus-visible, input:focus-visible { outline: 1px solid rgba(231,238,246,0.6); outline-offset: 1px; }
 
         @keyframes pulse   { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }

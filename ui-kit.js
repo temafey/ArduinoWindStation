@@ -55,6 +55,35 @@ export const FONT_SETS = {
     sans: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
     mono: "ui-monospace, Consolas, 'Courier New', monospace",
   },
+  // Всё, что ниже, добавлено вместе с кастомизацией. Своих шрифтов не грузим:
+  // страница обязана открываться и на копии от платы, у которой нет интернета,
+  // а один файл гарнитуры — это 30-80 КБ при восьмидесяти свободных килобайтах
+  // во флеше. Поэтому только то, что уже стоит в системе.
+  condensed: {
+    label: "узкий",
+    sans: "'Roboto Condensed', 'Arial Narrow', 'Liberation Sans Narrow', 'Segoe UI', sans-serif",
+    mono: "ui-monospace, 'Cascadia Mono', Consolas, monospace",
+  },
+  slab: {
+    label: "брусковый",
+    sans: "'Roboto Slab', Rockwell, 'Courier New', Georgia, serif",
+    mono: "ui-monospace, Consolas, 'Courier New', monospace",
+  },
+  rounded: {
+    label: "округлый",
+    sans: "'SF Pro Rounded', 'Nunito', 'Varela Round', 'Trebuchet MS', system-ui, sans-serif",
+    mono: "ui-monospace, 'Cascadia Mono', Consolas, monospace",
+  },
+  terminal: {
+    label: "терминал",
+    sans: "'Cascadia Mono', 'Consolas', 'Lucida Console', 'Courier New', monospace",
+    mono: "'Cascadia Mono', 'Consolas', 'Lucida Console', 'Courier New', monospace",
+  },
+  humanist: {
+    label: "гуманистический",
+    sans: "'Optima', 'Gill Sans', 'Gill Sans MT', Calibri, 'Segoe UI', sans-serif",
+    mono: "ui-monospace, Consolas, monospace",
+  },
 };
 
 // tabular-nums обязателен везде, где цифра меняется на месте: без него разряды
