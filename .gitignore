@@ -21,6 +21,8 @@ dist/
 # === Большие снапшоты-архивы (пересобираются из исходников) ===
 esp32_wind_station.zip
 wind-ui.zip
+# папка для заливки на хостинг — пересобирается из wind-ui/dist
+mywindprobe-site.zip
 # WindStation-kit.zip НЕ игнорируем: только в нём лежат tools/*.ps1 и SETUP.md
 # Распакованные драйверы модема — восстанавливаются из drivers/A7600X-Windows-Driver.7z,
 # а сам архив коммитится (см. CLAUDE.md, §Git)
