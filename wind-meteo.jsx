@@ -299,7 +299,51 @@ const PHOTOS = {
   hunters:   { u: "f/fe/Hurricane_Hunters_gather_forecast_data_on_record-breaking_blizzard_160123-F-UY948-002.jpg/500px-Hurricane_Hunters_gather_forecast_data_on_record-breaking_blizzard_160123-F-UY948-002.jpg", lic: "общественное достояние", by: "Ник Монтелеоне, ВВС США", f: "Hurricane Hunters gather forecast data on record-breaking blizzard 160123-F-UY948-002.jpg" },
   sonde:     { u: "7/7e/Launching_radiosonde_1943.jpg/500px-Launching_radiosonde_1943.jpg", lic: "общественное достояние", by: "архив, 1943", f: "Launching radiosonde 1943.jpg" },
 
-  wedge:     { u: "9/98/F5_tornado_Elie_Manitoba_2007.jpg/500px-F5_tornado_Elie_Manitoba_2007.jpg", lic: "CC BY-SA 3.0", by: "Justin Hobson", f: "F5 tornado Elie Manitoba 2007.jpg" },
+  wedge:     { u: "4/4d/El_Reno_EF-5_Tornado_Wedge.jpg/500px-El_Reno_EF-5_Tornado_Wedge.jpg", lic: "CC BY 2.0", by: "Дэниел Родригес", f: "El Reno EF-5 Tornado Wedge.jpg" },
+  wedge2:    { u: "7/77/1960_Newbury_Kansas_wedge.jpg/500px-1960_Newbury_Kansas_wedge.jpg", lic: "общественное достояние", by: "Дорожный патруль Канзаса", f: "1960 Newbury Kansas wedge.jpg" },
+  wedge3:    { u: "6/68/2007_Greensburg%2C_KS_tornado_from_Highway_148.jpg/500px-2007_Greensburg%2C_KS_tornado_from_Highway_148.jpg", lic: "CC BY-SA 4.0", by: "Крейг Уэджес", f: "2007 Greensburg, KS tornado from Highway 148.jpg" },
+  cone:      { u: "9/98/F5_tornado_Elie_Manitoba_2007.jpg/500px-F5_tornado_Elie_Manitoba_2007.jpg", lic: "CC BY-SA 3.0", by: "Джастин Хобсон", f: "F5 tornado Elie Manitoba 2007.jpg" },
+  cone2:     { u: "c/cd/Ottawa%2C_KS_Tornado.jpg/500px-Ottawa%2C_KS_Tornado.jpg", lic: "CC BY 4.0", by: "Augustcm", f: "Ottawa, KS Tornado.jpg" },
+  cone3:     { u: "8/86/Evolution_of_a_Tornado.jpg/500px-Evolution_of_a_Tornado.jpg", lic: "CC BY-SA 4.0", by: "Джейсон Уэйнгарт", f: "Evolution of a Tornado.jpg" },
+  rope2:     { u: "5/55/Rope_Tornado_near_Yuma%2C_Colorado.jpg/500px-Rope_Tornado_near_Yuma%2C_Colorado.jpg", lic: "CC BY-SA 4.0", by: "Штефан Кляйн", f: "Rope Tornado near Yuma, Colorado.jpg" },
+  rope3:     { u: "d/dd/Tornado_roping_out_near_Otis%2C_CO.jpg/500px-Tornado_roping_out_near_Otis%2C_CO.jpg", lic: "CC0", by: "BusyWikipedian", f: "Tornado roping out near Otis, CO.jpg" },
+  rope4:     { u: "c/c4/Tornado_Rope_Out.jpg/500px-Tornado_Rope_Out.jpg", lic: "CC BY 4.0", by: "BusyWikipedian", f: "Tornado Rope Out.jpg" },
+  multi2:    { u: "e/ea/1957_Dallas_multi-vortex_1_edited.JPG/500px-1957_Dallas_multi-vortex_1_edited.JPG", lic: "общественное достояние", by: "Роберт Дэй, Бюро погоды США", f: "1957 Dallas multi-vortex 1 edited.JPG" },
+  multi3:    { u: "0/06/Tornado_near_Punkin_Center%2C_CO.jpg/500px-Tornado_near_Punkin_Center%2C_CO.jpg", lic: "CC BY-SA 4.0", by: "Штефан Кляйн", f: "Tornado near Punkin Center, CO.jpg" },
+  water2:    { u: "8/80/Giant_water_spout_off_Florida_Keys_%28wea00341%29.jpg/500px-Giant_water_spout_off_Florida_Keys_%28wea00341%29.jpg", lic: "общественное достояние", by: "NOAA, Стив Никлас", f: "Giant water spout off Florida Keys (wea00341).jpg" },
+  water3:    { u: "5/51/Waterspout_in_Key_West_Harbor_-_Key_West%2C_Florida_%283845000272%29.jpg/500px-Waterspout_in_Key_West_Harbor_-_Key_West%2C_Florida_%283845000272%29.jpg", lic: "CC BY-SA 2.0", by: "Cayobo", f: "Waterspout in Key West Harbor - Key West, Florida (3845000272).jpg" },
+  water4:    { u: "f/fe/November_2000_Waterspout.jpg/500px-November_2000_Waterspout.jpg", lic: "общественное достояние", by: "NOAA", f: "November 2000 Waterspout.jpg" },
+  land2:     { u: "2/24/Landspout_Tornado_near_Kirk%2C_CO.jpg/500px-Landspout_Tornado_near_Kirk%2C_CO.jpg", lic: "CC BY 4.0", by: "Штефан Кляйн", f: "Landspout Tornado near Kirk, CO.jpg" },
+  land3:     { u: "b/b7/Landspout_Tornado_near_Lamar%2C_CO.jpg/500px-Landspout_Tornado_near_Lamar%2C_CO.jpg", lic: "CC BY-SA 4.0", by: "Штефан Кляйн", f: "Landspout Tornado near Lamar, CO.jpg" },
+  land4:     { u: "9/9d/Landspout_Tornado_in_Colorado.png/500px-Landspout_Tornado_in_Colorado.png", lic: "CC0", by: "Delias Weather", f: "Landspout Tornado in Colorado.png" },
+  gust2:     { u: "6/63/Colorado_Gustnado.jpg/500px-Colorado_Gustnado.jpg", lic: "общественное достояние", by: "Джессика Кортекас", f: "Colorado Gustnado.jpg" },
+  gust3:     { u: "3/39/Gustnado.jpg/500px-Gustnado.jpg", lic: "CC BY-SA 4.0", by: "Штефан Кляйн", f: "Gustnado.jpg" },
+  gust4:     { u: "e/e7/Tornadic_gustnado.jpg/500px-Tornadic_gustnado.jpg", lic: "общественное достояние", by: "Служба погоды США", f: "Tornadic gustnado.jpg" },
+  dust2:     { u: "8/87/Iraqi_Dust_Devil.jpg/500px-Iraqi_Dust_Devil.jpg", lic: "общественное достояние", by: "Ultratone85", f: "Iraqi Dust Devil.jpg" },
+  dust3:     { u: "8/88/Dust_devil_Thailand.jpg/500px-Dust_devil_Thailand.jpg", lic: "CC BY-SA 3.0", by: "Ahoerstemeier", f: "Dust devil Thailand.jpg" },
+  dust4:     { u: "e/ec/Whirlwind_-Serengeti_plains%2C_Tanzania-20Jan2010.jpg/500px-Whirlwind_-Serengeti_plains%2C_Tanzania-20Jan2010.jpg", lic: "CC BY 2.0", by: "Ноэль Феанс", f: "Whirlwind -Serengeti plains, Tanzania-20Jan2010.jpg" },
+  fire2:     { u: "1/1b/2021_Bootleg_Fire_tornado_1.jpg/500px-2021_Bootleg_Fire_tornado_1.jpg", lic: "общественное достояние", by: "Лесная служба США", f: "2021 Bootleg Fire tornado 1.jpg" },
+  fire3:     { u: "5/5b/Carr_Fire_tornado_1.jpg/500px-Carr_Fire_tornado_1.jpg", lic: "общественное достояние", by: "Пожарная охрана Калифорнии", f: "Carr Fire tornado 1.jpg" },
+  fire4:     { u: "3/3c/Fire_whirl_%28FWS%29.jpg/500px-Fire_whirl_%28FWS%29.jpg", lic: "общественное достояние", by: "Служба рыбных ресурсов США", f: "Fire whirl (FWS).jpg" },
+  shelf2:    { u: "4/46/Riiulpilv_-_Shelf_cloud_%282%29_copy.jpg/500px-Riiulpilv_-_Shelf_cloud_%282%29_copy.jpg", lic: "CC BY-SA 4.0", by: "Кристиан Пикнер", f: "Riiulpilv - Shelf cloud (2) copy.jpg" },
+  shelf3:    { u: "5/5c/Shelf_cloud_over_Asprovalta.jpg/500px-Shelf_cloud_over_Asprovalta.jpg", lic: "CC BY-SA 4.0", by: "Neptuul", f: "Shelf cloud over Asprovalta.jpg" },
+  shelf4:    { u: "7/7b/Lightning_and_a_Shelf_Cloud.jpg/500px-Lightning_and_a_Shelf_Cloud.jpg", lic: "CC BY-SA 4.0", by: "Штефан Кляйн", f: "Lightning and a Shelf Cloud.jpg" },
+  mamm2:     { u: "3/39/Mammatus-clouds-Tulsa-1973.png/500px-Mammatus-clouds-Tulsa-1973.png", lic: "общественное достояние", by: "NOAA", f: "Mammatus-clouds-Tulsa-1973.png" },
+  mamm3:     { u: "6/6a/Mammatus_clouds%2C_Pittsburgh%2C_2022-06-16%2C_01.jpg/500px-Mammatus_clouds%2C_Pittsburgh%2C_2022-06-16%2C_01.jpg", lic: "CC0", by: "Cbaile19", f: "Mammatus clouds, Pittsburgh, 2022-06-16, 01.jpg" },
+  mamm4:     { u: "f/fe/Mammatus_wolken_boven_Houten.jpg/500px-Mammatus_wolken_boven_Houten.jpg", lic: "CC BY-SA 4.0", by: "Ronaldhuizer", f: "Mammatus wolken boven Houten.jpg" },
+  eye2:      { u: "a/ac/Hurricane_Isabel_eye_from_ISS.jpg/500px-Hurricane_Isabel_eye_from_ISS.jpg", lic: "общественное достояние", by: "Эд Лу, НАСА", f: "Hurricane Isabel eye from ISS.jpg" },
+  eye3:      { u: "b/b5/Staring_Down_Hurricane_Florence.jpg/500px-Staring_Down_Hurricane_Florence.jpg", lic: "общественное достояние", by: "Александр Герст, ЕКА", f: "Staring Down Hurricane Florence.jpg" },
+  eye4:      { u: "2/28/Eye_of_Hurricane_Milton_from_the_ISS_2024-10-07.jpg/500px-Eye_of_Hurricane_Milton_from_the_ISS_2024-10-07.jpg", lic: "общественное достояние", by: "НАСА, МКС", f: "Eye of Hurricane Milton from the ISS 2024-10-07.jpg" },
+  mars2:     { u: "8/81/Dust_devils_galore-_Mars_Express_visits_Mamers_Valles_on_Mars_ESA523013.jpg/500px-Dust_devils_galore-_Mars_Express_visits_Mamers_Valles_on_Mars_ESA523013.jpg", lic: "CC BY-SA 3.0 IGO", by: "Европейское космическое агентство", f: "Dust devils galore- Mars Express visits Mamers Valles on Mars ESA523013.jpg" },
+  mars3:     { u: "1/18/Dust_Devil_Whirls_by_Perseverance_Coring_Operation_%28PIA26572%29.jpg/500px-Dust_Devil_Whirls_by_Perseverance_Coring_Operation_%28PIA26572%29.jpg", lic: "общественное достояние", by: "НАСА, Лаборатория реактивного движения", f: "Dust Devil Whirls by Perseverance Coring Operation (PIA26572).jpg" },
+  super2:    { u: "2/20/Chaparral_Supercell_2.JPG/500px-Chaparral_Supercell_2.JPG", lic: "общественное достояние", by: "Грег Лундин, Служба погоды США", f: "Chaparral Supercell 2.JPG" },
+  super3:    { u: "2/2a/Low_Precipitation_Supercell_Thunderstorm.jpg/500px-Low_Precipitation_Supercell_Thunderstorm.jpg", lic: "CC BY-SA 4.0", by: "Штефан Кляйн", f: "Low Precipitation Supercell Thunderstorm.jpg" },
+  super4:    { u: "9/98/Supercell_with_bell-bottom_updraft.jpg/500px-Supercell_with_bell-bottom_updraft.jpg", lic: "CC BY 4.0", by: "Rollingskyphoto", f: "Supercell with bell-bottom updraft.jpg" },
+  wall2:     { u: "b/b1/Circular_base_of_a_rotating_wall_cloud_-_NOAA.jpg/500px-Circular_base_of_a_rotating_wall_cloud_-_NOAA.jpg", lic: "общественное достояние", by: "Лаборатория сильных штормов, NOAA", f: "Circular base of a rotating wall cloud - NOAA.jpg" },
+  wall3:     { u: "1/1b/1989_Huntsville_Wall_cloud_1.jpg/500px-1989_Huntsville_Wall_cloud_1.jpg", lic: "общественное достояние", by: "Служба погоды, Бирмингем", f: "1989 Huntsville Wall cloud 1.jpg" },
+  funn2:     { u: "8/82/Backlit_funnel_cloud_and_tornado_-_NOAA.jpg/500px-Backlit_funnel_cloud_and_tornado_-_NOAA.jpg", lic: "общественное достояние", by: "NOAA", f: "Backlit funnel cloud and tornado - NOAA.jpg" },
+  funn3:     { u: "3/35/Cumulonimbus_tuba_1.jpg/500px-Cumulonimbus_tuba_1.jpg", lic: "CC BY 3.0", by: "Couch-scratching-cats", f: "Cumulonimbus tuba 1.jpg" },
+  funn4:     { u: "4/4f/Baker_Co_Funnel_01-22-17_1512.jpg/500px-Baker_Co_Funnel_01-22-17_1512.jpg", lic: "CC BY-SA 4.0", by: "Spotter31768", f: "Baker Co Funnel 01-22-17 1512.jpg" },
   rope:      { u: "0/0d/Tornado_Roping_Out_in_Eastern_Colorado.jpg/500px-Tornado_Roping_Out_in_Eastern_Colorado.jpg", lic: "CC BY-SA 4.0", by: "BusyWikipedian", f: "Tornado Roping Out in Eastern Colorado.jpg" },
   multi:     { u: "b/b6/Dimmit_Sequence.jpg/500px-Dimmit_Sequence.jpg", lic: "общественное достояние", by: "Харальд Рихтер, NOAA", f: "Dimmit Sequence.jpg" },
   waterspout:{ u: "5/5d/Waterspout_near_Cap_de_Formentor%2C_Mallorca_2006-09-25.jpg/500px-Waterspout_near_Cap_de_Formentor%2C_Mallorca_2006-09-25.jpg", lic: "CC BY 2.5", by: "Julian Kupfer", f: "Waterspout near Cap de Formentor, Mallorca 2006-09-25.jpg" },
@@ -474,6 +518,7 @@ const PROBES = [
 const STORMS = [
   {
     id: "supercell", photo: "supercell", cat: "birth",
+    photos: ["supercell", "super2", "super3", "super4"],
     name: "Суперячейка", kind: "Гроза с вращающимся восходящим потоком",
     tag: "мать смерчей",
     specs: [
@@ -487,6 +532,7 @@ const STORMS = [
   },
   {
     id: "wallcloud", photo: "wallcloud", cat: "birth",
+    photos: ["wallcloud", "wall2", "wall3"],
     name: "Стена облаков", kind: "Опущенное основание под восходящим потоком",
     tag: "смотреть сюда",
     specs: [
@@ -500,6 +546,7 @@ const STORMS = [
   },
   {
     id: "funnel", photo: "funnel", cat: "birth",
+    photos: ["funnel", "funn2", "funn3", "funn4"],
     name: "Воронка без касания", kind: "Funnel cloud",
     tag: "ещё не смерч",
     specs: [
@@ -513,6 +560,7 @@ const STORMS = [
   },
   {
     id: "wedge", photo: "wedge", cat: "kind",
+    photos: ["wedge", "wedge2", "wedge3"],
     name: "Клиновидный", kind: "Wedge",
     tag: "шире, чем выше",
     specs: [
@@ -525,7 +573,22 @@ const STORMS = [
     url: "https://www.spc.noaa.gov/faq/tornado/",
   },
   {
+    id: "cone", photo: "cone", cat: "kind",
+    photos: ["cone", "cone2", "cone3"],
+    name: "Конусовидный", kind: "Cone",
+    tag: "тот самый облик",
+    specs: [
+      ["Признак", "высота заметно больше ширины, книзу сужается"],
+      ["Встречается", "чаще любого другого облика"],
+      ["Пример", "Эли, Манитоба, 2007 — единственный F5 в Канаде"],
+    ],
+    why: "То, что рисуют, когда говорят «смерч»: воронка сужается от облака к земле и вытянута по высоте. Самый обычный облик и самый узнаваемый — именно из-за него клин так часто путают с конусом, хотя клин ровно наоборот шире, чем выше.",
+    caveat: "Облик меняется по ходу жизни одного и того же смерча: конус может расшириться в клин, а к концу вытянуться в верёвку. Это не разные виды, а стадии.",
+    url: "https://www.spc.noaa.gov/faq/tornado/",
+  },
+  {
     id: "rope", photo: "rope", cat: "kind",
+    photos: ["rope", "rope2", "rope3", "rope4"],
     name: "Верёвочный", kind: "Rope",
     tag: "стадия, а не вид",
     specs: [
@@ -539,6 +602,7 @@ const STORMS = [
   },
   {
     id: "multi", photo: "multi", cat: "kind",
+    photos: ["multi", "multi2", "multi3"],
     name: "Многовихревой", kind: "Multiple-vortex",
     tag: "вихри внутри вихря",
     specs: [
@@ -552,6 +616,7 @@ const STORMS = [
   },
   {
     id: "waterspout", photo: "waterspout", cat: "kind",
+    photos: ["waterspout", "water2", "water3", "water4"],
     name: "Водяной смерч", kind: "Waterspout",
     tag: "их два разных",
     specs: [
@@ -565,6 +630,7 @@ const STORMS = [
   },
   {
     id: "landspout", photo: "landspout", cat: "kind",
+    photos: ["landspout", "land2", "land3", "land4"],
     name: "Ландспаут", kind: "Landspout",
     tag: "без мезоциклона",
     specs: [
@@ -578,6 +644,7 @@ const STORMS = [
   },
   {
     id: "gustnado", photo: "gustnado", cat: "false",
+    photos: ["gustnado", "gust2", "gust3", "gust4"],
     name: "Гастнадо", kind: "Вихрь на фронте порывов",
     tag: "не смерч",
     specs: [
@@ -591,6 +658,7 @@ const STORMS = [
   },
   {
     id: "dustdevil", photo: "dustdevil", cat: "false",
+    photos: ["dustdevil", "dust2", "dust3", "dust4"],
     name: "Пыльный вихрь", kind: "Dust devil",
     tag: "ясное небо",
     specs: [
@@ -604,6 +672,7 @@ const STORMS = [
   },
   {
     id: "firewhirl", photo: "firewhirl", cat: "false",
+    photos: ["firewhirl", "fire2", "fire3", "fire4"],
     name: "Огненный вихрь", kind: "Fire whirl",
     tag: "редкое исключение",
     specs: [
@@ -617,6 +686,7 @@ const STORMS = [
   },
   {
     id: "shelf", photo: "shelf", cat: "false",
+    photos: ["shelf", "shelf2", "shelf3", "shelf4"],
     name: "Шельфовое облако", kind: "Shelf cloud",
     tag: "путают чаще всего",
     specs: [
@@ -630,6 +700,7 @@ const STORMS = [
   },
   {
     id: "mammatus", photo: "mammatus", cat: "false",
+    photos: ["mammatus", "mamm2", "mamm3", "mamm4"],
     name: "Вымеобразные облака", kind: "Mammatus",
     tag: "красиво, но не про опасность",
     specs: [
@@ -643,6 +714,7 @@ const STORMS = [
   },
   {
     id: "eye", photo: "eye", cat: "big",
+    photos: ["eye", "eye2", "eye3", "eye4"],
     name: "Глаз урагана", kind: "Тропический циклон",
     tag: "затишье в центре",
     specs: [
@@ -656,6 +728,7 @@ const STORMS = [
   },
   {
     id: "mars", photo: "mars", cat: "big",
+    photos: ["mars", "mars2", "mars3"],
     name: "Вихри на Марсе", kind: "Пыльные вихри другой планеты",
     tag: "любопытное",
     specs: [
@@ -1045,6 +1118,67 @@ function AskClaude({ g, accent }) {
 }
 
 // ============================================================
+// ГАЛЕРЕЯ
+// ============================================================
+// Один кадр на тип вводит в заблуждение: смерч одного и того же облика
+// выглядит по-разному в зависимости от света, стадии и того, откуда
+// смотрели. Отсюда несколько снимков и переключение между ними.
+// Показывается всегда один — миниатюрами пришлось бы тянуть все сразу,
+// а это четыре запроса наружу на каждую раскрытую карточку.
+function Gallery({ ids, alt, ratio, g, accent }) {
+  const list = (ids || []).filter((id) => PHOTOS[id]);
+  const [i, setI] = useState(0);
+  if (!list.length) return null;
+
+  const n = list.length;
+  const cur = ((i % n) + n) % n;
+  const step = (d) => setI(cur + d);
+
+  const arrow = {
+    position: "absolute", top: "50%", transform: "translateY(-50%)",
+    width: 26, height: 40, display: "flex", alignItems: "center",
+    justifyContent: "center", cursor: "pointer",
+    background: "rgba(4,7,10,0.62)", border: `1px solid ${LINE}`,
+    color: TEXT, fontFamily: MONO, fontSize: 13, lineHeight: 1, padding: 0,
+  };
+
+  return (
+    <div>
+      <div style={{ position: "relative" }}>
+        <Photo id={list[cur]} alt={alt} ratio={ratio} g={g} />
+        {n > 1 && (
+          <>
+            <button onClick={() => step(-1)} aria-label="Предыдущий снимок"
+                    style={{ ...arrow, left: 0 }}>‹</button>
+            <button onClick={() => step(1)} aria-label="Следующий снимок"
+                    style={{ ...arrow, right: 0 }}>›</button>
+          </>
+        )}
+      </div>
+
+      {n > 1 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
+          <div style={{ display: "flex", gap: 3, flex: 1 }}>
+            {list.map((id, k) => (
+              <button key={id} onClick={() => setI(k)} aria-label={`Снимок ${k + 1}`}
+                      style={{
+                        flex: 1, height: 2, padding: 0, border: "none", cursor: "pointer",
+                        background: k === cur ? accent : LINE_HI,
+                        boxShadow: k === cur ? glow(g, 0.5) : "none",
+                        transition: "background .25s ease",
+                      }} />
+            ))}
+          </div>
+          <span style={{ ...NUM, fontSize: 9, color: FAINT, whiteSpace: "nowrap" }}>
+            {cur + 1} / {n}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // СПИСОК КАРТОЧЕК
 // ============================================================
 // Один компонент на все три раздела: строение карточек одинаковое, меняются
@@ -1126,9 +1260,10 @@ function Cards({ items, cats, g, accent, motion, ratio }) {
               {isOpen && (
                 <div className={motion === "off" ? undefined : "tabfade"}
                      style={{ padding: "0 12px 14px" }}>
-                  {it.photo && (
+                  {(it.photos || it.photo) && (
                     <div style={{ marginBottom: 12 }}>
-                      <Photo id={it.photo} alt={it.name} ratio={ratio} g={g} />
+                      <Gallery ids={it.photos || [it.photo]} alt={it.name}
+                               ratio={ratio} g={g} accent={accent} />
                     </div>
                   )}
 
