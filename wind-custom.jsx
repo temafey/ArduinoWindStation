@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   LINE, LINE_HI, TEXT, DIM, FAINT, SANS, MONO, NUM, glow,
 } from "./ui-kit.js";
+import { WIDTHS } from "./wind-layout.jsx";
 
 // ============================================================
 // КАСТОМИЗАЦИЯ
@@ -421,6 +422,15 @@ export default function Customize({ settings, setS, g, accent, onEditLayout }) {
       {/* Раскладка правится не здесь, а на самой странице: переставлять
           блоки, не видя их, — гадание. Кнопка лишь уводит туда и включает
           режим правки. */}
+      <Head g={g}>Ширина страницы</Head>
+      <Tiles table={WIDTHS} value={settings.pageWidth} g={g} accent={accent}
+             onPick={(v) => setS({ pageWidth: v })} />
+      <div style={{ color: DIM, fontSize: 11, lineHeight: 1.6, fontFamily: SANS, margin: "2px 0 10px" }}>
+        На широком экране появляется третья колонка — но только если ширина это
+        позволяет. При пределе в 1080 её не будет даже на огромном мониторе:
+        колонка вышла бы уже трёхсот пикселей, и график в ней стал бы полоской.
+      </div>
+
       <Head g={g}>Раскладка</Head>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "2px 0 10px" }}>
         <button onClick={onEditLayout} style={{

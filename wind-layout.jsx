@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { LINE, LINE_HI, TEXT, DIM, FAINT, MONO } from "./ui-kit.js";
 
 // ============================================================
@@ -83,11 +83,15 @@ function insertBefore(rows, id, targetId) {
   return next;
 }
 
-export function layoutOps(rows, apply) {
+export function layoutOps(rows, apply, colCount = 2) {
   return {
     up: (id) => apply(shift(rows, id, -1)),
     down: (id) => apply(shift(rows, id, +1)),
-    swapCol: (id) => apply(rows.map((r) => (r.id === id ? { ...r, col: r.col ? 0 : 1 } : r))),
+    // По кругу, а не туда-обратно: колонок может быть три, и кнопка «в другую»
+    // при двух вариантах ответа перестала бы означать что-то определённое.
+    swapCol: (id) => apply(rows.map((r) => (
+      r.id === id ? { ...r, col: (Math.min(r.col, colCount - 1) + 1) % colCount } : r
+    ))),
     toggle: (id) => apply(rows.map((r) => (r.id === id ? { ...r, hidden: !r.hidden } : r))),
     dropOn: (id, targetId) => apply(insertBefore(rows, id, targetId)),
     toCol: (id, col) => apply(rows.map((r) => (r.id === id ? { ...r, col } : r))),
@@ -218,13 +222,56 @@ export function LayoutBar({ onDone, onReset, g, accent }) {
 
 // Пустая колонка в режиме правки должна существовать физически: иначе перенести
 // в неё первый блок было бы некуда — цель перетаскивания ищется по элементам.
-export function ColumnDrop({ col, g }) {
+export function ColumnDrop({ col, of }) {
+  const name = of <= 1 ? "КОЛОНКА"
+    : col === 0 ? "ЛЕВАЯ"
+    : col === of - 1 ? "ПРАВАЯ"
+    : "СРЕДНЯЯ";
   return (
     <div style={{
       border: `1px dashed ${LINE}`, padding: "18px 10px", textAlign: "center",
       color: FAINT, fontFamily: MONO, fontSize: 10, letterSpacing: 1.4,
     }}>
-      {col === 0 ? "ЛЕВАЯ КОЛОНКА" : "ПРАВАЯ КОЛОНКА"} · ПУСТО
+      {name}{of > 1 ? " КОЛОНКА" : ""} · ПУСТО
     </div>
   );
+}
+
+// ------------------------------------------------------------
+// Ширина страницы и число колонок
+// ------------------------------------------------------------
+// Ноль означает «без предела»: писать сюда какое-нибудь 99999 значило бы
+// придумать предел там, где его нет, и однажды в него упереться.
+export const WIDTHS = {
+  normal: { label: "обычная", px: 1080, hint: "1080 px — как было" },
+  wide:   { label: "широкая", px: 1500, hint: "1500 px" },
+  full:   { label: "во весь экран", px: 0, hint: "без предела" },
+};
+
+// Колонки считаются от ширины СОДЕРЖИМОГО, а не окна. Это разные вещи: при
+// пределе в 1080 на четырёхкилометровом мониторе окно огромно, а места для
+// третьей колонки нет — она вышла бы уже трёхсот пикселей, и график в ней
+// превратился бы в полоску.
+export function columnsFor(winWidth, maxPx) {
+  const inner = Math.max(0, Math.min(winWidth - 44, maxPx > 0 ? maxPx : Infinity));
+  if (inner < 820) return 1;
+  if (inner < 1360) return 2;
+  return 3;
+}
+
+// Пересчёт при изменении окна. Отдельный хук, а не чтение window.innerWidth
+// прямо в разметке: без подписки поворот телефона не перерисовал бы ничего,
+// и раскладка осталась бы от прежней ориентации.
+export function useViewport() {
+  const [w, setW] = useState(() => (typeof window === "undefined" ? 1280 : window.innerWidth));
+  useEffect(() => {
+    const onResize = () => setW(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+  return w;
 }

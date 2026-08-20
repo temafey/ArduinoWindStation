@@ -5,7 +5,8 @@ import {
 } from "./ui-kit.js";
 import { KiwiMark } from "./wind-kiwi.jsx";
 import { chunk, warmUp } from "./wind-guard.jsx";
-import { mergeLayout, packLayout, layoutOps, useDrag, BlockFrame, LayoutBar, ColumnDrop } from "./wind-layout.jsx";
+import { mergeLayout, packLayout, layoutOps, useDrag, BlockFrame, LayoutBar, ColumnDrop,
+         WIDTHS, columnsFor, useViewport } from "./wind-layout.jsx";
 import DemoControls from "./wind-demo.jsx";
 import { Compass, CameraWindow } from "./wind-instrument.jsx";
 
@@ -308,6 +309,7 @@ const DEFAULT_SETTINGS = {
   panelFill: 0,          // заливка панелей, % — плотность фона под текстом
   widgets: [],           // свои виджеты на вкладке «Основное»
   layout: [],            // раскладка блоков «Основного»; пусто — как задумано
+  pageWidth: "normal",   // ключ из WIDTHS — предел ширины страницы
 };
 
 function loadSettings() {
@@ -1601,6 +1603,7 @@ export default function WindDashboard() {
   // перезагрузки страницы никто не просил, а сохранись он — дашборд открывался
   // бы с пунктирными рамками вместо показаний.
   const [layoutMode, setLayoutMode] = useState(false);
+  const viewportW = useViewport();
   const [time, setTime] = useState(new Date());
   const [lastUpdate, setLastUpdate] = useState(null);
   // Когда был зафиксирован нынешний максимум порыва. Само по себе число «14.2»
@@ -2230,12 +2233,26 @@ export default function WindDashboard() {
     ) },
   ].filter(Boolean);
 
+  // Предел ширины и число колонок. Колонки считаются от ширины содержимого,
+  // а не окна: при пределе в 1080 на широком мониторе окно огромно, а места
+  // для третьей колонки нет — она вышла бы уже трёхсот пикселей.
+  const pageMax = (WIDTHS[settings.pageWidth] || WIDTHS.normal).px;
+  const pageWide = { maxWidth: pageMax > 0 ? pageMax : "none" };
+  const colCount = columnsFor(viewportW, pageMax);
+
   const layoutRows = mergeLayout(settings.layout, windBlocks);
-  const lay = layoutOps(layoutRows, (rows) => setS({ layout: packLayout(rows, settings.layout) }));
+  const lay = layoutOps(layoutRows, (rows) => setS({ layout: packLayout(rows, settings.layout) }), colCount);
   const drag = useDrag(lay);
-  // Правая колонка существует, только когда ей есть что показать. В режиме
-  // правки — всегда: иначе перенести туда первый блок было бы некуда.
-  const rightUsed = layoutMode || layoutRows.some((r) => r.col === 1 && !r.hidden);
+  // Колонка блока прижимается к тому, сколько их сейчас помещается. Так одна и
+  // та же раскладка читается и на широком мониторе, и на телефоне: лишние
+  // колонки сворачиваются в последнюю, а порядок внутри сохраняется.
+  const colOf = (r) => Math.min(r.col, colCount - 1);
+  // Колонка существует, только когда ей есть что показать, — пустая забирала
+  // бы треть ширины ни за чем. В режиме правки показываются все: иначе
+  // перенести блок в пустую было бы некуда.
+  const shownCols = Array.from({ length: colCount }, (_, c) => c).filter(
+    (c) => layoutMode || layoutRows.some((r) => colOf(r) === c && !r.hidden)
+  );
 
   return (
     <div
@@ -2248,7 +2265,7 @@ export default function WindDashboard() {
       {/* ============ ШАПКА-БЛАНК ============ */}
       <header style={{ borderBottom: `1px solid ${LINE}`, padding: "16px 22px 0" }}>
         <div style={{
-          maxWidth: 1080, margin: "0 auto",
+          ...pageWide, margin: "0 auto",
           display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap",
         }}>
           {/* Левый угол — знак, под ним подсказчик. Он именно отдельный блок,
@@ -2325,7 +2342,7 @@ export default function WindDashboard() {
 
         {/* Строка состояния: канал, свежесть кадра, питание, сигнал */}
         <div style={{
-          maxWidth: 1080, margin: "12px auto 0",
+          ...pageWide, margin: "12px auto 0",
           display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0,
           borderTop: `1px solid ${LINE}`, fontSize: 9.5, letterSpacing: 1.4,
         }}>
@@ -2358,14 +2375,14 @@ export default function WindDashboard() {
         </div>
 
         {/* Вкладки */}
-        <nav style={{ maxWidth: 1080, margin: "0 auto", borderTop: `1px solid ${LINE}` }}>
+        <nav style={{ ...pageWide, margin: "0 auto", borderTop: `1px solid ${LINE}` }}>
           {TABS.map((t) => (
             <Tab key={t.id} id={t.id} active={tab} onClick={setTab} g={g}>{t.label}</Tab>
           ))}
         </nav>
       </header>
 
-      <main style={{ maxWidth: 1080, margin: "0 auto", padding: "22px 22px 0" }}>
+      <main style={{ ...pageWide, margin: "0 auto", padding: "22px 22px 0" }}>
         {/* Публичная копия — сразу сказать, что это витрина, а не живая станция */}
         {PUBLIC_COPY && (
           <div className="pnl" style={{
@@ -2391,17 +2408,16 @@ export default function WindDashboard() {
             )}
             <div className="wind-grid" style={{
               display: "grid",
-              gridTemplateColumns: rightUsed ? "1fr 1fr" : "1fr",
+              gridTemplateColumns: `repeat(${shownCols.length}, minmax(0, 1fr))`,
               gap: 18, alignItems: "start",
             }}>
-              {[0, 1].map((col) => {
-                if (col === 1 && !rightUsed) return null;
-                const inCol = layoutRows.filter((r) => r.col === col && (layoutMode || !r.hidden));
+              {shownCols.map((col) => {
+                const inCol = layoutRows.filter((r) => colOf(r) === col && (layoutMode || !r.hidden));
                 return (
                   <div key={col} data-col={col}
                        onPointerMove={drag.move} onPointerUp={drag.end} onPointerCancel={drag.end}
                        style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: layoutMode ? 60 : 0 }}>
-                    {layoutMode && inCol.length === 0 && <ColumnDrop col={col} g={g} />}
+                    {layoutMode && inCol.length === 0 && <ColumnDrop col={col} of={colCount} />}
                     {inCol.map((r) => (
                       layoutMode
                         ? <BlockFrame key={r.id} row={r} ops={lay} drag={drag}>{r.block.node}</BlockFrame>
@@ -3094,7 +3110,8 @@ export default function WindDashboard() {
         /* Телефон портретом: обе колонки в столбик, нижние карточки 2x2.
            Инлайн-стили перекрываются только с !important. */
         @media (max-width: 820px) {
-          .wind-grid { grid-template-columns: 1fr !important }
+          /* .wind-grid здесь больше нет: число колонок считает columnsFor(),
+             и правило с !important спорило бы с ним за один и тот же стиль. */
           .stat-row  { grid-template-columns: 1fr 1fr !important }
           .live-grid { grid-template-columns: 1fr !important }
           .demo-grid { grid-template-columns: 1fr !important }
