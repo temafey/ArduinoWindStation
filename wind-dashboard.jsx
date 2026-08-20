@@ -74,6 +74,15 @@ const APP_VERSION = "BETA";
 // Формат сохранён (4 латинские буквы) просто потому, что так короче имени.
 const STATION_ID = "MWPB";
 
+// Горизонтальные линии шапки не обрываются, а гаснут к своим концам. Раньше
+// каждая кончалась ровным срезом, и на тёмных полях по бокам эти срезы читались
+// как границы страницы — ровно то, что мы и убирали затемнением.
+//
+// border-image с долей 1 красит рамку градиентом, и лишнего узла для этого не
+// нужно. Стороны, которым рамка не задана, остаются нулевой ширины и ничего не
+// рисуют, поэтому боковых и нижних линий от этого не появится.
+const FADE_LINE = `linear-gradient(to right, transparent, ${LINE} 9%, ${LINE} 91%, transparent) 1`;
+
 // ============================================================
 // ЕДИНИЦЫ СКОРОСТИ
 // ============================================================
@@ -2275,15 +2284,7 @@ export default function WindDashboard() {
     >
       {/* ============ ШАПКА-БЛАНК ============ */}
       <header style={{
-        borderBottom: `1px solid ${LINE}`,
-        // Линия под шапкой шире содержимого — она идёт через весь экран. Пока
-        // края обрывались резко, это было незаметно; теперь поля темнеют, и
-        // ровная черта поперёк затемнения выдаёт границу, которую мы как раз
-        // и убираем. Гасим её к краям тем же способом: border-image с долей 1
-        // красит рамку градиентом, и лишнего узла для этого не нужно.
-        borderImage: pageMax > 0
-          ? `linear-gradient(to right, transparent, ${LINE} 20%, ${LINE} 80%, transparent) 1`
-          : undefined,
+        borderBottom: `1px solid ${LINE}`, borderImage: FADE_LINE,
         padding: "16px 22px 0",
       }}>
         <div style={{
@@ -2366,7 +2367,8 @@ export default function WindDashboard() {
         <div style={{
           ...pageWide, margin: "12px auto 0",
           display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0,
-          borderTop: `1px solid ${LINE}`, fontSize: 9.5, letterSpacing: 1.4,
+          borderTop: `1px solid ${LINE}`, borderImage: FADE_LINE,
+          fontSize: 9.5, letterSpacing: 1.4,
         }}>
           <StatusCell g={g} first>
             <span style={{
@@ -2397,7 +2399,10 @@ export default function WindDashboard() {
         </div>
 
         {/* Вкладки */}
-        <nav style={{ ...pageWide, margin: "0 auto", borderTop: `1px solid ${LINE}` }}>
+        <nav style={{
+          ...pageWide, margin: "0 auto",
+          borderTop: `1px solid ${LINE}`, borderImage: FADE_LINE,
+        }}>
           {TABS.map((t) => (
             <Tab key={t.id} id={t.id} active={tab} onClick={setTab} g={g}>{t.label}</Tab>
           ))}
