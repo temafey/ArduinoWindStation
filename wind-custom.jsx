@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  LINE, LINE_HI, TEXT, DIM, FAINT, SANS, NUM, glow,
+  LINE, LINE_HI, TEXT, DIM, FAINT, SANS, MONO, NUM, glow,
 } from "./ui-kit.js";
 
 // ============================================================
@@ -354,7 +354,7 @@ function Slider({ label, value, min, max, step = 1, suffix, onChange, g, accent 
   );
 }
 
-export default function Customize({ settings, setS, g, accent }) {
+export default function Customize({ settings, setS, g, accent, onEditLayout }) {
   const [bgImage, setBgImage] = useState(loadBgImage);
   const [msg, setMsg] = useState(null);
   const [draft, setDraft] = useState({ kind: "note", title: "", text: "", unit: "", date: "" });
@@ -416,6 +416,22 @@ export default function Customize({ settings, setS, g, accent }) {
         Оформление живёт в этом браузере и никуда не уходит. Ничего не грузится из
         интернета: текстуры и сцены собраны из градиентов, поэтому работают и на копии,
         которую отдаёт сама плата.
+      </div>
+
+      {/* Раскладка правится не здесь, а на самой странице: переставлять
+          блоки, не видя их, — гадание. Кнопка лишь уводит туда и включает
+          режим правки. */}
+      <Head g={g}>Раскладка</Head>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "2px 0 10px" }}>
+        <button onClick={onEditLayout} style={{
+          background: "transparent", border: `1px solid ${accent}`, color: TEXT,
+          fontFamily: MONO, fontSize: 11, letterSpacing: 1.4, textTransform: "uppercase",
+          padding: "8px 14px", cursor: "pointer",
+        }}>Кастомизировать раскладку</button>
+        <div style={{ flex: 1, minWidth: 180, color: DIM, fontSize: 11, lineHeight: 1.6, fontFamily: SANS }}>
+          Откроет «Основное» и даст переставить любые блоки — тащить за уголок или
+          двигать стрелками. Часы и знак станции остаются на месте.
+        </div>
       </div>
 
       <Head g={g}>Материал подложки</Head>

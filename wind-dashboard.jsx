@@ -5,6 +5,7 @@ import {
 } from "./ui-kit.js";
 import { KiwiMark } from "./wind-kiwi.jsx";
 import { chunk, warmUp } from "./wind-guard.jsx";
+import { mergeLayout, packLayout, layoutOps, useDrag, BlockFrame, LayoutBar, ColumnDrop } from "./wind-layout.jsx";
 import DemoControls from "./wind-demo.jsx";
 import { Compass, CameraWindow } from "./wind-instrument.jsx";
 
@@ -306,6 +307,7 @@ const DEFAULT_SETTINGS = {
   corners: "sharp",      // sharp | soft | round — скругление панелей
   panelFill: 0,          // заливка панелей, % — плотность фона под текстом
   widgets: [],           // свои виджеты на вкладке «Основное»
+  layout: [],            // раскладка блоков «Основного»; пусто — как задумано
 };
 
 function loadSettings() {
@@ -1595,6 +1597,10 @@ export default function WindDashboard() {
   // читаются и пишутся на каждый чих — держать их в одной записи значило бы
   // гонять этот килобайтный хвост туда-сюда постоянно.
   const [bgImage] = useState(loadBgImage);
+  // Режим правки раскладки живёт только в памяти: возвращаться в него после
+  // перезагрузки страницы никто не просил, а сохранись он — дашборд открывался
+  // бы с пунктирными рамками вместо показаний.
+  const [layoutMode, setLayoutMode] = useState(false);
   const [time, setTime] = useState(new Date());
   const [lastUpdate, setLastUpdate] = useState(null);
   // Когда был зафиксирован нынешний максимум порыва. Само по себе число «14.2»
@@ -2110,6 +2116,127 @@ export default function WindDashboard() {
 
   const utc = `${String(time.getUTCHours()).padStart(2, "0")}:${String(time.getUTCMinutes()).padStart(2, "0")}:${String(time.getUTCSeconds()).padStart(2, "0")}`;
 
+  // ---------- блоки главной вкладки ----------
+  // Разметка больше не решает, где что лежит. Она лишь объявляет, какие блоки
+  // бывают, а порядок и колонку хранит настройка `layout` — иначе перестановка
+  // была бы правкой исходника, а не действием человека.
+  //
+  // Условия остались прежними и стоят здесь же: блока «Атмосфера» не должно
+  // существовать, пока станция не прислала ни одного датчика, а раскладка не
+  // должна помнить место того, чего нет. Отсутствующий блок просто не попадает
+  // в список, и его строка в настройке спокойно дожидается своего датчика.
+  const windBlocks = [
+    { id: "speed", col: 0, title: "Скорость ветра", node: (
+      <Panel g={g} delay={0} title="Скорость ветра"
+                           meta={`ПРЕДЕЛ ${convertSpeed(data.speedMax ?? 30, settings.unit, 0)} ${unit.short}`}>
+                      <div style={{ display: "flex", justifyContent: "center" }}>
+                        <SpeedGauge
+                          speedMs={data.speed} gustMs={data.gust} maxSpeed={data.speedMax ?? 30}
+                          unit={settings.unit} digits={settings.digits} accent={accent} g={g} smooth={smooth}
+                          alarm={alarmLevel} motion={motion}
+                        />
+                      </div>
+                      <div style={{
+                        textAlign: "center", marginTop: 4, fontSize: 11, letterSpacing: 2.5,
+                        fontWeight: 600, color: TEXT, textShadow: glow(g, 0.6),
+                      }}>
+                        {bf.desc.toUpperCase()} · {bf.scale} БАЛЛОВ
+                      </div></Panel>
+    ) },
+    { id: "stats", col: 0, title: "Порыв · средняя · аптайм", node: (
+      <div style={{ display: "flex", gap: 10 }}>
+                      <Stat
+                        label={gustAt ? `Порыв · ${gustAt.toLocaleTimeString("uk-UA")}` : "Порыв"}
+                        value={gustText} unit={unit.short} g={g}
+                        action={
+                          <button onClick={resetGust} title="Сбросить порыв" style={{
+                            position: "absolute", top: 7, right: 7, background: "transparent",
+                            border: `1px solid ${LINE}`, color: DIM, padding: "1px 6px",
+                            fontSize: 10, cursor: "pointer", fontFamily: MONO,
+                          }}>↺</button>
+                        }
+                      />
+                      <Stat label={`Средняя · ${settings.histMinutes} мин`} value={meanText} unit={unit.short} g={g} />
+                      <Stat label="Аптайм" value={uptimeH > 0 ? `${uptimeH}ч${uptimeMin % 60}м` : `${uptimeMin}м`} g={g} />
+                    </div>
+    ) },
+    (sensors.length > 0 || dew != null || chill != null) && { id: "air", col: 0, title: "Атмосфера", node: (
+      <Panel title="Атмосфера" g={g} delay={60}
+                             meta={demoMode ? "МОДЕЛЬ · 6"
+                               : source === "district" ? `РАЙОН · ${sensors.length}`
+                               : `ДАТЧИКОВ · ${sensors.length}`}>
+                        <div className="stat-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                          {sensors.map((sn) => (
+                            <Stat key={sn.key} label={sn.label} unit={sn.unit} g={g}
+                                  value={sn.v.toFixed(sn.digits)} />
+                          ))}
+                          {dew != null && (
+                            <Stat label="Точка росы · расчёт" unit="°C" g={g} value={dew.toFixed(1)} />
+                          )}
+                          {chill != null && (
+                            <Stat label="Ощущается как · расчёт" unit="°C" g={g} value={chill.toFixed(1)} />
+                          )}
+                        </div>
+                        <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 10 }}>
+                          {demoMode
+                            ? "Это демо-режим: атмосферных датчиков на станции нет, и все значения здесь смоделированы. Связаны они не случайно — влажность выведена из температуры при почти постоянной точке росы, а давление проседает на усилении ветра, как оно и бывает."
+                            : source === "district"
+                            ? "Это режим «район»: значения не с мачты, а из модели Open-Meteo для точки, которую ты указал. Давления, осадков и освещённости на плате нет вовсе — здесь они настоящие и потому появились."
+                            : "Показания приходят с датчиков станции; карточка появляется только для тех, чьё присутствие подтвердила прошивка."}
+                          {" "}
+                          Точка росы и «ощущается как» не измеряются — они считаются: первая по формуле
+                          Магнуса из температуры и влажности, вторая по формуле службы погоды США и только
+                          в холод при ощутимом ветре. Вне этих условий величина не определена, и её тут нет.
+                        </div></Panel>
+    ) },
+    { id: "speedhist", col: 0, title: "График скорости", node: (
+      <Panel title={`Скорость · ${settings.histMinutes} мин`} g={g} delay={80}
+                           meta={`МИН ${lullText} · МАКС ${peakText} ${unit.short}`}>
+                      <Sparkline data={speedSeries} g={g} accent={accent} /></Panel>
+    ) },
+    settings.showCamera && { id: "camera", col: 0, title: "Камера", node: (
+      <Panel title="Камера" g={g} delay={95}
+                             meta={data.cameraPresent && data.cameraUrl ? "ПОТОК" : "НЕ ПОДКЛЮЧЕНА"}>
+                        <CameraWindow url={data.cameraPresent ? data.cameraUrl : null}
+                                      accent={accent} g={g} motion={motion} speedMs={data.speed}
+                                      site={site} now={time} />
+                        <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 8 }}>
+                          {data.cameraPresent && data.cameraUrl
+                            ? "Поток с камеры станции."
+                            : "Камеры на станции нет — здесь рисунок, а не съёмка. Подойдёт ESP32-CAM: она отдаёт MJPEG по HTTP, и браузер играет его сам. Экшн-камеры так не подключить: они отдают RTSP или RTMP, чего не умеет ни один браузер, а перепаковывать поток ESP32 нечем."}
+                        </div></Panel>
+    ) },
+    (settings.widgets || []).length > 0 && { id: "widgets", col: 0, title: "Свои виджеты", node: (
+      <CustomWidgets widgets={settings.widgets} g={g} accent={accent} Panel={Panel} />
+    ) },
+    hasDir && settings.showCompass && { id: "dir", col: 1, title: "Направление", node: (
+      <Panel title="Направление" meta={degToDir(data.direction).full.toUpperCase()} g={g} delay={40}>
+                          <div style={{ display: "flex", justifyContent: "center" }}>
+                            <Compass direction={data.direction} angle={dirAngle} accent={accent} g={g} />
+                          </div></Panel>
+    ) },
+    hasDir && settings.showCompass && { id: "dirhist", col: 1, title: "График направления", node: (
+      <Panel title={`Направление · ${settings.histMinutes} мин`} g={g} delay={120}
+                               meta={analysis ? `РАЗБРОС ${Math.round(analysis.spread)}°` : undefined}>
+                          <Sparkline data={dirSeries} g={g} accent={accent} /></Panel>
+    ) },
+    demoMode && { id: "demo", col: 1, title: "Ручное управление", node: (
+      <Panel title="Ручное управление" g={g} delay={140} meta="ТОЛЬКО ДЕМО">
+                          <DemoControls demo={demo} setDemo={setDemo} g={g} accent={accent} alarmLevel={alarmLevel} /></Panel>
+    ) },
+    source === "district" && { id: "district", col: 1, title: "Район", node: (
+      <Panel title="Район" g={g} delay={140} meta="ИЗ ИНТЕРНЕТА">
+                          <District g={g} accent={accent} {...district} /></Panel>
+    ) },
+  ].filter(Boolean);
+
+  const layoutRows = mergeLayout(settings.layout, windBlocks);
+  const lay = layoutOps(layoutRows, (rows) => setS({ layout: packLayout(rows, settings.layout) }));
+  const drag = useDrag(lay);
+  // Правая колонка существует, только когда ей есть что показать. В режиме
+  // правки — всегда: иначе перенести туда первый блок было бы некуда.
+  const rightUsed = layoutMode || layoutRows.some((r) => r.col === 1 && !r.hidden);
+
   return (
     <div
       className={`app mo-${motion} dens-${settings.density}${settings.borders ? "" : " noborders"}`}
@@ -2256,140 +2383,34 @@ export default function WindDashboard() {
 
         {/* ---------------- ВЕТЕР ---------------- */}
         {tab === "wind" && (
-          <div key="wind" className="wind-grid tabfade" style={{
-            display: "grid",
-            gridTemplateColumns: (hasDir && settings.showCompass) || demoMode || source === "district" ? "1fr 1fr" : "1fr",
-            gap: 18, alignItems: "start",
-          }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {/* Предел шкалы пересчитывается тем же путём, что и само значение:
-                  умножать на factor вручную нельзя — у Бофорта его нет. */}
-              <Panel g={g} delay={0} title="Скорость ветра"
-                     meta={`ПРЕДЕЛ ${convertSpeed(data.speedMax ?? 30, settings.unit, 0)} ${unit.short}`}>
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <SpeedGauge
-                    speedMs={data.speed} gustMs={data.gust} maxSpeed={data.speedMax ?? 30}
-                    unit={settings.unit} digits={settings.digits} accent={accent} g={g} smooth={smooth}
-                    alarm={alarmLevel} motion={motion}
-                  />
-                </div>
-                <div style={{
-                  textAlign: "center", marginTop: 4, fontSize: 11, letterSpacing: 2.5,
-                  fontWeight: 600, color: TEXT, textShadow: glow(g, 0.6),
-                }}>
-                  {bf.desc.toUpperCase()} · {bf.scale} БАЛЛОВ
-                </div>
-              </Panel>
-
-              <div style={{ display: "flex", gap: 10 }}>
-                <Stat
-                  label={gustAt ? `Порыв · ${gustAt.toLocaleTimeString("uk-UA")}` : "Порыв"}
-                  value={gustText} unit={unit.short} g={g}
-                  action={
-                    <button onClick={resetGust} title="Сбросить порыв" style={{
-                      position: "absolute", top: 7, right: 7, background: "transparent",
-                      border: `1px solid ${LINE}`, color: DIM, padding: "1px 6px",
-                      fontSize: 10, cursor: "pointer", fontFamily: MONO,
-                    }}>↺</button>
-                  }
-                />
-                <Stat label={`Средняя · ${settings.histMinutes} мин`} value={meanText} unit={unit.short} g={g} />
-                <Stat label="Аптайм" value={uptimeH > 0 ? `${uptimeH}ч${uptimeMin % 60}м` : `${uptimeMin}м`} g={g} />
-              </div>
-
-              {/* Атмосфера. Панели нет вовсе, пока станция не прислала ни одного
-                  такого датчика: пустая рамка с прочерками выглядит поломкой. */}
-              {(sensors.length > 0 || dew != null || chill != null) && (
-                <Panel title="Атмосфера" g={g} delay={60}
-                       meta={demoMode ? "МОДЕЛЬ · 6"
-                         : source === "district" ? `РАЙОН · ${sensors.length}`
-                         : `ДАТЧИКОВ · ${sensors.length}`}>
-                  <div className="stat-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    {sensors.map((sn) => (
-                      <Stat key={sn.key} label={sn.label} unit={sn.unit} g={g}
-                            value={sn.v.toFixed(sn.digits)} />
+          <div key="wind" className="tabfade">
+            {layoutMode && (
+              <LayoutBar g={g} accent={accent}
+                         onDone={() => setLayoutMode(false)}
+                         onReset={() => setS({ layout: [] })} />
+            )}
+            <div className="wind-grid" style={{
+              display: "grid",
+              gridTemplateColumns: rightUsed ? "1fr 1fr" : "1fr",
+              gap: 18, alignItems: "start",
+            }}>
+              {[0, 1].map((col) => {
+                if (col === 1 && !rightUsed) return null;
+                const inCol = layoutRows.filter((r) => r.col === col && (layoutMode || !r.hidden));
+                return (
+                  <div key={col} data-col={col}
+                       onPointerMove={drag.move} onPointerUp={drag.end} onPointerCancel={drag.end}
+                       style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: layoutMode ? 60 : 0 }}>
+                    {layoutMode && inCol.length === 0 && <ColumnDrop col={col} g={g} />}
+                    {inCol.map((r) => (
+                      layoutMode
+                        ? <BlockFrame key={r.id} row={r} ops={lay} drag={drag}>{r.block.node}</BlockFrame>
+                        : <div key={r.id}>{r.block.node}</div>
                     ))}
-                    {dew != null && (
-                      <Stat label="Точка росы · расчёт" unit="°C" g={g} value={dew.toFixed(1)} />
-                    )}
-                    {chill != null && (
-                      <Stat label="Ощущается как · расчёт" unit="°C" g={g} value={chill.toFixed(1)} />
-                    )}
                   </div>
-                  <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 10 }}>
-                    {demoMode
-                      ? "Это демо-режим: атмосферных датчиков на станции нет, и все значения здесь смоделированы. Связаны они не случайно — влажность выведена из температуры при почти постоянной точке росы, а давление проседает на усилении ветра, как оно и бывает."
-                      : source === "district"
-                      ? "Это режим «район»: значения не с мачты, а из модели Open-Meteo для точки, которую ты указал. Давления, осадков и освещённости на плате нет вовсе — здесь они настоящие и потому появились."
-                      : "Показания приходят с датчиков станции; карточка появляется только для тех, чьё присутствие подтвердила прошивка."}
-                    {" "}
-                    Точка росы и «ощущается как» не измеряются — они считаются: первая по формуле
-                    Магнуса из температуры и влажности, вторая по формуле службы погоды США и только
-                    в холод при ощутимом ветре. Вне этих условий величина не определена, и её тут нет.
-                  </div>
-                </Panel>
-              )}
-
-              <Panel title={`Скорость · ${settings.histMinutes} мин`} g={g} delay={80}
-                     meta={`МИН ${lullText} · МАКС ${peakText} ${unit.short}`}>
-                <Sparkline data={speedSeries} g={g} accent={accent} />
-              </Panel>
-
-              {settings.showCamera && (
-                <Panel title="Камера" g={g} delay={95}
-                       meta={data.cameraPresent && data.cameraUrl ? "ПОТОК" : "НЕ ПОДКЛЮЧЕНА"}>
-                  <CameraWindow url={data.cameraPresent ? data.cameraUrl : null}
-                                accent={accent} g={g} motion={motion} speedMs={data.speed}
-                                site={site} now={time} />
-                  <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 8 }}>
-                    {data.cameraPresent && data.cameraUrl
-                      ? "Поток с камеры станции."
-                      : "Камеры на станции нет — здесь рисунок, а не съёмка. Подойдёт ESP32-CAM: она отдаёт MJPEG по HTTP, и браузер играет его сам. Экшн-камеры так не подключить: они отдают RTSP или RTMP, чего не умеет ни один браузер, а перепаковывать поток ESP32 нечем."}
-                  </div>
-                </Panel>
-              )}
-
-              {/* Свои виджеты — последними в колонке: они дополняют показания
-                  станции, а не соперничают с ними за первый экран. */}
-              <CustomWidgets widgets={settings.widgets} g={g} accent={accent} Panel={Panel} />
-
+                );
+              })}
             </div>
-
-            {(hasDir && settings.showCompass) || demoMode || source === "district" ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {hasDir && settings.showCompass && (
-                  <Panel title="Направление" meta={degToDir(data.direction).full.toUpperCase()} g={g} delay={40}>
-                    <div style={{ display: "flex", justifyContent: "center" }}>
-                      <Compass direction={data.direction} angle={dirAngle} accent={accent} g={g} />
-                    </div>
-                  </Panel>
-                )}
-
-                {hasDir && settings.showCompass && (
-                  <Panel title={`Направление · ${settings.histMinutes} мин`} g={g} delay={120}
-                         meta={analysis ? `РАЗБРОС ${Math.round(analysis.spread)}°` : undefined}>
-                    <Sparkline data={dirSeries} g={g} accent={accent} />
-                  </Panel>
-                )}
-
-                {/* Только в демо: на живой станции ползунок «скорость ветра» — это
-                    не отладка, а подделка показаний. */}
-                {demoMode && (
-                  <Panel title="Ручное управление" g={g} delay={140} meta="ТОЛЬКО ДЕМО">
-                    <DemoControls demo={demo} setDemo={setDemo} g={g} accent={accent} alarmLevel={alarmLevel} />
-                  </Panel>
-                )}
-
-                {/* Район: то, чего мачта не меряет — давление, осадки, воздух.
-                    Ветер и температура уже ушли в общий дашборд выше, здесь
-                    остаётся остальное и происхождение каждой цифры. */}
-                {source === "district" && (
-                  <Panel title="Район" g={g} delay={140} meta="ИЗ ИНТЕРНЕТА">
-                    <District g={g} accent={accent} {...district} />
-                  </Panel>
-                )}
-              </div>
-            ) : null}
           </div>
         )}
 
@@ -2748,7 +2769,8 @@ export default function WindDashboard() {
 
             {setView === "custom" && (
               <div key="s-custom" className="tabfade">
-                <Customize settings={settings} setS={setS} g={g} accent={accent} />
+                <Customize settings={settings} setS={setS} g={g} accent={accent}
+                           onEditLayout={() => { setLayoutMode(true); setTab("wind"); }} />
               </div>
             )}
 
