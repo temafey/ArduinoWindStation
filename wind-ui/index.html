@@ -14,9 +14,40 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>Weathered_Kiwi</title>
+    <!-- Заглушка на случай, когда сам дашборд не запустился. Раньше в этом
+         случае оставался чёрный экран без единого слова: сообщать о беде
+         было некому, потому что сообщать умеет только тот самый код, который
+         и не выполнился.
+
+         Показывается через 10 секунд и только средствами CSS — заголовки
+         безопасности запрещают встроенные скрипты, так что таймера на
+         JavaScript здесь быть не может. React при запуске очищает контейнер,
+         и заглушка исчезает сама, ничего для этого не делая. -->
+    <style>
+      #boot {
+        opacity: 0; animation: bootshow 0s 10s forwards;
+        max-width: 30rem; margin: 15vh auto 0; padding: 0 1.5rem;
+        color: #7b8794; font: 13px/1.7 ui-monospace, Consolas, monospace;
+      }
+      #boot b { display: block; margin-bottom: .9rem; color: #e7eef6;
+                font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+      #boot a { display: inline-block; margin-top: 1.1rem; padding: .5rem .9rem;
+                border: 1px solid #263140; color: #e7eef6; text-decoration: none; }
+      @keyframes bootshow { to { opacity: 1 } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot">
+        <b>Дашборд не запустился</b>
+        Страница пришла, но её код не выполнился. Чаще всего браузер держит в
+        памяти прошлую версию и просит файл, которого на плате уже нет.
+        <br /><br />
+        Лечится обновлением с очисткой: <b style="display:inline;text-transform:none;letter-spacing:0">Ctrl+F5</b>
+        на компьютере, а на телефоне — очистить данные сайта в настройках браузера.
+        <a href="/">Открыть заново</a>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

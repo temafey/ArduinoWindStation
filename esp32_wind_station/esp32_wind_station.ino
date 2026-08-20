@@ -1435,6 +1435,16 @@ void setup() {
   // client must have resolved something through our own DNS, so the name is
   // guaranteed to resolve for it too — and it is the address worth showing.
   server.onNotFound([]() {
+    // Файлы дашборда — исключение из перехвата, и это не мелочь. Имена у них
+    // с хэшем: после каждой прошивки они новые, а браузер может держать в кэше
+    // прежнюю index.html и просить по старому имени. Уйди такой запрос на
+    // портал, браузер получил бы в ответ HTML вместо JavaScript, подавился бы
+    // им и не нарисовал ничего — пустой экран с одним фоном, без единого
+    // внятного сообщения. Честный 404 говорит браузеру правду.
+    if (server.uri().startsWith("/assets/")) {
+      server.send(404, "text/plain", "no such asset");
+      return;
+    }
     server.sendHeader("Location", String("http://") + portalHost + "/", true);
     server.send(302, "text/plain", "");
   });
