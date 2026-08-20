@@ -172,8 +172,32 @@ function shrink(file, maxSide = 1600, quality = 0.82) {
 //
 // Порядок слоёв в CSS: первый — сверху. Поэтому затемнение идёт первым,
 // затем текстура, и только потом сама сцена — иначе сцена закрасила бы зерно.
-export function backdropCss(settings, bgImage) {
+export function backdropCss(settings, bgImage, pageMax = 0) {
   const images = [], sizes = [], blends = [], repeats = [];
+
+  // Поля по бокам. Пока предел ширины был просто пределом, содержимое
+  // обрывалось по вертикали ровной чертой, и на широком мониторе это читалось
+  // как «страница не доехала до края». Теперь фон за колонкой темнеет
+  // постепенно: перехода нет, потому что нет и границы.
+  //
+  // Растяжка начинается ВНУТРИ колонки, а не по её краю: начнись она ровно на
+  // границе — там появилась бы та самая черта, только мягче. Полный тон
+  // набирается за 240 пикселей снаружи, и на узком экране, где полей нет,
+  // слой просто не строится.
+  if (pageMax > 0) {
+    const half = `${Math.round(pageMax / 2)}px`;
+    const IN = 60, OUT = 240;
+    images.push(
+      `linear-gradient(to right,` +
+      ` rgba(0,0,0,0.34) 0,` +
+      ` rgba(0,0,0,0.34) calc(50% - ${half} - ${OUT}px),` +
+      ` rgba(0,0,0,0) calc(50% - ${half} + ${IN}px),` +
+      ` rgba(0,0,0,0) calc(50% + ${half} - ${IN}px),` +
+      ` rgba(0,0,0,0.34) calc(50% + ${half} + ${OUT}px),` +
+      ` rgba(0,0,0,0.34) 100%)`
+    );
+    sizes.push("cover"); blends.push("normal"); repeats.push("no-repeat");
+  }
 
   const tint = Math.max(0, Math.min(90, settings.bgTint || 0)) / 100;
   if (tint > 0) {

@@ -2047,7 +2047,11 @@ export default function WindDashboard() {
   const accentPick = ACCENTS[settings.accent] || ACCENTS.bft;
   const monoAccent = settings.accent !== "bft";
   const accent = settings.customAccent || accentPick.color || bf.color;
-  const backdrop = backdropCss(settings, bgImage);
+  // Предел ширины считается здесь, а не рядом с сеткой: от него зависит фон,
+  // а фон собирается до разметки. Дорожки берут это же число ниже.
+  const pageMax = (WIDTHS[settings.pageWidth] || WIDTHS.normal).px;
+  const pageWide = { maxWidth: pageMax > 0 ? pageMax : "none" };
+  const backdrop = backdropCss(settings, bgImage, pageMax);
   const hasDir = data.dirPresent && data.direction != null;
   const hasBattery = data.batteryPresent && data.battery != null;
   const unit = UNITS[settings.unit] ?? UNITS.ms;
@@ -2250,10 +2254,6 @@ export default function WindDashboard() {
     ) },
   ].filter(Boolean);
 
-  // Дорожки считаются от ширины содержимого, а не окна: при пределе в 1080 на
-  // широком мониторе окно огромно, а места под двенадцать дорожек нет.
-  const pageMax = (WIDTHS[settings.pageWidth] || WIDTHS.normal).px;
-  const pageWide = { maxWidth: pageMax > 0 ? pageMax : "none" };
   const innerW = Math.min(viewportW - 44, pageMax > 0 ? pageMax : Infinity);
   const tracks = tracksFor(innerW);
 
@@ -2266,12 +2266,26 @@ export default function WindDashboard() {
     <div
       className={`app mo-${motion} dens-${settings.density}${settings.borders ? "" : " noborders"}`}
       style={{
-        minHeight: "100vh", background: BG, color: TEXT, fontFamily: SANS,
+        // Прозрачно, когда фон рисуется слоями на body: инлайновая заливка
+        // сильнее любого правила и перекрыла бы их целиком.
+        minHeight: "100vh", background: backdrop ? "transparent" : BG,
+        color: TEXT, fontFamily: SANS,
         padding: "0 0 40px", boxSizing: "border-box",
       }}
     >
       {/* ============ ШАПКА-БЛАНК ============ */}
-      <header style={{ borderBottom: `1px solid ${LINE}`, padding: "16px 22px 0" }}>
+      <header style={{
+        borderBottom: `1px solid ${LINE}`,
+        // Линия под шапкой шире содержимого — она идёт через весь экран. Пока
+        // края обрывались резко, это было незаметно; теперь поля темнеют, и
+        // ровная черта поперёк затемнения выдаёт границу, которую мы как раз
+        // и убираем. Гасим её к краям тем же способом: border-image с долей 1
+        // красит рамку градиентом, и лишнего узла для этого не нужно.
+        borderImage: pageMax > 0
+          ? `linear-gradient(to right, transparent, ${LINE} 20%, ${LINE} 80%, transparent) 1`
+          : undefined,
+        padding: "16px 22px 0",
+      }}>
         <div style={{
           ...pageWide, margin: "0 auto",
           display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap",
