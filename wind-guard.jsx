@@ -48,7 +48,7 @@ const box = {
 };
 
 const btn = {
-  ...MONO,
+  fontFamily: MONO,
   fontSize: 11,
   letterSpacing: 1.4,
   textTransform: "uppercase",
@@ -67,7 +67,7 @@ export function AppGuard({ children }) {
     <Boundary
       fallback={(err) => (
         <div style={{ ...box, margin: "40px auto", maxWidth: 560, color: TEXT }}>
-          <div style={{ ...MONO, fontSize: 12, letterSpacing: 1.6, textTransform: "uppercase" }}>
+          <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: 1.6, textTransform: "uppercase" }}>
             Дашборд остановился
           </div>
           <div style={{ color: DIM, fontSize: 12, lineHeight: 1.6 }}>
@@ -76,7 +76,7 @@ export function AppGuard({ children }) {
           </div>
           {/* Текст ошибки виден на месте: без него единственный способ понять
               причину — открыть консоль, а на телефоне это почти никто не делает. */}
-          <div style={{ ...MONO, fontSize: 11, color: DIM, wordBreak: "break-word" }}>
+          <div style={{ fontFamily: MONO, fontSize: 11, color: DIM, wordBreak: "break-word" }}>
             {String(err?.message || err)}
           </div>
           <button style={btn} onClick={() => window.location.reload()}>
@@ -137,7 +137,7 @@ export function chunk(load) {
           fallback={
             // Текст, а не крутящийся кружок: кружок одинаков и на полсекунды,
             // и на полминуты, а здесь важно понимать, что идёт загрузка.
-            <div style={{ ...MONO, color: DIM, fontSize: 11, letterSpacing: 1.5,
+            <div style={{ fontFamily: MONO, color: DIM, fontSize: 11, letterSpacing: 1.5,
                           padding: "28px 4px", textTransform: "uppercase" }}>
               Загрузка раздела…
             </div>
