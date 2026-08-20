@@ -1,15 +1,42 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import {
   BG, BG_VAR, LINE, LINE_HI, TEXT, DIM, FAINT, MONO, SANS, NUM,
   glow, glowColor, dropGlow, clamp01, polar, wedgePath, FONT_SETS,
 } from "./ui-kit.js";
-import WorldMap from "./wind-map.jsx";
-import LiveWatch from "./wind-live.jsx";
-import Tutor, { KiwiMark } from "./wind-tutor.jsx";
-import Permissions from "./wind-permissions.jsx";
+import { KiwiMark } from "./wind-kiwi.jsx";
 import DemoControls from "./wind-demo.jsx";
 import { Compass, CameraWindow } from "./wind-instrument.jsx";
-import Meteorology from "./wind-meteo.jsx";
+
+// Отложенная загрузка. Причина не в красоте архитектуры, а в канале: плата
+// висит на далёкой точке доступа, и на слабом сигнале сборка идёт со скоростью
+// меньше килобайта в секунду, а соединение успевает оборваться раньше, чем
+// файл дойдёт целиком. Каждый килобайт первой загрузки — это секунды ожидания.
+//
+// Разделены ровно те части, которые не нужны для первого экрана: карта мира с
+// её таблицами побережий, метеорология с архивом штормов, эфир, справка и
+// разрешения. Открытие вкладки теперь стоит одного короткого запроса, зато
+// «Основное» — то, ради чего дашборд и открывают, — приходит вдвое быстрее.
+const WorldMap     = lazy(() => import("./wind-map.jsx"));
+const LiveWatch    = lazy(() => import("./wind-live.jsx"));
+const Tutor        = lazy(() => import("./wind-tutor.jsx"));
+const Permissions  = lazy(() => import("./wind-permissions.jsx"));
+const Meteorology  = lazy(() => import("./wind-meteo.jsx"));
+
+// Пока часть едет по слабому каналу, на месте вкладки стоит эта строка. Текст
+// вместо крутящегося кружка — сознательно: кружок одинаков и на полсекунды, и
+// на полминуты, а здесь важно понимать, что идёт загрузка, а не то, что зависло.
+function Chunk({ children }) {
+  return (
+    <Suspense fallback={
+      <div style={{ ...MONO, color: DIM, fontSize: 11, letterSpacing: 1.5,
+                    padding: "28px 4px", textTransform: "uppercase" }}>
+        Загрузка раздела…
+      </div>
+    }>
+      {children}
+    </Suspense>
+  );
+}
 import District, { useDistrict, districtToData } from "./wind-district.jsx";
 import Customize, { backdropCss, loadBgImage, CORNERS, CustomWidgets } from "./wind-custom.jsx";
 
@@ -2125,7 +2152,9 @@ export default function WindDashboard() {
               </div>
             </div>
 
-            <Tutor g={g} motion={motion} accent={accent} />
+            <Suspense fallback={null}>
+              <Tutor g={g} motion={motion} accent={accent} />
+            </Suspense>
           </div>
 
           <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -2373,7 +2402,7 @@ export default function WindDashboard() {
         {/* ---------------- МЕТЕОРОЛОГИЯ ---------------- */}
         {tab === "meteo" && (
           <div key="meteo" className="tabfade">
-            <Meteorology g={g} accent={accent} motion={motion} />
+            <Chunk><Meteorology g={g} accent={accent} motion={motion} /></Chunk>
           </div>
         )}
 
@@ -2486,15 +2515,17 @@ export default function WindDashboard() {
             {radarView === "map" && (
               <Panel title="Карта мира" g={g} delay={0}
                      meta={ONLINE ? "ЖИВЫЕ СЛОИ · NWS / NOAA" : "БЕЗ СЕТИ · ТОЛЬКО АРХИВ"}>
-                <WorldMap g={g} motion={motion} online={ONLINE} site={site}
-                          showGrid={settings.showGrid} quality={settings.mapQuality} />
+                <Chunk>
+                  <WorldMap g={g} motion={motion} online={ONLINE} site={site}
+                            showGrid={settings.showGrid} quality={settings.mapQuality} />
+                </Chunk>
               </Panel>
             )}
 
             {radarView === "live" && (
               <Panel title="Эфир" g={g} delay={0}
                      meta={ONLINE ? "СПУТНИК И РАДАР · NOAA" : "БЕЗ СЕТИ"}>
-                <LiveWatch g={g} motion={motion} online={ONLINE} />
+                <Chunk><LiveWatch g={g} motion={motion} online={ONLINE} /></Chunk>
               </Panel>
             )}
           </div>
@@ -2731,7 +2762,7 @@ export default function WindDashboard() {
 
             {setView === "extra" && (
               <div key="s-extra" className="tabfade">
-                <Permissions g={g} />
+                <Chunk><Permissions g={g} /></Chunk>
 
                 <Choice
                   label="Окно графика и анализа" g={g} value={settings.histMinutes}

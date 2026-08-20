@@ -16,6 +16,7 @@ esp32_wind_station/build/
 # Vite / npm
 node_modules/
 wind-ui/dist/
+wind-ui/dist-single/
 dist/
 
 # === Большие снапшоты-архивы (пересобираются из исходников) ===
