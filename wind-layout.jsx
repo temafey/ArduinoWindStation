@@ -45,7 +45,7 @@ export function mergeLayout(saved, blocks) {
 // Плюс сюда же возвращаются строки, которых сейчас нет на экране, — иначе
 // выключенный на время датчик терял бы своё место навсегда.
 export function packLayout(rows, saved) {
-  const now = rows.map(({ id, col, hidden }) => ({ id, col, hidden: !!hidden }));
+  const now = rows.map(({ id, col, hidden, scale }) => ({ id, col, hidden: !!hidden, scale: scale || 1 }));
   const live = new Set(now.map((r) => r.id));
   const kept = (saved || []).filter((r) => !live.has(r.id));
   return [...now, ...kept];
@@ -83,6 +83,15 @@ function insertBefore(rows, id, targetId) {
   return next;
 }
 
+// Шаги размера. Единица обязана быть в списке ровно посередине смысла: к ней
+// возвращаются чаще, чем к любому другому значению.
+export const SCALES = [0.6, 0.75, 0.9, 1, 1.15, 1.35, 1.6, 2];
+
+function nearestScale(v) {
+  const x = Number(v) || 1;
+  return SCALES.reduce((a, b) => (Math.abs(b - x) < Math.abs(a - x) ? b : a), SCALES[0]);
+}
+
 export function layoutOps(rows, apply, colCount = 2) {
   return {
     up: (id) => apply(shift(rows, id, -1)),
@@ -93,6 +102,14 @@ export function layoutOps(rows, apply, colCount = 2) {
       r.id === id ? { ...r, col: (Math.min(r.col, colCount - 1) + 1) % colCount } : r
     ))),
     toggle: (id) => apply(rows.map((r) => (r.id === id ? { ...r, hidden: !r.hidden } : r))),
+    // Размер шагами из таблицы, а не свободным числом: свободное даёт 1.03 и
+    // 0.97, которые ни на что не влияют, зато мешают вернуться к единице.
+    resize: (id, dir) => apply(rows.map((r) => {
+      if (r.id !== id) return r;
+      const i = SCALES.indexOf(nearestScale(r.scale));
+      const j = Math.max(0, Math.min(SCALES.length - 1, i + dir));
+      return { ...r, scale: SCALES[j] };
+    })),
     dropOn: (id, targetId) => apply(insertBefore(rows, id, targetId)),
     toCol: (id, col) => apply(rows.map((r) => (r.id === id ? { ...r, col } : r))),
   };
@@ -150,11 +167,16 @@ const btn = {
 
 export function BlockFrame({ row, ops, drag, children }) {
   const held = drag.dragging === row.id;
+  const scale = nearestScale(row.scale);
   return (
     <div
       data-block={row.id}
       onPointerMove={drag.move}
       style={{
+        // Размер блока живёт переменной, а не пропсом: его читают приборы и
+        // графики глубоко внутри, и протаскивать число через каждый уровень
+        // разметки пришлось бы вручную по всему дашборду.
+        "--blk-scale": scale,
         border: `1px dashed ${held ? TEXT : LINE_HI}`,
         padding: 6,
         opacity: held ? 0.45 : row.hidden ? 0.35 : 1,
@@ -184,6 +206,12 @@ export function BlockFrame({ row, ops, drag, children }) {
         <button style={btn} title="Выше" onClick={() => ops.up(row.id)}>↑</button>
         <button style={btn} title="Ниже" onClick={() => ops.down(row.id)}>↓</button>
         <button style={btn} title="В другую колонку" onClick={() => ops.swapCol(row.id)}>⇄</button>
+        <button style={btn} title="Мельче" onClick={() => ops.resize(row.id, -1)}>−</button>
+        <span style={{
+          ...btn, cursor: "default", color: scale === 1 ? DIM : TEXT,
+          display: "inline-block", textAlign: "center", minWidth: 40, padding: "4px 2px",
+        }}>{Math.round(scale * 100)}%</span>
+        <button style={btn} title="Крупнее" onClick={() => ops.resize(row.id, +1)}>+</button>
         <button style={btn} title={row.hidden ? "Показать" : "Скрыть"}
                 onClick={() => ops.toggle(row.id)}>{row.hidden ? "○" : "●"}</button>
       </div>
@@ -210,7 +238,8 @@ export function LayoutBar({ onDone, onReset, g, accent }) {
         </span>
         Тащи за <span style={{ color: TEXT }}>⠿</span> или двигай стрелками.
         <span style={{ color: TEXT }}> ⇄</span> — в другую колонку,
-        <span style={{ color: TEXT }}> ●</span> — скрыть блок.
+        <span style={{ color: TEXT }}> ●</span> — скрыть,
+        <span style={{ color: TEXT }}> − +</span> — размер блока.
       </div>
       <button onClick={onReset} style={{ ...btn, padding: "6px 12px" }}>Сбросить</button>
       <button onClick={onDone} style={{

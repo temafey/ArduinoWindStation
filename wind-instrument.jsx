@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import {
-  BG_VAR, LINE, TEXT, DIM, FAINT, MONO, SANS, NUM, dropGlow, clamp01,
+  BG_VAR, LINE, TEXT, DIM, FAINT, MONO, SANS, NUM, dropGlow, clamp01, INSTR_H, INSTR_FIT,
 } from "./ui-kit.js";
 
 // ============================================================
@@ -17,7 +17,7 @@ import {
 // это откуда он, а не куда.
 export function Compass({ direction, angle, accent, g }) {
   return (
-    <svg viewBox="0 0 200 200" width="100%" style={{ maxWidth: 260, display: "block" }}>
+    <svg viewBox="0 0 200 200" style={INSTR_FIT}>
       <circle cx="100" cy="100" r="86" fill="none" stroke={LINE} strokeWidth="1" />
 
       {[0, 90, 180, 270].map((a) => {
@@ -133,7 +133,7 @@ function mixHex(h1, h2, t) {
 export function CameraWindow({ url, accent, g, motion, speedMs, site, now }) {
   if (url) {
     return (
-      <div style={{ position: "relative", background: "#020407", aspectRatio: "16 / 10" }}>
+      <div style={{ ...INSTR_FRAME, background: "#020407" }}>
         <img src={url} alt="Камера станции"
              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
       </div>
@@ -141,6 +141,13 @@ export function CameraWindow({ url, accent, g, motion, speedMs, site, now }) {
   }
   return <TornadoScene accent={accent} g={g} motion={motion} speedMs={speedMs} site={site} now={now} />;
 }
+
+// Камера шире квадрата, поэтому вписывается по высоте, а ширину отдаёт
+// пропорции. Без maxWidth она вылезла бы за край узкой колонки.
+const INSTR_FRAME = {
+  position: "relative", height: `calc(var(--blk-scale, 1) * ${INSTR_H}px)`,
+  aspectRatio: "16 / 10", maxWidth: "100%", margin: "0 auto",
+};
 
 // ============================================================
 // СЦЕНА
@@ -254,7 +261,7 @@ function TornadoScene({ accent, g, motion, speedMs, site, now }) {
     const aim = (Math.atan2(target.y - LA.y, target.x - LA.x) * 180) / Math.PI;
 
     return (
-      <div style={{ position: "relative", background: sky[4], aspectRatio: "16 / 10", overflow: "hidden" }}>
+      <div style={{ ...INSTR_FRAME, background: sky[4], overflow: "hidden" }}>
         <svg viewBox="0 0 200 125" width="100%" height="100%" style={{ display: "block" }}>
           <defs>
             <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   BG, BG_VAR, LINE, LINE_HI, TEXT, DIM, FAINT, MONO, SANS, NUM,
-  glow, glowColor, dropGlow, clamp01, polar, wedgePath, FONT_SETS,
+  glow, glowColor, dropGlow, clamp01, polar, wedgePath, FONT_SETS, INSTR_BOX, INSTR_FIT,
 } from "./ui-kit.js";
 import { KiwiMark } from "./wind-kiwi.jsx";
 import { chunk, warmUp } from "./wind-guard.jsx";
@@ -899,7 +899,7 @@ function SpeedGauge({ speedMs, gustMs, maxSpeed, unit, digits, accent, g, smooth
   // потому что там пояс проходит горизонтально и обрезался длинной дугой.
   // Поля прозрачные, поэтому в обычном режиме их не видно.
   return (
-    <svg viewBox="-20 -20 240 240" width="100%" style={{ maxWidth: 348, display: "block" }}>
+    <svg viewBox="-20 -20 240 240" style={INSTR_FIT}>
       <defs>
         <linearGradient id="overRingGrad" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor={OVER_A} />
@@ -1015,9 +1015,12 @@ function SpeedGauge({ speedMs, gustMs, maxSpeed, unit, digits, accent, g, smooth
 }
 
 function Sparkline({ data, g, height = 54, accent }) {
+  // Высота приходит переменной по той же причине, что и у приборов: размер
+  // задаётся блоку целиком, а не каждому рисунку внутри отдельно.
+  const H = `calc(var(--blk-scale, 1) * ${height}px)`;
   if (data.length < 2) {
     return (
-      <div style={{ height, display: "flex", alignItems: "center", color: DIM, fontSize: 10, fontFamily: SANS }}>
+      <div style={{ height: H, display: "flex", alignItems: "center", color: DIM, fontSize: 10, fontFamily: SANS }}>
         сбор данных…
       </div>
     );
@@ -1034,7 +1037,7 @@ function Sparkline({ data, g, height = 54, accent }) {
   const head = xy[xy.length - 1];
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={height} preserveAspectRatio="none" style={{ display: "block" }}>
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%" preserveAspectRatio="none" style={{ display: "block", height: H }}>
       {[0.25, 0.5, 0.75].map((f) => (
         <line key={f} x1="0" y1={h * f} x2={w} y2={h * f} stroke={LINE} strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
       ))}
@@ -2132,7 +2135,7 @@ export default function WindDashboard() {
     { id: "speed", col: 0, title: "Скорость ветра", node: (
       <Panel g={g} delay={0} title="Скорость ветра"
                            meta={`ПРЕДЕЛ ${convertSpeed(data.speedMax ?? 30, settings.unit, 0)} ${unit.short}`}>
-                      <div style={{ display: "flex", justifyContent: "center" }}>
+                      <div style={INSTR_BOX}>
                         <SpeedGauge
                           speedMs={data.speed} gustMs={data.gust} maxSpeed={data.speedMax ?? 30}
                           unit={settings.unit} digits={settings.digits} accent={accent} g={g} smooth={smooth}
@@ -2214,7 +2217,7 @@ export default function WindDashboard() {
     ) },
     hasDir && settings.showCompass && { id: "dir", col: 1, title: "Направление", node: (
       <Panel title="Направление" meta={degToDir(data.direction).full.toUpperCase()} g={g} delay={40}>
-                          <div style={{ display: "flex", justifyContent: "center" }}>
+                          <div style={INSTR_BOX}>
                             <Compass direction={data.direction} angle={dirAngle} accent={accent} g={g} />
                           </div></Panel>
     ) },
@@ -2421,7 +2424,7 @@ export default function WindDashboard() {
                     {inCol.map((r) => (
                       layoutMode
                         ? <BlockFrame key={r.id} row={r} ops={lay} drag={drag}>{r.block.node}</BlockFrame>
-                        : <div key={r.id}>{r.block.node}</div>
+                        : <div key={r.id} style={{ "--blk-scale": r.scale || 1 }}>{r.block.node}</div>
                     ))}
                   </div>
                 );
