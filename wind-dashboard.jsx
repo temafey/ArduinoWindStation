@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   BG, BG_VAR, LINE, LINE_HI, TEXT, DIM, FAINT, MONO, SANS, NUM,
   glow, glowColor, dropGlow, clamp01, polar, wedgePath, FONT_SETS,
 } from "./ui-kit.js";
 import { KiwiMark } from "./wind-kiwi.jsx";
+import { chunk, warmUp } from "./wind-guard.jsx";
 import DemoControls from "./wind-demo.jsx";
 import { Compass, CameraWindow } from "./wind-instrument.jsx";
 
@@ -16,27 +17,14 @@ import { Compass, CameraWindow } from "./wind-instrument.jsx";
 // её таблицами побережий, метеорология с архивом штормов, эфир, справка и
 // разрешения. Открытие вкладки теперь стоит одного короткого запроса, зато
 // «Основное» — то, ради чего дашборд и открывают, — приходит вдвое быстрее.
-const WorldMap     = lazy(() => import("./wind-map.jsx"));
-const LiveWatch    = lazy(() => import("./wind-live.jsx"));
-const Tutor        = lazy(() => import("./wind-tutor.jsx"));
-const Permissions  = lazy(() => import("./wind-permissions.jsx"));
-const Meteorology  = lazy(() => import("./wind-meteo.jsx"));
-
-// Пока часть едет по слабому каналу, на месте вкладки стоит эта строка. Текст
-// вместо крутящегося кружка — сознательно: кружок одинаков и на полсекунды, и
-// на полминуты, а здесь важно понимать, что идёт загрузка, а не то, что зависло.
-function Chunk({ children }) {
-  return (
-    <Suspense fallback={
-      <div style={{ ...MONO, color: DIM, fontSize: 11, letterSpacing: 1.5,
-                    padding: "28px 4px", textTransform: "uppercase" }}>
-        Загрузка раздела…
-      </div>
-    }>
-      {children}
-    </Suspense>
-  );
-}
+// chunk() вместо голого lazy: у каждой части своя граница ошибок и своя
+// кнопка повтора. Без неё не догрузившаяся вкладка снимала с экрана всё
+// приложение целиком — именно так и получался чёрный экран.
+const WorldMap     = chunk(() => import("./wind-map.jsx"));
+const LiveWatch    = chunk(() => import("./wind-live.jsx"));
+const Tutor        = chunk(() => import("./wind-tutor.jsx"));
+const Permissions  = chunk(() => import("./wind-permissions.jsx"));
+const Meteorology  = chunk(() => import("./wind-meteo.jsx"));
 import District, { useDistrict, districtToData } from "./wind-district.jsx";
 import Customize, { backdropCss, loadBgImage, CORNERS, CustomWidgets } from "./wind-custom.jsx";
 
@@ -1864,14 +1852,16 @@ export default function WindDashboard() {
     const nextValue = NEXT_MODE[data[k]] ?? "on";
     setData((prev) => ({ ...prev, [k]: nextValue }));
     if (source !== "station") return;
-    await fetch(`http://${esp32Host}/api/led?${key}=${nextValue}`);
+    // Связь рвётся; следующий кадр опроса всё равно вернёт настоящее
+    // состояние, поэтому потерянный запрос молча забываем.
+    try { await fetch(`http://${esp32Host}/api/led?${key}=${nextValue}`); } catch {}
   };
 
   const toggleAuto = async () => {
     const nextValue = !data.ledAuto;
     setData((prev) => ({ ...prev, ledAuto: nextValue }));
     if (source !== "station") return;
-    await fetch(`http://${esp32Host}/api/led?auto=${nextValue}`);
+    try { await fetch(`http://${esp32Host}/api/led?auto=${nextValue}`); } catch {}
   };
 
 
@@ -1896,6 +1886,12 @@ export default function WindDashboard() {
       if (lock) lock.release().catch(() => {});
     };
   }, [settings.keepAwake]);
+
+  // Остальные части подтягиваются молча, пока читаются показания на первом
+  // экране. Пауза перед началом обязательна: иначе они полезли бы в канал
+  // одновременно с первым запросом данных и замедлили бы ровно то, ради чего
+  // дашборд и открывают.
+  useEffect(() => warmUp([Meteorology, WorldMap, Tutor, LiveWatch, Permissions]), []);
 
   // ---------- станции ----------
   const dismissWelcome = () => {
@@ -2152,9 +2148,7 @@ export default function WindDashboard() {
               </div>
             </div>
 
-            <Suspense fallback={null}>
-              <Tutor g={g} motion={motion} accent={accent} />
-            </Suspense>
+            <Tutor g={g} motion={motion} accent={accent} />
           </div>
 
           <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -2402,7 +2396,7 @@ export default function WindDashboard() {
         {/* ---------------- МЕТЕОРОЛОГИЯ ---------------- */}
         {tab === "meteo" && (
           <div key="meteo" className="tabfade">
-            <Chunk><Meteorology g={g} accent={accent} motion={motion} /></Chunk>
+            <Meteorology g={g} accent={accent} motion={motion} />
           </div>
         )}
 
@@ -2515,17 +2509,15 @@ export default function WindDashboard() {
             {radarView === "map" && (
               <Panel title="Карта мира" g={g} delay={0}
                      meta={ONLINE ? "ЖИВЫЕ СЛОИ · NWS / NOAA" : "БЕЗ СЕТИ · ТОЛЬКО АРХИВ"}>
-                <Chunk>
-                  <WorldMap g={g} motion={motion} online={ONLINE} site={site}
-                            showGrid={settings.showGrid} quality={settings.mapQuality} />
-                </Chunk>
+                <WorldMap g={g} motion={motion} online={ONLINE} site={site}
+                          showGrid={settings.showGrid} quality={settings.mapQuality} />
               </Panel>
             )}
 
             {radarView === "live" && (
               <Panel title="Эфир" g={g} delay={0}
                      meta={ONLINE ? "СПУТНИК И РАДАР · NOAA" : "БЕЗ СЕТИ"}>
-                <Chunk><LiveWatch g={g} motion={motion} online={ONLINE} /></Chunk>
+                <LiveWatch g={g} motion={motion} online={ONLINE} />
               </Panel>
             )}
           </div>
@@ -2762,7 +2754,7 @@ export default function WindDashboard() {
 
             {setView === "extra" && (
               <div key="s-extra" className="tabfade">
-                <Chunk><Permissions g={g} /></Chunk>
+                <Permissions g={g} />
 
                 <Choice
                   label="Окно графика и анализа" g={g} value={settings.histMinutes}
