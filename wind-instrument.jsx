@@ -142,11 +142,12 @@ export function CameraWindow({ url, accent, g, motion, speedMs, site, now }) {
   return <TornadoScene accent={accent} g={g} motion={motion} speedMs={speedMs} site={site} now={now} />;
 }
 
-// Камера шире квадрата, поэтому вписывается по высоте, а ширину отдаёт
-// пропорции. Без maxWidth она вылезла бы за край узкой колонки.
+// Камера — единственный прибор, который не вписывается, а заполняет: у неё
+// нет «правильных» пропорций, есть кадр. Поэтому она растягивается на весь
+// блок и обрезается по краям, как настоящее видео в окне.
 const INSTR_FRAME = {
-  position: "relative", height: `calc(var(--blk-scale, 1) * ${INSTR_H}px)`,
-  aspectRatio: "16 / 10", maxWidth: "100%", margin: "0 auto",
+  position: "relative", flex: "1 1 auto", minHeight: INSTR_H / 2,
+  width: "100%", overflow: "hidden",
 };
 
 // ============================================================
@@ -262,7 +263,8 @@ function TornadoScene({ accent, g, motion, speedMs, site, now }) {
 
     return (
       <div style={{ ...INSTR_FRAME, background: sky[4], overflow: "hidden" }}>
-        <svg viewBox="0 0 200 125" width="100%" height="100%" style={{ display: "block" }}>
+        <svg viewBox="0 0 200 125" width="100%" height="100%"
+             preserveAspectRatio="xMidYMid slice" style={{ display: "block" }}>
           <defs>
             <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={sky[0]} />

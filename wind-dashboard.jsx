@@ -5,8 +5,9 @@ import {
 } from "./ui-kit.js";
 import { KiwiMark } from "./wind-kiwi.jsx";
 import { chunk, warmUp } from "./wind-guard.jsx";
-import { mergeLayout, packLayout, layoutOps, useDrag, BlockFrame, LayoutBar, ColumnDrop,
-         WIDTHS, columnsFor, useViewport } from "./wind-layout.jsx";
+import { mergeLayout, packLayout, layoutOps, useDrag, useResize, BlockFrame, LayoutBar,
+         TRACKS, ROW, GAP, tracksFor, spanFor, useViewport } from "./wind-layout.jsx";
+import { WIDTHS } from "./wind-widths.js";
 import DemoControls from "./wind-demo.jsx";
 import { Compass, CameraWindow } from "./wind-instrument.jsx";
 
@@ -731,15 +732,24 @@ function Tab({ id, active, onClick, children, g }) {
       onClick={() => onClick(id)}
       style={{
         position: "relative", background: "transparent", border: "none",
-        borderBottom: `2px solid ${on ? TEXT : "transparent"}`,
+        borderBottom: "2px solid transparent",
         color: on ? TEXT : DIM,
         textShadow: on ? glow(g, 0.8) : "none",
         fontFamily: SANS, fontWeight: 600, fontSize: 10.5, letterSpacing: 2.4,
         textTransform: "uppercase", padding: "9px 2px", marginRight: 20,
-        cursor: "pointer", transition: "color .22s ease, border-color .22s ease, text-shadow .22s ease",
+        cursor: "pointer", transition: "color .4s ease, text-shadow .4s ease",
       }}
     >
       {children}
+      {/* Подчёркивание — отдельный узел, а не рамка кнопки: рамку нельзя
+          раскрыть от середины, а именно это движение и показывает, что
+          переключились сюда, а не просто перекрасили надпись. Key заставляет
+          React создать его заново, иначе анимация проиграется лишь однажды. */}
+      {on && (
+        <span key={id} className="tab-mark" style={{
+          position: "absolute", left: 0, right: 0, bottom: -2, height: 2, background: TEXT,
+        }} />
+      )}
     </button>
   );
 }
@@ -1015,12 +1025,13 @@ function SpeedGauge({ speedMs, gustMs, maxSpeed, unit, digits, accent, g, smooth
 }
 
 function Sparkline({ data, g, height = 54, accent }) {
-  // Высота приходит переменной по той же причине, что и у приборов: размер
-  // задаётся блоку целиком, а не каждому рисунку внутри отдельно.
-  const H = `calc(var(--blk-scale, 1) * ${height}px)`;
+  // График тянется на всю оставшуюся высоту блока, а параметр height остаётся
+  // нижней границей: вне блока (в модальных окнах, на радаре) растягиваться
+  // не от чего, и без неё рисунок схлопнулся бы в линию.
+  const FILL = { flex: "1 1 auto", minHeight: height, width: "100%" };
   if (data.length < 2) {
     return (
-      <div style={{ height: H, display: "flex", alignItems: "center", color: DIM, fontSize: 10, fontFamily: SANS }}>
+      <div style={{ ...FILL, display: "flex", alignItems: "center", color: DIM, fontSize: 10, fontFamily: SANS }}>
         сбор данных…
       </div>
     );
@@ -1037,7 +1048,7 @@ function Sparkline({ data, g, height = 54, accent }) {
   const head = xy[xy.length - 1];
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} width="100%" preserveAspectRatio="none" style={{ display: "block", height: H }}>
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ ...FILL, display: "block" }}>
       {[0.25, 0.5, 0.75].map((f) => (
         <line key={f} x1="0" y1={h * f} x2={w} y2={h * f} stroke={LINE} strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
       ))}
@@ -1607,6 +1618,9 @@ export default function WindDashboard() {
   // бы с пунктирными рамками вместо показаний.
   const [layoutMode, setLayoutMode] = useState(false);
   const viewportW = useViewport();
+  // Ширина дорожки берётся из настоящих размеров сетки, а не из догадки:
+  // растягивание должно совпадать с тем, что человек видит.
+  const gridRef = useRef(null);
   const [time, setTime] = useState(new Date());
   const [lastUpdate, setLastUpdate] = useState(null);
   // Когда был зафиксирован нынешний максимум порыва. Само по себе число «14.2»
@@ -2132,7 +2146,7 @@ export default function WindDashboard() {
   // должна помнить место того, чего нет. Отсутствующий блок просто не попадает
   // в список, и его строка в настройке спокойно дожидается своего датчика.
   const windBlocks = [
-    { id: "speed", col: 0, title: "Скорость ветра", node: (
+    { id: "speed", h: 42, title: "Скорость ветра", node: (
       <Panel g={g} delay={0} title="Скорость ветра"
                            meta={`ПРЕДЕЛ ${convertSpeed(data.speedMax ?? 30, settings.unit, 0)} ${unit.short}`}>
                       <div style={INSTR_BOX}>
@@ -2149,7 +2163,7 @@ export default function WindDashboard() {
                         {bf.desc.toUpperCase()} · {bf.scale} БАЛЛОВ
                       </div></Panel>
     ) },
-    { id: "stats", col: 0, title: "Порыв · средняя · аптайм", node: (
+    { id: "stats", h: 14, title: "Порыв · средняя · аптайм", node: (
       <div style={{ display: "flex", gap: 10 }}>
                       <Stat
                         label={gustAt ? `Порыв · ${gustAt.toLocaleTimeString("uk-UA")}` : "Порыв"}
@@ -2166,7 +2180,7 @@ export default function WindDashboard() {
                       <Stat label="Аптайм" value={uptimeH > 0 ? `${uptimeH}ч${uptimeMin % 60}м` : `${uptimeMin}м`} g={g} />
                     </div>
     ) },
-    (sensors.length > 0 || dew != null || chill != null) && { id: "air", col: 0, title: "Атмосфера", node: (
+    (sensors.length > 0 || dew != null || chill != null) && { id: "air", h: 34, title: "Атмосфера", node: (
       <Panel title="Атмосфера" g={g} delay={60}
                              meta={demoMode ? "МОДЕЛЬ · 6"
                                : source === "district" ? `РАЙОН · ${sensors.length}`
@@ -2195,12 +2209,12 @@ export default function WindDashboard() {
                           в холод при ощутимом ветре. Вне этих условий величина не определена, и её тут нет.
                         </div></Panel>
     ) },
-    { id: "speedhist", col: 0, title: "График скорости", node: (
+    { id: "speedhist", h: 20, title: "График скорости", node: (
       <Panel title={`Скорость · ${settings.histMinutes} мин`} g={g} delay={80}
                            meta={`МИН ${lullText} · МАКС ${peakText} ${unit.short}`}>
                       <Sparkline data={speedSeries} g={g} accent={accent} /></Panel>
     ) },
-    settings.showCamera && { id: "camera", col: 0, title: "Камера", node: (
+    settings.showCamera && { id: "camera", h: 36, title: "Камера", node: (
       <Panel title="Камера" g={g} delay={95}
                              meta={data.cameraPresent && data.cameraUrl ? "ПОТОК" : "НЕ ПОДКЛЮЧЕНА"}>
                         <CameraWindow url={data.cameraPresent ? data.cameraUrl : null}
@@ -2212,51 +2226,42 @@ export default function WindDashboard() {
                             : "Камеры на станции нет — здесь рисунок, а не съёмка. Подойдёт ESP32-CAM: она отдаёт MJPEG по HTTP, и браузер играет его сам. Экшн-камеры так не подключить: они отдают RTSP или RTMP, чего не умеет ни один браузер, а перепаковывать поток ESP32 нечем."}
                         </div></Panel>
     ) },
-    (settings.widgets || []).length > 0 && { id: "widgets", col: 0, title: "Свои виджеты", node: (
+    (settings.widgets || []).length > 0 && { id: "widgets", h: 22, title: "Свои виджеты", node: (
       <CustomWidgets widgets={settings.widgets} g={g} accent={accent} Panel={Panel} />
     ) },
-    hasDir && settings.showCompass && { id: "dir", col: 1, title: "Направление", node: (
+    hasDir && settings.showCompass && { id: "dir", h: 42, title: "Направление", node: (
       <Panel title="Направление" meta={degToDir(data.direction).full.toUpperCase()} g={g} delay={40}>
                           <div style={INSTR_BOX}>
                             <Compass direction={data.direction} angle={dirAngle} accent={accent} g={g} />
                           </div></Panel>
     ) },
-    hasDir && settings.showCompass && { id: "dirhist", col: 1, title: "График направления", node: (
+    hasDir && settings.showCompass && { id: "dirhist", h: 20, title: "График направления", node: (
       <Panel title={`Направление · ${settings.histMinutes} мин`} g={g} delay={120}
                                meta={analysis ? `РАЗБРОС ${Math.round(analysis.spread)}°` : undefined}>
                           <Sparkline data={dirSeries} g={g} accent={accent} /></Panel>
     ) },
-    demoMode && { id: "demo", col: 1, title: "Ручное управление", node: (
+    demoMode && { id: "demo", h: 30, title: "Ручное управление", node: (
       <Panel title="Ручное управление" g={g} delay={140} meta="ТОЛЬКО ДЕМО">
                           <DemoControls demo={demo} setDemo={setDemo} g={g} accent={accent} alarmLevel={alarmLevel} /></Panel>
     ) },
-    source === "district" && { id: "district", col: 1, title: "Район", node: (
+    source === "district" && { id: "district", h: 44, title: "Район", node: (
       <Panel title="Район" g={g} delay={140} meta="ИЗ ИНТЕРНЕТА">
                           <District g={g} accent={accent} {...district} /></Panel>
     ) },
   ].filter(Boolean);
 
-  // Предел ширины и число колонок. Колонки считаются от ширины содержимого,
-  // а не окна: при пределе в 1080 на широком мониторе окно огромно, а места
-  // для третьей колонки нет — она вышла бы уже трёхсот пикселей.
+  // Дорожки считаются от ширины содержимого, а не окна: при пределе в 1080 на
+  // широком мониторе окно огромно, а места под двенадцать дорожек нет.
   const pageMax = (WIDTHS[settings.pageWidth] || WIDTHS.normal).px;
   const pageWide = { maxWidth: pageMax > 0 ? pageMax : "none" };
-  const colCount = columnsFor(viewportW, pageMax);
+  const innerW = Math.min(viewportW - 44, pageMax > 0 ? pageMax : Infinity);
+  const tracks = tracksFor(innerW);
 
   const layoutRows = mergeLayout(settings.layout, windBlocks);
-  const lay = layoutOps(layoutRows, (rows) => setS({ layout: packLayout(rows, settings.layout) }), colCount);
+  const lay = layoutOps(layoutRows, (rows) => setS({ layout: packLayout(rows, settings.layout) }));
   const drag = useDrag(lay);
-  // Колонка блока прижимается к тому, сколько их сейчас помещается. Так одна и
-  // та же раскладка читается и на широком мониторе, и на телефоне: лишние
-  // колонки сворачиваются в последнюю, а порядок внутри сохраняется.
-  const colOf = (r) => Math.min(r.col, colCount - 1);
-  // Колонка существует, только когда ей есть что показать, — пустая забирала
-  // бы треть ширины ни за чем. В режиме правки показываются все: иначе
-  // перенести блок в пустую было бы некуда.
-  const shownCols = Array.from({ length: colCount }, (_, c) => c).filter(
-    (c) => layoutMode || layoutRows.some((r) => colOf(r) === c && !r.hidden)
-  );
-
+  const resize = useResize(lay, gridRef, tracks);
+  const shownRows = layoutRows.filter((r) => layoutMode || !r.hidden);
   return (
     <div
       className={`app mo-${motion} dens-${settings.density}${settings.borders ? "" : " noborders"}`}
@@ -2409,23 +2414,32 @@ export default function WindDashboard() {
                          onDone={() => setLayoutMode(false)}
                          onReset={() => setS({ layout: [] })} />
             )}
-            <div className="wind-grid" style={{
+            <div ref={gridRef} className="wind-grid" style={{
               display: "grid",
-              gridTemplateColumns: `repeat(${shownCols.length}, minmax(0, 1fr))`,
-              gap: 18, alignItems: "start",
-            }}>
-              {shownCols.map((col) => {
-                const inCol = layoutRows.filter((r) => colOf(r) === col && (layoutMode || !r.hidden));
+              gridTemplateColumns: `repeat(${tracks}, minmax(0, 1fr))`,
+              gridAutoRows: `${ROW}px`,
+              // Плотная укладка: блок уже оставшейся дырки заезжает в неё, а не
+              // уходит на новую строку. Без неё свободный размер оставлял бы
+              // пустоты везде, где соседи разной ширины.
+              gridAutoFlow: "row dense",
+            }}
+              onPointerMove={(e) => { drag.move(e); resize.move(e); }}
+              onPointerUp={() => { drag.end(); resize.end(); }}
+              onPointerCancel={() => { drag.end(); resize.end(); }}
+            >
+              {shownRows.map((r, i) => {
+                const live = resize.live?.id === r.id ? resize.live : r;
                 return (
-                  <div key={col} data-col={col}
-                       onPointerMove={drag.move} onPointerUp={drag.end} onPointerCancel={drag.end}
-                       style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: layoutMode ? 60 : 0 }}>
-                    {layoutMode && inCol.length === 0 && <ColumnDrop col={col} of={colCount} />}
-                    {inCol.map((r) => (
-                      layoutMode
-                        ? <BlockFrame key={r.id} row={r} ops={lay} drag={drag}>{r.block.node}</BlockFrame>
-                        : <div key={r.id} style={{ "--blk-scale": r.scale || 1 }}>{r.block.node}</div>
-                    ))}
+                  <div key={r.id} className="blk"
+                       style={{
+                         gridColumn: `span ${spanFor(live.w, tracks)}`,
+                         gridRow: `span ${live.h}`,
+                         padding: GAP / 2,
+                         "--i": i,
+                       }}>
+                    {layoutMode
+                      ? <BlockFrame row={r} ops={lay} drag={drag} resize={resize}>{r.block.node}</BlockFrame>
+                      : r.block.node}
                   </div>
                 );
               })}
@@ -2914,7 +2928,58 @@ export default function WindDashboard() {
                 --ui-bg: ${(GROUNDS[settings.ground] || GROUNDS.black).bg};
                 --ui-corner: ${CORNERS[settings.corners] ?? 0}px;
                 --ui-fill: ${(settings.panelFill || 0) / 100}; }
+        /* Две кривые на весь дашборд. Первая тормозит к концу, вторая
+           переваливает за цель и возвращается — от неё движение и кажется
+           живым. Держим их переменными, чтобы «сделать медленнее» не
+           превращалось в правку полусотни мест. */
+        :root { --ease-out: cubic-bezier(.16,.84,.28,1);
+                --ease-back: cubic-bezier(.34,1.42,.44,1); }
         * { -webkit-tap-highlight-color: transparent; }
+
+        /* ---------- запуск ---------- */
+        @keyframes bootIn   { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes bootOut  { to { opacity: 0; transform: scale(1.06) } }
+        @keyframes bootArc  { to { stroke-dashoffset: 0 } }
+        @keyframes bootSpin { to { transform: rotate(360deg) } }
+        @keyframes bootBar  { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+        @keyframes bootName { from { opacity: 0; letter-spacing: 16px }
+                              to   { opacity: 1; letter-spacing: 5px } }
+        .boot {
+          position: fixed; inset: 0; z-index: 900;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 18px; background: var(--ui-bg, #04070a);
+          animation: bootIn .2s ease both, bootOut .45s ease-in 1.25s both;
+        }
+        .boot-mark { animation: bootSpin 2.4s linear infinite; transform-origin: 50% 50% }
+        .boot-arc  { animation: bootArc 1.25s var(--ease-out) both }
+        .boot-dot  { animation: bootIn .4s ease .3s both }
+        .boot-name { font-family: var(--ui-mono); font-size: 13px; color: #e7eef6;
+                     animation: bootName .9s var(--ease-out) .15s both }
+        .boot-bar  { width: 190px; height: 2px; background: rgba(160,180,200,0.18) }
+        .boot-bar i { display: block; height: 100%; background: #e7eef6;
+                      transform-origin: 0 50%;
+                      animation: bootBar 1.35s var(--ease-out) both }
+        .boot-note { font-family: var(--ui-mono); font-size: 9.5px; letter-spacing: 2px;
+                     color: rgba(231,238,246,0.46); text-transform: uppercase;
+                     animation: bootIn .8s ease .5s both }
+
+        /* ---------- ожидание ---------- */
+        /* Мерцание вместо крутящегося кружка: кружок одинаков и на полсекунды,
+           и на полминуты, а бегущий по блоку блик показывает, что чего-то ждут
+           именно здесь, на месте будущего содержимого. */
+        @keyframes shimmer { from { background-position: -160% 0 } to { background-position: 260% 0 } }
+        .shimmer {
+          background-image: linear-gradient(100deg,
+            rgba(231,238,246,0.03) 30%, rgba(231,238,246,0.11) 48%, rgba(231,238,246,0.03) 66%);
+          background-size: 220% 100%;
+          animation: shimmer 2.4s linear infinite;
+        }
+        @keyframes waitBar { 0% { transform: translateX(-100%) } 100% { transform: translateX(320%) } }
+        .wait-bar { position: relative; height: 2px; overflow: hidden;
+                    background: rgba(160,180,200,0.14) }
+        .wait-bar i { position: absolute; inset: 0 auto 0 0; width: 32%;
+                      background: currentColor; animation: waitBar 1.9s var(--ease-out) infinite }
+
         /* Подложка задаётся переменной во всех трёх местах сразу: инлайновый
            фон корневого div перекрыл бы выбор, а прозрачный body показал бы
            фон хоста. */
@@ -2933,7 +2998,11 @@ export default function WindDashboard() {
         @keyframes ppiSweep{ to { transform: rotate(360deg) } }
         @keyframes echoPing{ 0% { r: 3; opacity: .75 } 100% { r: 15; opacity: 0 } }
         @keyframes vortex  { to { transform: rotate(-360deg) } }
-        @keyframes rise    { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+        @keyframes rise {
+          0%   { opacity: 0; transform: translateY(30px) scale(.95) }
+          62%  { opacity: 1; transform: translateY(-5px) scale(1.008) }
+          100% { opacity: 1; transform: none }
+        }
         /* Курсор подсказчика мигает как в восьмибитных играх — жёсткими шагами,
            без плавного затухания: плавность выдаёт CSS и убивает весь эффект. */
         @keyframes caretBlink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
@@ -2945,9 +3014,9 @@ export default function WindDashboard() {
         @keyframes overPulse { 0%, 100% { opacity: 1 } 50% { opacity: .55 } }
         @keyframes orbitCW  { to { transform: rotate(360deg) } }
         @keyframes orbitCCW { to { transform: rotate(-360deg) } }
-        .over-pulse { animation: overPulse .9s ease-in-out infinite }
-        .orbit-cw   { animation: orbitCW 1.4s linear infinite }
-        .orbit-ccw  { animation: orbitCCW 1.4s linear infinite }
+        .over-pulse { animation: overPulse 1.6s ease-in-out infinite }
+        .orbit-cw   { animation: orbitCW 2.4s linear infinite }
+        .orbit-ccw  { animation: orbitCCW 2.4s linear infinite }
 
         /* Частицы по экрану летят справа налево со сносом по вертикали.
            Только transform и opacity — свойства, которые браузер считает
@@ -2968,12 +3037,12 @@ export default function WindDashboard() {
            Не мигание в ноль, а именно пульс — резкое исчезновение цифры
            мешало бы её прочитать, а прочитать её в этот момент важнее всего. */
         @keyframes speedAlarm { 0%, 100% { opacity: 1 } 50% { opacity: .45 } }
-        .speed-alarm { animation: speedAlarm 1.1s ease-in-out infinite }
+        .speed-alarm { animation: speedAlarm 1.9s ease-in-out infinite }
 
         /* Винт Young 05103. Вращение задаётся длительностью из JS —
            она обратно пропорциональна скорости ветра. */
         @keyframes youngSpin { to { transform: rotate(360deg) } }
-        .young-spin { animation: youngSpin 1s linear infinite; transform-box: view-box }
+        .young-spin { animation: youngSpin 1.8s linear infinite; transform-box: view-box }
 
         /* Воронка качается целиком, обломки летают по орбите вокруг неё. */
         @keyframes tornadoSway {
@@ -3005,8 +3074,24 @@ export default function WindDashboard() {
         }
         .flash-lit { animation: flashLit 12s linear infinite }
         .tornado-sway { animation: tornadoSway 7s ease-in-out infinite; transform-box: view-box }
-        .tornado-debris { animation: debrisOrbit 2s linear infinite; transform-box: view-box }
+        .tornado-debris { animation: debrisOrbit 3.4s linear infinite; transform-box: view-box }
         .rec-blink { animation: recBlink 1.6s steps(1) infinite }
+
+        /* Блок сетки и панель внутри него. Высота у блока задана человеком,
+           поэтому панель обязана занять её целиком, а её тело — стать
+           колонкой: только тогда прибор внутри может растянуться на остаток.
+           Правило нарочно привязано к .blk — вне сетки (радар, окна, другие
+           вкладки) высота по-прежнему от содержимого. */
+        .blk { min-width: 0; min-height: 0 }
+        .blk > *, .blk .pnl { height: 100% }
+        .pnl { display: flex; flex-direction: column }
+        .pnl > div:last-child { display: flex; flex-direction: column; min-height: 0 }
+        .blk .pnl > div:last-child { flex: 1 1 auto; overflow: auto }
+        /* Полоса прокрутки внутри панели — тонкая и без стрелок: панель это
+           прибор, а не документ. */
+        .blk .pnl > div:last-child::-webkit-scrollbar { width: 6px; height: 6px }
+        .blk .pnl > div:last-child::-webkit-scrollbar-thumb {
+          background: rgba(160,180,200,0.25) }
 
         /* Плотность, рамки и контраст — классами на корне, чтобы не тащить
            их пропсами в каждый компонент. */
@@ -3036,31 +3121,46 @@ export default function WindDashboard() {
           0%, 100% { box-shadow: 0 0 0 rgba(239,68,68,0) }
           50%      { box-shadow: 0 0 16px rgba(239,68,68,0.35) }
         }
-        .alarm-hot { animation: alarmPulse 1.8s ease-in-out infinite }
+        .alarm-hot { animation: alarmPulse 3s ease-in-out infinite }
 
         /* Переходы. Раньше двигались только панели при появлении, и от этого
            смена вкладки выглядела как подмена картинки. Теперь у содержимого
            есть вход, у подвкладок — своя, более короткая версия, а у строк
            списка — собственная: список станций иначе прыгает при удалении. */
-        @keyframes tabfade { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
-        @keyframes rowin   { from { opacity: 0; transform: translateX(-6px) } to { opacity: 1; transform: none } }
-        .tabfade { animation: tabfade .3s cubic-bezier(.22,.8,.3,1) both }
-        .rowin   { animation: rowin .26s cubic-bezier(.22,.8,.3,1) both }
+/* Кривая с перелётом: значение переваливает за единицу и возвращается.
+           Именно она отличает «съехало» от «прилетело и встало» — без неё
+           движение читается как перерисовка, сколько его ни удлиняй. */
+        @keyframes tabfade {
+          from { opacity: 0; transform: translateY(26px) scale(.965) }
+          to   { opacity: 1; transform: none }
+        }
+        @keyframes rowin {
+          from { opacity: 0; transform: translateX(-22px) }
+          to   { opacity: 1; transform: none }
+        }
+        .tabfade { animation: tabfade .62s var(--ease-out) both }
+        .rowin   { animation: rowin .44s var(--ease-out) both }
+
+        /* Полоса вкладок: под выбранной проезжает подчёркивание, а не просто
+           меняется цвет. Движение показывает, откуда и куда переключились. */
+        @keyframes tabmark { from { transform: scaleX(0); opacity: 0 } to { transform: scaleX(1); opacity: 1 } }
+        .tab-mark { animation: tabmark .5s var(--ease-out) both; transform-origin: 50% 50% }
         /* Растр отражаемости проявляется, а не выскакивает: подмена готового
            кадра иначе читается как мигание. */
         @keyframes radarFade { from { opacity: 0 } to { opacity: .78 } }
-        .radar-fade { animation: radarFade .45s ease-out both }
+        .radar-fade { animation: radarFade .9s ease-out both }
 
         /* Кнопки и тумблеры: нажатие должно чувствоваться, иначе на телефоне
            непонятно, сработало ли касание. */
-        button { transition: background-color .18s ease, border-color .18s ease,
-                             color .18s ease, transform .09s ease, box-shadow .18s ease }
-        button:not(:disabled):active { transform: scale(.96) }
+        button { transition: background-color .32s ease, border-color .32s ease,
+                             color .32s ease, transform .22s var(--ease-back),
+                             box-shadow .32s ease }
+        button:not(:disabled):active { transform: scale(.93) }
         @media (hover: hover) {
           button:not(:disabled):hover { border-color: rgba(160,180,200,0.42) }
           a:hover { border-color: rgba(160,180,200,0.42) }
         }
-        @keyframes grow    { from { opacity: 0; transform: scale(.92) } to { opacity: 1; transform: none } }
+        @keyframes grow { from { opacity: 0; transform: scale(.86) } to { opacity: 1; transform: none } }
 
         /* Карта: пинг вокруг активного предупреждения и вокруг EF5 в архиве.
            Радиус анимируется через CSS-геометрию; там, где браузер её не умеет,
@@ -3074,27 +3174,44 @@ export default function WindDashboard() {
           50%      { box-shadow: 0 0 22px rgba(255,45,45,0.30) }
         }
 
-        .map-ping { animation: mapPing 2.6s ease-out infinite }
-        .map-ping.slow { animation-duration: 4.2s }
+        .map-ping { animation: mapPing 4s ease-out infinite }
+        .map-ping.slow { animation-duration: 6.5s }
         .warn-blink { animation: warnBlink 1.5s steps(1) infinite }
         .detail-extreme { animation: alarmEdge 2.2s ease-in-out infinite }
 
-        .ppi-sweep { animation: ppiSweep 4s linear infinite }
-        .ppi-sweep.slow { animation-duration: 9s }
-        .ping { animation: echoPing 2.4s ease-out infinite }
-        .vortex { animation: vortex 3.2s linear infinite }
-        .grow { animation: grow .5s cubic-bezier(.22,.8,.3,1) both; transform-origin: 50% 50% }
+        .ppi-sweep { animation: ppiSweep 6.5s linear infinite }
+        .ppi-sweep.slow { animation-duration: 14s }
+        .ping { animation: echoPing 3.6s ease-out infinite }
+        .vortex { animation: vortex 5.5s linear infinite }
+        .grow { animation: grow .85s var(--ease-back) both; transform-origin: 50% 50% }
         /* Панели въезжают снизу при смене вкладки — движение подсказывает, что
            содержимое сменилось целиком, а не обновилось одно число. */
-        .pnl { animation: rise .38s cubic-bezier(.22,.8,.3,1) both }
-        .modal-card { animation: rise .22s ease-out both }
+        /* Панели въезжают по очереди, а не разом: волна слева направо читается
+           как «прибор собирается», а одновременный въезд — как рывок экрана.
+           Порядковый номер приходит переменной --i прямо из раскладки. */
+        .pnl { animation: rise .7s var(--ease-out) both }
+        /* Внутри сетки едет сама ячейка, а не панель в ней. Иначе движение
+           идёт дважды: панель поднимается внутри ячейки, ячейка стоит, и вместо
+           одного въезда получается дёрганье содержимого в неподвижной рамке. */
+        .blk { animation: rise .7s var(--ease-out) both;
+               animation-delay: calc(var(--i, 0) * 65ms) }
+        .blk .pnl, .blk > * { animation: none }
+        .modal-card { animation: pop .5s var(--ease-back) both }
+        @keyframes pop {
+          from { opacity: 0; transform: translateY(18px) scale(.94) }
+          to   { opacity: 1; transform: none }
+        }
 
         .mo-off .pnl, .mo-off .modal-card, .mo-off .grow { animation: none }
         .mo-off .ppi-sweep, .mo-off .ping, .mo-off .vortex { animation: none }
         .mo-off .map-ping, .mo-off .warn-blink, .mo-off .detail-extreme { animation: none }
         .mo-off .tutor-caret { animation: none }
         .mo-off .tabfade, .mo-off .rowin, .mo-off .radar-fade { animation: none }
+        .mo-off .blk, .mo-off .shimmer, .mo-off .wait-bar i { animation: none }
+        .mo-off .tab-mark { animation: none }
         .mo-off .alarm-hot, .mo-off .speed-alarm { animation: none }
+        .mo-calm .pnl, .mo-calm .blk, .mo-calm .tabfade { animation-duration: .34s }
+        .mo-calm .blk { animation-delay: calc(var(--i, 0) * 28ms) }
         .mo-off .over-pulse, .mo-off .orbit-cw, .mo-off .orbit-ccw,
         .mo-off .storm-bit { animation: none }
         .mo-off .young-spin, .mo-off .tornado-sway, .mo-off .tornado-debris,

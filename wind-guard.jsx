@@ -1,4 +1,4 @@
-import { Component, Suspense, lazy, useState, useMemo } from "react";
+import { Component, Suspense, lazy, useState, useMemo, useEffect } from "react";
 import { LINE, TEXT, DIM, MONO } from "./ui-kit.js";
 
 // ============================================================
@@ -135,11 +135,21 @@ export function chunk(load) {
       >
         <Suspense
           fallback={
-            // Текст, а не крутящийся кружок: кружок одинаков и на полсекунды,
-            // и на полминуты, а здесь важно понимать, что идёт загрузка.
-            <div style={{ fontFamily: MONO, color: DIM, fontSize: 11, letterSpacing: 1.5,
-                          padding: "28px 4px", textTransform: "uppercase" }}>
-              Загрузка раздела…
+            // Не кружок: кружок одинаков и на полсекунды, и на полминуты. Здесь
+            // на месте будущего содержимого стоят его же очертания, по которым
+            // бежит блик, — видно и что грузится, и куда это встанет.
+            <div style={{ padding: "6px 0 2px" }}>
+              <div className="wait-bar" style={{ color: TEXT, marginBottom: 16 }}><i /></div>
+              <div style={{ fontFamily: MONO, color: DIM, fontSize: 10, letterSpacing: 1.6,
+                            textTransform: "uppercase", marginBottom: 12 }}>
+                Загрузка раздела…
+              </div>
+              {[64, 148, 96].map((h, i) => (
+                <div key={i} className="shimmer" style={{
+                  height: h, marginBottom: 10, border: `1px solid ${LINE}`,
+                  animationDelay: `${i * 260}ms`,
+                }} />
+              ))}
             </div>
           }
         >
@@ -164,4 +174,57 @@ export function chunk(load) {
 export function warmUp(parts, delayMs = 4000) {
   const id = setTimeout(() => parts.forEach((p) => p.preload?.()), delayMs);
   return () => clearTimeout(id);
+}
+
+// ============================================================
+// ЗАПУСК
+// ============================================================
+// Экран первой загрузки. Нужен не для красоты: между тем, как браузер получил
+// страницу, и тем, как дашборд нарисовал первые показания, проходит секунда с
+// лишним — и всё это время человек смотрит на пустой фон, не понимая, работает
+// оно вообще или нет. Полоса, которая заполняется, отвечает на этот вопрос
+// раньше, чем появятся цифры.
+//
+// Живёт снаружи дашборда и о нём ничего не знает: узел рисуется поверх, а через
+// заданное время убирается совсем. Оставлять его прозрачным нельзя — невидимый
+// слой поверх страницы съедал бы нажатия.
+const BOOT_MS = 1700;
+
+export function Boot() {
+  const [gone, setGone] = useState(() => {
+    // Уважает ту же настройку, что и остальное движение. Кто выключил анимации,
+    // тот не должен получить полторы секунды заставки при каждом заходе.
+    try {
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
+      return JSON.parse(localStorage.getItem("wind_ui_settings") || "{}").motion === "off";
+    } catch { return false; }
+  });
+
+  useEffect(() => {
+    if (gone) return;
+    const id = setTimeout(() => setGone(true), BOOT_MS);
+    return () => clearTimeout(id);
+  }, [gone]);
+
+  if (gone) return null;
+
+  return (
+    <div className="boot">
+      <div className="boot-mark">
+        <svg viewBox="0 0 100 100" width="86" height="86">
+          {/* Кольцо собирается из дуги: штрих-пунктир длиной в окружность,
+              смещение которого и есть «сколько уже нарисовано». */}
+          <circle cx="50" cy="50" r="34" fill="none" stroke={LINE} strokeWidth="1" />
+          <circle className="boot-arc" cx="50" cy="50" r="34" fill="none"
+                  stroke={TEXT} strokeWidth="2" strokeLinecap="butt"
+                  strokeDasharray="214" strokeDashoffset="214"
+                  transform="rotate(-90 50 50)" />
+          <circle className="boot-dot" cx="50" cy="16" r="3" fill={TEXT} />
+        </svg>
+      </div>
+      <div className="boot-name">WEATHERED_KIWI</div>
+      <div className="boot-bar"><i /></div>
+      <div className="boot-note">Ветроизмерительная станция · подъём</div>
+    </div>
+  );
 }

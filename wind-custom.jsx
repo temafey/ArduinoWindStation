@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   LINE, LINE_HI, TEXT, DIM, FAINT, SANS, MONO, NUM, glow,
 } from "./ui-kit.js";
-import { WIDTHS } from "./wind-layout.jsx";
+import { WIDTHS } from "./wind-widths.js";
 
 // ============================================================
 // КАСТОМИЗАЦИЯ
