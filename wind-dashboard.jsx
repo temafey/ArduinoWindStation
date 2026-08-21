@@ -30,7 +30,7 @@ const Permissions  = chunk(() => import("./wind-permissions.jsx"));
 const Meteorology  = chunk(() => import("./wind-meteo.jsx"));
 import District, { useDistrict, districtToData } from "./wind-district.jsx";
 import Customize, { backdropCss, loadBgImage, CORNERS, CustomWidgets } from "./wind-custom.jsx";
-import { THEMES, themeCss } from "./wind-themes.js";
+import { THEMES, themeCss, glassRich } from "./wind-themes.js";
 import { Switch, SwitchGlyph, SWITCH_CSS } from "./wind-switch.jsx";
 
 // Прошивка раздаёт этот дашборд сама (gzip из PROGMEM на порту 80). Если страница
@@ -318,6 +318,7 @@ const DEFAULT_SETTINGS = {
                          // картинка под светящимся текстом требует притушения
   customAccent: "",      // свой цвет; пусто — берётся из ACCENTS
   theme: "instrument",   // ключ из THEMES — материал, из которого сделаны панели
+  glassBlur: true,       // размывать ли фон под стеклом; см. glassRich()
   corners: "sharp",      // sharp | soft | round — скругление панелей
   panelFill: 0,          // заливка панелей, % — плотность фона под текстом
   widgets: [],           // свои виджеты на вкладке «Основное»
@@ -2291,7 +2292,12 @@ export default function WindDashboard() {
   const shownRows = layoutRows.filter((r) => layoutMode || !r.hidden);
   return (
     <div
-      className={`app mo-${motion} dens-${settings.density} th-${settings.theme}${settings.borders ? "" : " noborders"}`}
+      className={`app mo-${motion} dens-${settings.density} th-${settings.theme}`
+        + `${settings.borders ? "" : " noborders"}`
+        // Размытие под стеклом стоит кадров, а видно его далеко не
+        // всегда — класс появляется, только когда под панелью есть что
+        // размывать. Решение целиком в glassRich().
+        + `${glassRich(settings, !!bgImage) ? " gl-deep" : ""}`}
       style={{
         // Прозрачно, когда фон рисуется слоями на body: инлайновая заливка
         // сильнее любого правила и перекрыла бы их целиком.
@@ -2431,7 +2437,12 @@ export default function WindDashboard() {
         {/* Публичная копия — сразу сказать, что это витрина, а не живая станция */}
         {PUBLIC_COPY && (
           <div className="pnl" style={{
-            border: `1px solid ${LINE}`, borderLeft: `2px solid ${accent}`, padding: "11px 14px",
+            // Через те же переменные, что и настоящие панели: класс .pnl на
+            // этой плашке был, а вид был прошит инлайном — и в стеклянной теме
+            // она одна оставалась картонной.
+            border: "1px solid var(--pnl-line)", borderLeft: `2px solid ${accent}`,
+            borderRadius: "var(--pnl-corner)", background: "var(--pnl-bg)",
+            boxShadow: "var(--pnl-shadow)", padding: "11px 14px",
             marginBottom: 20, fontSize: 11, lineHeight: 1.7, color: "rgba(231,238,246,0.78)",
           }}>
             <span style={{ color: TEXT, letterSpacing: 2, fontWeight: 600, textShadow: glow(g, 0.6) }}>ДЕМОНСТРАЦИЯ</span>
@@ -2946,7 +2957,12 @@ export default function WindDashboard() {
           к изображению, и при прокрутке обязаны стоять на месте. Кликов не
           ловит, поэтому поверх неё всё работает как обычно. */}
       {THEMES[settings.theme]?.veil && (
-        <div className={`veil veil-${settings.theme}`}><i /></div>
+        // Три слоя, потому что у них разная жизнь: один ползёт всегда,
+        // второй срывается раз в двадцать секунд, третий играет один раз
+        // при включении. Одной анимацией это не собирается.
+        <div className={`veil veil-${settings.theme}`} aria-hidden="true">
+          <i /><i /><i />
+        </div>
       )}
 
       {showWelcome && (

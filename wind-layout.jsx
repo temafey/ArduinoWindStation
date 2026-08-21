@@ -308,7 +308,9 @@ export function BlockFrame({ row, ops, drag, resize, children }) {
 export function LayoutBar({ onDone, onReset, accent }) {
   return (
     <div className="pnl" style={{
-      border: `1px solid ${LINE}`, borderLeft: `2px solid ${accent}`,
+      border: "1px solid var(--pnl-line)", borderLeft: `2px solid ${accent}`,
+      borderRadius: "var(--pnl-corner)", background: "var(--pnl-bg)",
+      boxShadow: "var(--pnl-shadow)",
       padding: "11px 14px", marginBottom: 14, display: "flex",
       alignItems: "center", gap: 12, flexWrap: "wrap",
     }}>
