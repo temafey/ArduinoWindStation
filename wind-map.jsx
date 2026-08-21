@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { SwitchGlyph } from "./wind-switch.jsx";
 import { WORLD_RINGS } from "./world-rings.js";
 import { EF_SCALE, efInfo, ALARM_FROM, ARCHIVE_SORTED } from "./storm-archive.js";
 import { visibleCities } from "./world-cities.js";
@@ -231,26 +232,26 @@ function geometryRings(geometry) {
 // МЕЛКИЕ ЭЛЕМЕНТЫ
 // ============================================================
 
+// Слой карты — тот же выбор из двух, что и в настройках, поэтому и вид тот
+// же. Цвет слоя переехал с квадратика на сам тумблер: квадратик был легендой,
+// и терять её нельзя, а держать рядом и легенду, и переключатель — это два
+// значка на одну мысль.
 function LayerToggle({ on, onClick, color, label, count, g, busy }) {
   return (
     <button
-      onClick={onClick}
+      onClick={onClick} role="switch" aria-checked={on}
       style={{
-        display: "flex", alignItems: "center", gap: 7,
+        display: "flex", alignItems: "center", gap: 6,
         background: on ? "rgba(231,238,246,0.09)" : "transparent",
         border: `1px solid ${on ? LINE_HI : LINE}`,
         color: on ? TEXT : DIM,
         fontFamily: SANS, fontSize: 10, letterSpacing: 1, fontWeight: 500,
-        padding: "5px 10px", cursor: "pointer", transition: "all .18s ease",
+        padding: "4px 10px 4px 5px", cursor: "pointer", transition: "all .18s ease",
         whiteSpace: "nowrap",
+        boxShadow: on ? glowColor(color, g, 0.18) : "none",
       }}
     >
-      <span style={{
-        width: 8, height: 8, flexShrink: 0,
-        background: on ? color : "transparent",
-        border: `1px solid ${on ? color : LINE_HI}`,
-        boxShadow: on ? glowColor(color, g, 0.4) : "none",
-      }} />
+      <SwitchGlyph on={on} accent={color} />
       {label}
       <span style={{ ...NUM, fontSize: 9, color: on ? DIM : FAINT }}>
         {busy ? "…" : count == null ? "" : count}

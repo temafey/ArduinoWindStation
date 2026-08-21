@@ -30,6 +30,8 @@ const Permissions  = chunk(() => import("./wind-permissions.jsx"));
 const Meteorology  = chunk(() => import("./wind-meteo.jsx"));
 import District, { useDistrict, districtToData } from "./wind-district.jsx";
 import Customize, { backdropCss, loadBgImage, CORNERS, CustomWidgets } from "./wind-custom.jsx";
+import { THEMES, themeCss } from "./wind-themes.js";
+import { Switch, SwitchGlyph, SWITCH_CSS } from "./wind-switch.jsx";
 
 // Прошивка раздаёт этот дашборд сама (gzip из PROGMEM на порту 80). Если страница
 // открыта со станции — API живёт на том же хосте, настройка не нужна и localStorage
@@ -315,6 +317,7 @@ const DEFAULT_SETTINGS = {
   bgTint: 35,            // затемнение фона, %. По умолчанию не ноль: любая
                          // картинка под светящимся текстом требует притушения
   customAccent: "",      // свой цвет; пусто — берётся из ACCENTS
+  theme: "instrument",   // ключ из THEMES — материал, из которого сделаны панели
   corners: "sharp",      // sharp | soft | round — скругление панелей
   panelFill: 0,          // заливка панелей, % — плотность фона под текстом
   widgets: [],           // свои виджеты на вкладке «Основное»
@@ -667,11 +670,17 @@ function Panel({ title, meta, children, style, g, delay = 0, bodyStyle }) {
     <section
       className="pnl"
       style={{
-        border: `1px solid ${LINE}`,
-        borderRadius: "var(--ui-corner, 0px)",
-        // Второй слой — заливка из кастомизации: поверх картинки текст иначе
-        // не читается, а без картинки она равна нулю и ничего не меняет.
-        background: "linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.008)), rgba(255,255,255,var(--ui-fill, 0))",
+        // Вид панели идёт через переменные, а не константами. Причина
+        // механическая: инлайновый стиль сильнее любого правила, и тема,
+        // которая хочет сделать панель стеклянной или матовой, до неё иначе
+        // просто не дотянется. Значения по умолчанию — прежние, они собраны
+        // на :root; заливка из кастомизации входит в --pnl-bg вторым слоем.
+        border: "1px solid var(--pnl-line)",
+        borderRadius: "var(--pnl-corner)",
+        background: "var(--pnl-bg)",
+        boxShadow: "var(--pnl-shadow)",
+        backdropFilter: "var(--pnl-blur)",
+        WebkitBackdropFilter: "var(--pnl-blur)",
         animationDelay: `${delay}ms`,
         ...style,
       }}
@@ -679,7 +688,7 @@ function Panel({ title, meta, children, style, g, delay = 0, bodyStyle }) {
       {title && (
         <header style={{
           display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10,
-          padding: "9px 13px 8px", borderBottom: `1px solid ${LINE}`,
+          padding: "9px 13px 8px", borderBottom: "1px solid var(--pnl-head-line)",
         }}>
           <Label g={g}>{title}</Label>
           {meta && (
@@ -696,8 +705,14 @@ function Panel({ title, meta, children, style, g, delay = 0, bodyStyle }) {
 
 function Stat({ label, value, unit, g, color, action, big }) {
   return (
-    <div style={{
-      border: `1px solid ${LINE}`, background: "rgba(255,255,255,0.014)",
+    // Плитка сводки — тот же материал, что и панель, поэтому и переменные те
+    // же. Без этого «Порыв», «Средняя» и «Аптайм» остались бы прямоугольными
+    // и непрозрачными посреди стеклянных панелей.
+    <div className="stat" style={{
+      border: "1px solid var(--pnl-line)", borderRadius: "var(--pnl-corner)",
+      background: "var(--stat-bg, rgba(255,255,255,0.014))",
+      boxShadow: "var(--stat-shadow, none)",
+      backdropFilter: "var(--pnl-blur)", WebkitBackdropFilter: "var(--pnl-blur)",
       padding: "10px 12px 11px", position: "relative", flex: 1, minWidth: 88,
     }}>
       <Label g={g} size={8}>{label}</Label>
@@ -1431,12 +1446,10 @@ function AddStationModal({ g, onSave, onClose, onLocate, locating, coords, testR
         ПОДКЛЮЧИТЬ СТАНЦИЮ
       </div>
 
-      <Choice
+      <Switch
         label="Как станция подключена" g={g} value={via}
-        options={[
-          { value: "ap", label: "своя сеть WiFi" },
-          { value: "lan", label: "домашняя сеть" },
-        ]}
+        off={{ value: "ap", label: "своя сеть WiFi" }}
+        on={{ value: "lan", label: "домашняя сеть" }}
         onChange={(v) => { setVia(v); setHost(v === "ap" ? DEFAULT_HOST : ""); }}
         hint={via === "ap"
           ? "Станция раздаёт собственную сеть WindStation и держит её всегда, даже когда заходит в домашнюю. Пароль задан в secrets.h при сборке прошивки — здесь его нет намеренно: этот дашборд выкладывается публично, и пароль от точки в нём стал бы паролем для всех. Адрес внутри сети станции — MyWindProbeBETA.org."
@@ -1505,13 +1518,18 @@ function LEDPanel({ leds, autoMode, onToggle, onAutoToggle, g, delay }) {
   return (
     <Panel title="Светодиоды" g={g} delay={delay}
            meta={
-             <button onClick={onAutoToggle} style={{
-               background: autoMode ? "rgba(231,238,246,0.10)" : "transparent",
+             /* Переключателем работает вся кнопка целиком, поэтому внутри
+                стоит не тумблер, а его вид: вложенная кнопка была бы
+                недопустимой разметкой, а клик всё равно ловил бы внешнюю. */
+             <button onClick={onAutoToggle} role="switch" aria-checked={autoMode} style={{
+               display: "inline-flex", alignItems: "center", gap: 7,
+               background: "transparent",
                border: `1px solid ${autoMode ? "rgba(231,238,246,0.7)" : LINE}`,
                color: autoMode ? TEXT : DIM, textShadow: autoMode ? glow(g, 0.7) : "none",
                fontFamily: SANS, fontSize: 9, letterSpacing: 1.5,
-               padding: "3px 10px", cursor: "pointer",
+               padding: "3px 8px 3px 5px", cursor: "pointer",
              }}>
+               <SwitchGlyph on={autoMode} />
                {autoMode ? "АВТО" : "РУЧНОЙ"}
              </button>
            }>
@@ -2273,7 +2291,7 @@ export default function WindDashboard() {
   const shownRows = layoutRows.filter((r) => layoutMode || !r.hidden);
   return (
     <div
-      className={`app mo-${motion} dens-${settings.density}${settings.borders ? "" : " noborders"}`}
+      className={`app mo-${motion} dens-${settings.density} th-${settings.theme}${settings.borders ? "" : " noborders"}`}
       style={{
         // Прозрачно, когда фон рисуется слоями на body: инлайновая заливка
         // сильнее любого правила и перекрыла бы их целиком.
@@ -2764,21 +2782,22 @@ export default function WindDashboard() {
                   onChange={(v) => setS({ ground: v })}
                   hint="Светлого варианта нет намеренно: светящийся текст по белому фону не работает, а свечение здесь несущая часть оформления."
                 />
-                <Choice
-                  label="Плотность" g={g} value={settings.density}
-                  options={[{ value: "normal", label: "обычная" }, { value: "compact", label: "плотная" }]}
+                <Switch
+                  label="Плотность" g={g} value={settings.density} accent={accent}
+                  off={{ value: "normal", label: "обычная" }}
+                  on={{ value: "compact", label: "плотная" }}
                   onChange={(v) => setS({ density: v })}
                   hint="Плотная убирает воздух внутри панелей — на телефоне влезает заметно больше."
                 />
-                <Choice
-                  label="Рамки панелей" g={g} value={settings.borders}
-                  options={[{ value: true, label: "есть" }, { value: false, label: "нет" }]}
+                <Switch
+                  label="Рамки панелей" g={g} value={settings.borders} accent={accent}
+                  off={{ value: false, label: "нет" }} on={{ value: true, label: "есть" }}
                   onChange={(v) => setS({ borders: v })}
                   hint="Без рамок блоки разделяются только воздухом. Чище, но на широком экране труднее понять, где кончается один прибор и начинается другой."
                 />
-                <Choice
-                  label="Окно камеры" g={g} value={settings.showCamera}
-                  options={[{ value: true, label: "показывать" }, { value: false, label: "скрыть" }]}
+                <Switch
+                  label="Окно камеры" g={g} value={settings.showCamera} accent={accent}
+                  off={{ value: false, label: "скрыть" }} on={{ value: true, label: "показывать" }}
                   onChange={(v) => setS({ showCamera: v })}
                 />
                 <Choice
@@ -2798,9 +2817,9 @@ export default function WindDashboard() {
                   onChange={(v) => setS({ motion: v })}
                   hint="Плавность стрелки и цифр, вращение развёртки, переходы между вкладками. Системная настройка «уменьшить движение» перекрывает этот выбор и всё отключает."
                 />
-                <Choice
-                  label="Компас" g={g} value={settings.showCompass}
-                  options={[{ value: true, label: "показывать" }, { value: false, label: "скрыть" }]}
+                <Switch
+                  label="Компас" g={g} value={settings.showCompass} accent={accent}
+                  off={{ value: false, label: "скрыть" }} on={{ value: true, label: "показывать" }}
                   onChange={(v) => setS({ showCompass: v })}
                   hint={hasDir ? "Датчик направления подключён." : "Датчик направления не подключён — компас скрыт в любом случае."}
                 />
@@ -2839,15 +2858,15 @@ export default function WindDashboard() {
                   onChange={(v) => setS({ histMinutes: v })}
                   hint="Задаёт и графики, и окно конвективного анализа. Буфер истории всегда держит 10 минут независимо от этого выбора — иначе шквал было бы не на чем считать."
                 />
-                <Choice
-                  label="Сетка на карте" g={g} value={settings.showGrid}
-                  options={[{ value: true, label: "показывать" }, { value: false, label: "скрыть" }]}
+                <Switch
+                  label="Сетка на карте" g={g} value={settings.showGrid} accent={accent}
+                  off={{ value: false, label: "скрыть" }} on={{ value: true, label: "показывать" }}
                   onChange={(v) => setS({ showGrid: v })}
                   hint="Меридианы и параллели через 30°. Без них карта чище, с ними видно, где широта."
                 />
-                <Choice
-                  label="Поток данных" g={g} value={settings.useSse}
-                  options={[{ value: true, label: "SSE" }, { value: false, label: "только опрос" }]}
+                <Switch
+                  label="Поток данных" g={g} value={settings.useSse} accent={accent}
+                  off={{ value: false, label: "только опрос" }} on={{ value: true, label: "SSE" }}
                   onChange={(v) => setS({ useSse: v })}
                   hint="Поток /api/stream даёт 20 кадров в секунду одним соединением. «Только опрос» полезен, если сеть рвёт длинные соединения: данные идут реже, но надёжнее."
                 />
@@ -2868,9 +2887,9 @@ export default function WindDashboard() {
                   onChange={(v) => setS({ mapQuality: v })}
                   hint="Размер картинки отражаемости, которую отдаёт NOAA. «Эконом» заметно быстрее на мобильной сети, «максимум» имеет смысл только при сильном приближении."
                 />
-                <Choice
-                  label="Оповещать о шквале" g={g} value={settings.notifySquall}
-                  options={[{ value: false, label: "нет" }, { value: true, label: "да" }]}
+                <Switch
+                  label="Оповещать о шквале" g={g} value={settings.notifySquall} accent={accent}
+                  off={{ value: false, label: "нет" }} on={{ value: true, label: "да" }}
                   onChange={(v) => setS({ notifySquall: v })}
                   hint="Уведомление, когда рост скорости отвечает критерию ВМО — 8 м/с при пике от 11 м/с. Нужно разрешение выше; по обычному HTTP браузер уведомления не даёт."
                 />
@@ -2885,9 +2904,9 @@ export default function WindDashboard() {
                   onChange={(v) => setS({ alarmMs: v })}
                   hint="При каком ветре под часами загорается «ОПАСНО». По умолчанию 17.2 м/с — начало 8 баллов по Бофорту, международная граница штормового предупреждения; примерно там же лежит High Wind Warning службы погоды США. Уровень «внимание» всегда на 13.9 м/с. Считается по большему из скорости и порыва: ломает вещи порыв, а не среднее."
                 />
-                <Choice
-                  label="Не гасить экран" g={g} value={settings.keepAwake}
-                  options={[{ value: false, label: "нет" }, { value: true, label: "да" }]}
+                <Switch
+                  label="Не гасить экран" g={g} value={settings.keepAwake} accent={accent}
+                  off={{ value: false, label: "нет" }} on={{ value: true, label: "да" }}
                   onChange={(v) => setS({ keepAwake: v })}
                   hint="Держит экран включённым, пока дашборд открыт — для планшета на стене. Тоже требует защищённого соединения, и на самой станции работать не будет."
                 />
@@ -2922,6 +2941,14 @@ export default function WindDashboard() {
           но кликов не ловит. */}
       {overloaded && <StormParticles intensity={overFrac} motion={motion} />}
 
+      {/* Плёнка темы — то, что лежит поверх всего экрана, а не внутри панели:
+          у электронно-лучевой трубки строки развёртки привязаны к экрану, а не
+          к изображению, и при прокрутке обязаны стоять на месте. Кликов не
+          ловит, поэтому поверх неё всё работает как обычно. */}
+      {THEMES[settings.theme]?.veil && (
+        <div className={`veil veil-${settings.theme}`}><i /></div>
+      )}
+
       {showWelcome && (
         <WelcomeModal
           g={g} busy={geoBusy} message={welcomeMsg} stationCount={stations.length}
@@ -2939,7 +2966,7 @@ export default function WindDashboard() {
         />
       )}
 
-      <style>{`
+      <style>{`${SWITCH_CSS}${themeCss(settings.theme)}
         /* Гарнитура — через переменные: оформление здесь инлайновое, и таскать
            выбранный шрифт пропсами через полсотни компонентов было бы адом. */
         :root { --ui-sans: ${FONT_SETS[settings.font]?.sans || FONT_SETS.grotesk.sans};
@@ -2947,6 +2974,18 @@ export default function WindDashboard() {
                 --ui-bg: ${(GROUNDS[settings.ground] || GROUNDS.black).bg};
                 --ui-corner: ${CORNERS[settings.corners] ?? 0}px;
                 --ui-fill: ${(settings.panelFill || 0) / 100}; }
+        /* Вид панели по умолчанию — «приборная» тема. Всё, что тема меняет,
+           она меняет здесь: подставляет свои значения этих же переменных. */
+        :root { --pnl-line: rgba(160,180,200,0.15);
+                --pnl-head-line: rgba(160,180,200,0.15);
+                --pnl-bg: linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.008)),
+                          rgba(255,255,255,var(--ui-fill, 0));
+                --pnl-shadow: none;
+                --pnl-blur: none;
+                /* Скругление панели отдельной переменной от --ui-corner:
+                   у стекла фаска на прямом углу читается как скол, и теме
+                   нужно уметь прибавить своё, не отменяя выбор человека. */
+                --pnl-corner: var(--ui-corner, 0px); }
         /* Две кривые на весь дашборд. Первая тормозит к концу, вторая
            переваливает за цель и возвращается — от неё движение и кажется
            живым. Держим их переменными, чтобы «сделать медленнее» не
@@ -3116,8 +3155,11 @@ export default function WindDashboard() {
            их пропсами в каждый компонент. */
         .dens-compact .pnl > div { padding: 8px 9px }
         .dens-compact .pnl > header { padding: 6px 9px 5px }
-        .noborders .pnl { border-color: transparent; background: none }
-        .noborders .pnl > header { border-bottom-color: rgba(160,180,200,0.12) }
+        /* Раньше это правило пыталось перебить инлайновый border панели и
+           проигрывало — настройка молча ничего не делала. Теперь и рамка, и
+           фон живут в переменных, и снять их достаточно один раз. */
+        .noborders { --pnl-line: transparent; --pnl-bg: none; --pnl-shadow: none;
+                     --pnl-head-line: rgba(160,180,200,0.12) }
 
         /* Ползунки демо-режима. Родной вид input[type=range] выбивается из
            приборной панели сильнее всего остального, поэтому он собран заново:

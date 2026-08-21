@@ -160,3 +160,19 @@ export function wedgePath(cx, cy, r0, r1, a0, a1) {
   return `M ${p0.x} ${p0.y} A ${r1} ${r1} 0 ${large} 1 ${p1.x} ${p1.y} ` +
          `L ${p2.x} ${p2.y} A ${r0} ${r0} 0 ${large} 0 ${p3.x} ${p3.y} Z`;
 }
+
+// Зерно. Единственное, что нельзя изобразить градиентом: матовость — это
+// микрорельеф, рассеивающий свет во все стороны, то есть настоящий шум.
+// feTurbulence его и даёт, а SVG уходит в data-URI и остаётся внутри страницы:
+// станция раздаёт дашборд в сети без интернета, внешних файлов там не будет.
+//
+// Живёт здесь, а не в кастомизации, с тех пор как потребителей стало двое —
+// материалы подложки и тема «матовая».
+export function noise(freq, oct, op) {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140">` +
+    `<filter id="n"><feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="${oct}" stitchTiles="stitch"/>` +
+    `<feColorMatrix type="saturate" values="0"/></filter>` +
+    `<rect width="140" height="140" filter="url(#n)" opacity="${op}"/></svg>`;
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+}

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  LINE, LINE_HI, TEXT, DIM, FAINT, SANS, MONO, NUM, glow,
+  LINE, LINE_HI, TEXT, DIM, FAINT, SANS, MONO, NUM, glow, noise,
 } from "./ui-kit.js";
 import { WIDTHS } from "./wind-widths.js";
+import { THEMES } from "./wind-themes.js";
 
 // ============================================================
 // КАСТОМИЗАЦИЯ
@@ -20,16 +21,8 @@ import { WIDTHS } from "./wind-widths.js";
 // ------------------------------------------------------------
 // Материал подложки
 // ------------------------------------------------------------
-// Зерно — единственное, что нельзя изобразить градиентом: нужен настоящий шум.
-// feTurbulence его и даёт, а SVG уходит в data-URI и остаётся внутри страницы.
-function noise(freq, oct, op) {
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140">` +
-    `<filter id="n"><feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="${oct}" stitchTiles="stitch"/>` +
-    `<feColorMatrix type="saturate" values="0"/></filter>` +
-    `<rect width="140" height="140" filter="url(#n)" opacity="${op}"/></svg>`;
-  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
-}
+// noise() переехал в ui-kit: у него появился второй потребитель — тема
+// «матовая», которой тот же микрорельеф нужен на самих панелях.
 
 export const TEXTURES = {
   smooth: { label: "гладкий", layers: [] },
@@ -441,6 +434,21 @@ export default function Customize({ settings, setS, g, accent, onEditLayout }) {
         Оформление живёт в этом браузере и никуда не уходит. Ничего не грузится из
         интернета: текстуры и сцены собраны из градиентов, поэтому работают и на копии,
         которую отдаёт сама плата.
+      </div>
+
+      {/* Тема идёт первой: она разом переставляет материал, скругление и
+          свечение, и выбирать их по одному имеет смысл уже после неё. Своя
+          картинка при этом не трогается — тема меняет сцену, только если
+          сцены нет вовсе. */}
+      <Head g={g}>Тема</Head>
+      <Tiles table={THEMES} value={settings.theme} g={g} accent={accent}
+             onPick={(v) => setS({ theme: v, ...(THEMES[v].apply?.(settings) || {}) })} />
+      <div style={{ color: DIM, fontSize: 11, lineHeight: 1.6, fontFamily: SANS, margin: "6px 0 4px" }}>
+        {THEMES[settings.theme]?.hint}
+      </div>
+      <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.55, fontFamily: SANS, margin: "0 0 12px" }}>
+        Тема выставляет материал подложки, скругление, заливку и свечение — всё это
+        ниже можно поменять под себя, тема их только предлагает.
       </div>
 
       {/* Раскладка правится не здесь, а на самой странице: переставлять

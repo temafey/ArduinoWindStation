@@ -1,4 +1,5 @@
 import { LINE, LINE_HI, TEXT, DIM, FAINT, MONO, SANS, NUM, glow, glowColor } from "./ui-kit.js";
+import { SwitchGlyph } from "./wind-switch.jsx";
 
 // ============================================================
 // РУЧНОЕ УПРАВЛЕНИЕ ДЕМО-РЕЖИМОМ
@@ -69,17 +70,23 @@ export default function DemoControls({ demo, setDemo, g, accent, alarmLevel }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        {/* Переключателем работает вся кнопка, поэтому внутри стоит не тумблер,
+            а его вид: вложенная кнопка была бы недопустимой разметкой, а клик
+            всё равно ловила бы внешняя. */}
         <button
           onClick={() => setDemo((d) => ({ ...d, manual: !d.manual }))}
+          role="switch" aria-checked={demo.manual}
           style={{
-            background: demo.manual ? "rgba(231,238,246,0.10)" : "transparent",
+            display: "inline-flex", alignItems: "center", gap: 8,
+            background: "transparent",
             border: `1px solid ${demo.manual ? LINE_HI : LINE}`,
             color: demo.manual ? TEXT : DIM,
             textShadow: demo.manual ? glow(g, 0.6) : "none",
             fontFamily: SANS, fontSize: 10, letterSpacing: 1.4, fontWeight: 600,
-            padding: "6px 12px", cursor: "pointer", textTransform: "uppercase",
+            padding: "5px 12px 5px 6px", cursor: "pointer", textTransform: "uppercase",
           }}
         >
+          <SwitchGlyph on={demo.manual} accent={accent} />
           {demo.manual ? "Ручное" : "Автомодель"}
         </button>
         <span style={{ color: FAINT, fontSize: 10, fontFamily: SANS, lineHeight: 1.5 }}>
