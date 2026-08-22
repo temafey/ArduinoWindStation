@@ -301,7 +301,13 @@ const DEFAULT_SETTINGS = {
   histMinutes: 2,        // окно графика и конвективного анализа
   pollMs: 1000,          // период опроса /api/data, когда потока нет
   useSse: true,          // держать поток /api/stream
-  mapQuality: "normal",  // eco | normal | max — детализация растра отражаемости
+  mapQuality: "normal",  // eco | normal | max — ступень тайлов отражаемости
+  // Пиксель по умолчанию у обоих слоёв. Радар и модель считают по клеткам, и
+  // клетка — это и есть их настоящее разрешение; сглаживание рисует поверх него
+  // подробность, которой в данных нет. Кому важнее вид, а не честность, —
+  // тумблеры рядом.
+  pixelRadar: true,      // отражаемость: пиксель как есть или сглаженная
+  pixelCells: true,      // суперклетки: клетки сетки или мягкая заливка
   notifySquall: false,   // уведомление при выполнении критерия шквала
   keepAwake: false,      // не давать экрану гаснуть
   alarmMs: 17.2,         // порог тревоги по ветру, м/с
@@ -813,11 +819,13 @@ const SETTINGS_VIEWS = [
   { id: "custom", label: "Кастомизация" },
 ];
 
+// Четыре прибора, считающие один и тот же ветер, разъехались по четырём
+// вкладкам — и переключаться между ними приходилось, чтобы сложить в голове
+// одну картину. Теперь они лежат вместе: конвективный профиль, круговой обзор,
+// роза и Бофорт — это разные срезы одного измерения, а не разные приборы.
+// Отдельными остались карта мира и эфир: там не наш ветер, а чужие данные.
 const RADAR_VIEWS = [
-  { id: "ppi",  label: "Обзор" },
   { id: "conv", label: "Профиль" },
-  { id: "rose", label: "Роза" },
-  { id: "bft",  label: "Бофорт" },
   { id: "map",  label: "Карта мира" },
   { id: "live", label: "Эфир" },
 ];
@@ -1596,7 +1604,13 @@ export default function WindDashboard() {
   // страница перестаёт быть приборной панелью и становится свалкой. Выбор
   // переживает перезагрузку по той же причине, что и основная вкладка.
   const [radarView, setRadarViewState] = useState(() => {
-    try { return localStorage.getItem("wind_ui_radar") || "ppi"; } catch { return "ppi"; }
+    try {
+      const saved = localStorage.getItem("wind_ui_radar");
+      // Старые вкладки переехали внутрь «Профиля». Без этой строки у всех,
+      // кто раньше сидел на «Розе», вкладка бы просто не нашлась и экран
+      // остался бы пустым.
+      return RADAR_VIEWS.some((v) => v.id === saved) ? saved : "conv";
+    } catch { return "conv"; }
   });
   const setRadarView = (id) => {
     setRadarViewState(id);
@@ -2515,7 +2529,7 @@ export default function WindDashboard() {
               ))}
             </div>
 
-            {radarView === "ppi" && (
+            {radarView === "conv" && (
               <Panel title="Круговой обзор" g={g} delay={0}
                      meta={`АЗИМУТ · ДАЛЬНОСТЬ = СКОРОСТЬ, ${unit.short}`}>
                 {hasDir ? (
@@ -2540,7 +2554,7 @@ export default function WindDashboard() {
             )}
 
             {radarView === "conv" && (
-              <Panel title="Конвективный профиль" g={g} delay={0}
+              <Panel title="Конвективный профиль" g={g} delay={70}
                      meta={analysis ? `ОКНО ${settings.histMinutes} МИН` : "НАКОПЛЕНИЕ"}>
                 <ConvectiveScope analysis={analysis} accent={accent} g={g} motion={motion} />
                 <div style={{
@@ -2566,8 +2580,8 @@ export default function WindDashboard() {
               </Panel>
             )}
 
-            {radarView === "rose" && (
-              <Panel title="Роза ветров" g={g} delay={0}
+            {radarView === "conv" && (
+              <Panel title="Роза ветров" g={g} delay={140}
                      meta={`ЗА СЕАНС · ${rose.total + rose.calm} ОТСЧЁТОВ`}>
                 {hasDir ? (
                   <>
@@ -2598,8 +2612,8 @@ export default function WindDashboard() {
               </Panel>
             )}
 
-            {radarView === "bft" && (
-              <Panel title="Состояние по шкале Бофорта" g={g} delay={0} meta="ПРИЗНАКИ ВМО">
+            {radarView === "conv" && (
+              <Panel title="Состояние по шкале Бофорта" g={g} delay={210} meta="ПРИЗНАКИ ВМО">
                 <BeaufortStrip speed={data.speed} g={g} accent={accent} motion={motion} />
                 <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 12 }}>
                   Единственный прибор здесь, который проверяется глазами: если вокруг ломает ветки,
@@ -2612,7 +2626,9 @@ export default function WindDashboard() {
               <Panel title="Карта мира" g={g} delay={0}
                      meta={ONLINE ? "ЖИВЫЕ СЛОИ · NWS / NOAA" : "БЕЗ СЕТИ · ТОЛЬКО АРХИВ"}>
                 <WorldMap g={g} motion={motion} online={ONLINE} site={site}
-                          showGrid={settings.showGrid} quality={settings.mapQuality} />
+                          showGrid={settings.showGrid} quality={settings.mapQuality}
+                          pixelRadar={settings.pixelRadar !== false}
+                          pixelCells={settings.pixelCells !== false} />
               </Panel>
             )}
 
@@ -2834,6 +2850,18 @@ export default function WindDashboard() {
                   onChange={(v) => setS({ showCompass: v })}
                   hint={hasDir ? "Датчик направления подключён." : "Датчик направления не подключён — компас скрыт в любом случае."}
                 />
+                <Switch
+                  label="Отражаемость" g={g} value={settings.pixelRadar !== false} accent={accent}
+                  off={{ value: false, label: "обычная" }} on={{ value: true, label: "пиксельная" }}
+                  onChange={(v) => setS({ pixelRadar: v })}
+                  hint="Пиксельная показывает радарную мозаику клетка в клетку — как её измерили. Обычная просит у службы сглаженный кадр и растягивает его без ступенек: смотрится мягче, но граница ливня оказывается там, где её дорисовала интерполяция."
+                />
+                <Switch
+                  label="Суперклетки" g={g} value={settings.pixelCells !== false} accent={accent}
+                  off={{ value: false, label: "обычные" }} on={{ value: true, label: "пиксельные" }}
+                  onChange={(v) => setS({ pixelCells: v })}
+                  hint="Экран считается по узлам модели, и пиксельный режим рисует ровно эти узлы. Обычный размывает ту же сетку в плавное пятно — красивее, но создаёт впечатление, будто расчёт подробнее, чем он есть."
+                />
                 <Choice
                   label="Источник данных" g={g} value={source}
                   options={[
@@ -2890,13 +2918,13 @@ export default function WindDashboard() {
                   hint="Как часто дашборд спрашивает /api/data, когда потока нет. Чаще раза в секунду нельзя: сервер на плате закрывает соединение после каждого ответа, а lwIP держит его в TIME_WAIT ещё минуту, и свободные слоты кончаются."
                 />
                 <Choice
-                  label="Детализация растра" g={g} value={settings.mapQuality}
+                  label="Детализация отражаемости" g={g} value={settings.mapQuality}
                   options={[
                     { value: "eco", label: "эконом" }, { value: "normal", label: "обычная" },
                     { value: "max", label: "максимум" },
                   ]}
                   onChange={(v) => setS({ mapQuality: v })}
-                  hint="Размер картинки отражаемости, которую отдаёт NOAA. «Эконом» заметно быстрее на мобильной сети, «максимум» имеет смысл только при сильном приближении."
+                  hint="Ступень тайлов мировой мозаики: «обычная» берёт ту, где пиксель радара совпадает с пикселем экрана. «Эконом» на ступень грубее и вчетверо меньше запросов — заметно на мобильной сети; «максимум» на ступень мельче."
                 />
                 <Switch
                   label="Оповещать о шквале" g={g} value={settings.notifySquall} accent={accent}

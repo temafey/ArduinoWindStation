@@ -135,11 +135,116 @@ const OUTLOOK_RU = {
   1: "гроз не ожидается", 2: "обычные грозы", 3: "минимальный риск",
   4: "небольшой риск", 5: "повышенный риск", 6: "умеренный риск", 7: "высокий риск",
 };
-const WMS_BASE = "https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows";
-// Слой отражаемости покрывает только материковые США. Прямоугольник фиксирован
-// намеренно: запрашивать растр по текущему кадру экрана значит на мировом
-// масштабе тянуть глобус, из которого почти всё придёт прозрачным.
-const CONUS = { west: -127.5, east: -64.0, south: 21.0, north: 51.5 };
+// ---- Отражаемость на весь мир ----
+// Было: WMS-растр NOAA на прямоугольник материковых США. Продукт отличный, но
+// за границей США под ним пусто, а карта здесь мировая — и «отражаемость»,
+// которая кончается на канадской границе, выглядит поломкой, а не ограничением
+// источника.
+//
+// Стало: мозаика RainViewer. Это сводка национальных радарных сетей —
+// американской NEXRAD, европейской OPERA, японской, австралийской, бразильской
+// и далее, — сшитая в один тайловый слой Меркатора. Ключа не просит, отдаёт
+// заголовок Access-Control-Allow-Origin: *, тайлы обычные PNG 256/512.
+// Проверено живьём: индекс отвечает 200, тайл z=0 весит 8 КБ и содержит весь
+// мир сразу.
+//
+// Индекс со списком кадров лежит по постоянному адресу; путь внутри него
+// меняется каждые десять минут, поэтому кадр берётся оттуда, а не собирается
+// из времени руками.
+const RV_INDEX = "https://api.rainviewer.com/public/weather-maps.json";
+// Схема 6 — NEXRAD Level III: та самая шкала, по которой отражаемость читают
+// в США, и единственная здесь, которая на тёмной карте не превращается в кашу.
+const RV_COLOR = 6;
+// Хвост адреса тайла: сглаживание и показ снега. Ноль в первом поле — сырые
+// пиксели радарной сетки, единица — интерполяция. Это и есть настройка
+// «пиксельная / обычная»: она не рисуется поверх, а запрашивается у сервера,
+// поэтому «пиксельная» — это настоящие ячейки радара, а не эффект.
+const rvTail = (pixel) => `${pixel ? 0 : 1}_1.png`;
+
+// ---- Мировой экран суперклеток ----
+// Продукта «вот суперклетка» на весь мир не существует — об этом ниже, у
+// SPC_OUTLOOK_URL. Но существуют две величины, из которых суперклетку и
+// предсказывают: доступная потенциальная энергия неустойчивости (CAPE) и сдвиг
+// ветра по высоте. Вихрь суперклетки рождается ровно из их сочетания: энергия
+// даёт восходящий поток, сдвиг закручивает его вокруг горизонтальной оси и
+// ставит на попа. Одной энергии мало — будет обычная гроза, живущая двадцать
+// минут; одного сдвига мало — не будет и грозы.
+//
+// Open-Meteo отдаёт обе величины по всему миру, без ключа, с CORS и в одном
+// запросе на список точек. Отсюда и слой: сетка по видимому куску карты, в
+// каждой ячейке — CAPE и сдвиг между 10 м и 500 гПа, и из них простой
+// показатель. Это **не** продукт SPC и им не притворяется: у настоящего SCP в
+// формуле есть ещё и спиральность приземного слоя, которой в открытых данных
+// нет. Здесь честный экран «где сегодня сочетание, из которого получаются
+// суперклетки», а не прогноз службы.
+const OM_URL = "https://api.open-meteo.com/v1/forecast";
+// 24 × 15 — предел, а не вкус: все точки уходят одним запросом в строке адреса,
+// и на 32 × 20 сервер отвечает 414 Request-URI Too Large. Проверено живьём.
+const CELL_COLS = 24, CELL_ROWS = 15;
+// Пороги подобраны по классическим границам: сдвиг 20 м/с в слое 0–6 км —
+// граница, с которой грозы становятся организованными, CAPE 1500 Дж/кг —
+// умеренная неустойчивость. Единица показателя = обе величины на своих
+// границах одновременно, то есть ровно та обстановка, в которой суперклетки и
+// живут.
+//
+// Нижний порог был 0.35 — и летним днём над США загоралась вся страна:
+// «сочетание есть» оказывалось верно почти везде и не значило ничего. Слой,
+// который горит всегда, — не слой, а фон. Теперь шкала начинается там, где
+// обстановка уже заметно организованная, и карта под ней остаётся видна.
+const CELL_RAMP = [
+  { at: 0.6, color: "#a3e635", label: "складывается" },
+  { at: 1.0, color: "#facc15", label: "суперклеточная" },
+  { at: 2.0, color: "#f97316", label: "сильная" },
+  { at: 3.5, color: "#ef4444", label: "исключительная" },
+];
+function cellColor(v) {
+  let c = null;
+  for (const s of CELL_RAMP) if (v >= s.at) c = s.color;
+  return c;
+}
+
+// ---- Движение шторма ----
+// NWS кладёт в предупреждение сегмент TML — время, направление, скорость и
+// точку: «...storm...271DEG...19KT...34.68,-81.29». Направление в нём — то,
+// ОТКУДА идёт шторм: метеорологическое соглашение, то же самое, по которому
+// «северный ветер» дует с севера. Курс движения поэтому DEG + 180, и перепутать
+// эти две вещи значит нарисовать конус ровно в противоположную сторону —
+// ошибка, которая выглядит как рабочая функция.
+function parseMotion(props) {
+  const raw = ((props && props.parameters && props.parameters.eventMotionDescription) || [])[0];
+  if (!raw) return null;
+  const deg = /(\d{1,3})DEG/.exec(raw);
+  const kt = /(\d{1,3})KT/.exec(raw);
+  if (!deg || !kt) return null;
+  // Точек бывает несколько — у линии шквалов их столько, сколько ячеек.
+  // Берём первую: конус рисуется от неё, а не от центра всей зоны.
+  const pts = [];
+  const re = /(-?\d{1,2}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)/g;
+  let m;
+  while ((m = re.exec(raw))) {
+    const lat = +m[1], lon = +m[2];
+    if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) pts.push({ lat, lon });
+  }
+  return {
+    from: +deg[1],
+    heading: (+deg[1] + 180) % 360,
+    kt: +kt[1],
+    kmh: +kt[1] * 1.852,
+    at: pts.length ? pts[0] : null,
+  };
+}
+
+// Точка на сфере в заданном направлении и на заданном расстоянии. Плоское
+// приближение здесь не годится: на широте Оклахомы градус долготы вдвое короче
+// градуса широты, и конус уехал бы вбок.
+function forward(lat, lon, headingDeg, km) {
+  const R = 6371, d = km / R, b = (headingDeg * Math.PI) / 180;
+  const p1 = (lat * Math.PI) / 180, l1 = (lon * Math.PI) / 180;
+  const p2 = Math.asin(Math.sin(p1) * Math.cos(d) + Math.cos(p1) * Math.sin(d) * Math.cos(b));
+  const l2 = l1 + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(p1),
+                             Math.cos(d) - Math.sin(p1) * Math.sin(p2));
+  return [(((l2 * 180) / Math.PI + 540) % 360) - 180, (p2 * 180) / Math.PI];
+}
 
 // Уровень угрозы живого предупреждения. Это не EF и им не притворяется:
 // шкала собрана из полей, которые NWS реально кладёт в предупреждение.
@@ -262,6 +367,94 @@ function LayerToggle({ on, onClick, color, label, count, g, busy }) {
 
 // Предупреждающий знак. Появляется с EF3 — там, где разрушаются капитальные
 // постройки; ниже он был бы декорацией и обесценивал бы сам себя.
+// Значок смерча. Крестик, который тут стоял, — это отметка «здесь что-то
+// было», и на карте, где рядом лежат зоны предупреждений и области прогноза,
+// он читается как мусор. Настоящий значок — воронка: широкая у облака, узкая у
+// земли, с вихрем обломков у подошвы. Размер задаётся в пикселях экрана и от
+// зума не зависит: значок, растущий вместе с картой, на мировом масштабе
+// превращается в пыль, а на подходе закрывает полштата.
+function TornadoGlyph({ x, y, s = 11, color, g, motion }) {
+  const f = s / 20;
+  return (
+    <g transform={`translate(${x} ${y}) scale(${f})`}
+       style={{ filter: dropGlow(color, g, 0.9) }}>
+      {/* Воронка. Кривые, а не прямые: у смерча стенка вогнутая, и прямой
+          треугольник читается как ёлка. */}
+      <path d="M-9.5 -18 C-10.4 -20.6 10.4 -20.6 9.5 -18
+               C6.4 -12.4 4.8 -6.2 2.1 0 L-2.1 0
+               C-4.8 -6.2 -6.4 -12.4 -9.5 -18 Z"
+            fill={color} fillOpacity="0.26" stroke={color}
+            strokeWidth="1.7" strokeLinejoin="round" />
+      {/* Пояса конденсации — то, по чему воронку и опознают на видео. */}
+      <path d="M-7.9 -14.2 H7.9 M-6.2 -9.6 H6.2 M-4.4 -5 H4.4"
+            stroke={color} strokeWidth="0.9" opacity="0.5" />
+      {/* Вихрь обломков у земли. Пульсация по ширине читается как вращение:
+          кольцо, которое видно с ребра, при повороте меняет ширину. */}
+      <g className={motion === "off" ? undefined : "torn-swirl"}>
+        <ellipse cx="0" cy="0.8" rx="8.6" ry="2.6" fill="none"
+                 stroke={color} strokeWidth="1.4" opacity="0.9" />
+        <ellipse cx="0" cy="2" rx="4.6" ry="1.4" fill="none"
+                 stroke={color} strokeWidth="1" opacity="0.5" />
+      </g>
+    </g>
+  );
+}
+
+// Конус движения. Не стрелка: стрелка обещает точку, а известно только
+// направление и скорость на момент последнего обзора радара. Прямоугольник,
+// расширяющийся к дальнему концу, говорит правду — чем дальше по времени, тем
+// шире разброс. Так это рисуют в профессиональных радарных программах, и
+// раскрытие там примерно то же: около двадцати градусов на полчаса вперёд.
+function MotionCone({ x0, y0, x1, y1, color, minutes = 30, g }) {
+  const dx = x1 - x0, dy = y1 - y0;
+  const len = Math.hypot(dx, dy);
+  if (!(len > 1)) return null;
+  const ux = dx / len, uy = dy / len;
+  const nx = -uy, ny = ux;
+  const w0 = 2.4;                        // у смерча — ширина самой воронки
+  // Раскрытие ровно по углу, без нижнего порога. Порог тут был, чтобы короткий
+  // конус оставался заметным, — и на мелком масштабе делал из него веер шире
+  // собственной длины: фигуру, которая обещает разброс в сто с лишним градусов
+  // вместо сорока. Пусть лучше конус будет мелким: он мелкий потому, что
+  // полчаса хода на этом масштабе — и правда несколько пикселей.
+  const w1 = Math.max(w0 + 1.2, len * 0.36);   // ≈ 20° в каждую сторону
+  const pt = (d, w) => [x0 + ux * d + nx * w, y0 + uy * d + ny * w];
+  const poly = [pt(0, -w0), pt(0, w0), pt(len, w1), pt(len, -w1)]
+    .map((c) => c.map((n) => n.toFixed(1)).join(" ")).join(" L");
+  // Засечки времени: без них длина конуса ничего не значит. Подписей три только
+  // когда конус длинный — на коротком они налезали друг на друга и на название
+  // города, и вместо шкалы времени получалась клякса. На коротком остаётся
+  // только дальняя: она и есть ответ на вопрос «докуда за полчаса».
+  const ks = len > 74 ? [1 / 3, 2 / 3, 1] : [1];
+  const marks = ks.map((k) => {
+    const w = w0 + (w1 - w0) * k;
+    const [ax, ay] = pt(len * k, -w), [bx, by] = pt(len * k, w);
+    return { k, ax, ay, bx, by, min: Math.round(minutes * k) };
+  });
+  return (
+    <g style={{ pointerEvents: "none" }}>
+      <path d={`M${poly} Z`} fill={color} fillOpacity="0.13"
+            stroke={color} strokeWidth="1" strokeDasharray="4 3" strokeOpacity="0.75" />
+      {marks.map((m) => (
+        <g key={m.k}>
+          <line x1={m.ax} y1={m.ay} x2={m.bx} y2={m.by}
+                stroke={color} strokeWidth="0.8" opacity="0.55" />
+          {/* Подпись отодвинута наружу вдоль той же нормали, по которой стоит
+              засечка, — иначе на конусе, идущем вниз-влево, она ложилась бы
+              внутрь заливки и тонула в ней. */}
+          <text x={m.bx + nx * 4} y={m.by + ny * 4 + 2.6} fill={color} fontSize="7" fontFamily={SANS}
+                textAnchor={nx < -0.3 ? "end" : nx > 0.3 ? "start" : "middle"}
+                opacity="0.85" style={{ paintOrder: "stroke", stroke: "#020407", strokeWidth: 2 }}>
+            {m.min}′
+          </text>
+        </g>
+      ))}
+      <path d={`M${x0.toFixed(1)} ${y0.toFixed(1)} L${x1.toFixed(1)} ${y1.toFixed(1)}`}
+            stroke={color} strokeWidth="1.2" opacity="0.6" strokeDasharray="2 4" />
+    </g>
+  );
+}
+
 function WarnGlyph({ size = 12, color, blink, motion }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" style={{ display: "block", flexShrink: 0 }}
@@ -538,12 +731,17 @@ function Detail({ item, g, motion, onClose }) {
 // ============================================================
 // КАРТА
 // ============================================================
-export default function WorldMap({ g, motion, online, site, showGrid = true, quality = "normal" }) {
+export default function WorldMap({ g, motion, online, site, showGrid = true, quality = "normal",
+                                  pixelRadar = true, pixelCells = true }) {
   // Масштаб 1 — мир во всю ширину холста; по вертикали при этом видно примерно
   // от +62° до −62°, то есть обе смерчевые зоны и все тропические бассейны.
   const [view, setView] = useState({ z: 1, cx: 0.5, cy: 0.5 });
   const [layers, setLayers] = useState({
-    alerts: true, reports: true, archive: true, radar: false, cities: true, outlook: true,
+    // Архив выключен: это справочник прошлых событий, а не то, что происходит
+    // сейчас. Включённый по умолчанию, он рассыпал по карте полтора десятка
+    // красных точек ещё до того, как придут живые слои, и первое, что видел
+    // человек, — катастрофы двадцатилетней давности вперемешку с сегодняшними.
+    alerts: true, reports: true, archive: false, radar: true, cities: true, outlook: true,
   });
   // Своё место. Геолокацию браузер отдаёт только защищённым страницам, поэтому
   // на копии со станции (обычный HTTP) синей точки не будет — и это не поломка,
@@ -566,9 +764,11 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
   const [outlook, setOutlook] = useState(null);
   const [status, setStatus] = useState({ busy: false, error: null, at: null });
   const [selected, setSelected] = useState(null);
-  const [radarUrl, setRadarUrl] = useState(null);      // что запрошено
-  const [radarReady, setRadarReady] = useState(null);  // что уже догружено и можно показывать
-  const [radarNonce, setRadarNonce] = useState(0);
+  const [rv, setRv] = useState(null);                  // {host, path, time} — кадр отражаемости
+  const [rvBusy, setRvBusy] = useState(false);
+  const [cells, setCells] = useState(null);            // сетка «где сегодня суперклетки»
+  const [cellsBusy, setCellsBusy] = useState(false);
+  const [cellKey, setCellKey] = useState(null);        // устоявшийся кадр карты
 
   const svgRef = useRef(null);
   const drag = useRef(null);
@@ -650,67 +850,137 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
   }, [load, online]);
 
   // ---------- слой отражаемости ----------
-  // Переписан после жалобы на тормоза, и причина была архитектурная, а не в сети.
-  //
-  // Как было: растр запрашивался на текущий кадр экрана, то есть на **каждое**
-  // движение карты уходил новый GetMap на 900 px. Отсюда всё сразу: пауза после
-  // каждого перетаскивания, мигание на подмене картинки, и — самое обидное — на
-  // мировом масштабе запрашивался кадр во весь глобус, из которого 95% приходило
-  // прозрачными: слой покрывает только материковые США.
-  //
-  // Как стало: растр запрашивается **один раз на фиксированный прямоугольник
-  // CONUS** и лежит внутри той же группы, что и контуры суши. Значит панорама и
-  // зум двигают его трансформацией на GPU — ни одного запроса. Новый кадр нужен
-  // только когда сменилась ступень детализации или прошли четыре минуты.
-  // Картинка перед показом догружается в память и подменяется уже готовой, с
-  // перекрёстным затуханием — поэтому пустых мест больше не мелькает.
-  const conusRect = useMemo(() => {
-    const [x0, y0] = project(CONUS.west, CONUS.north);
-    const [x1, y1] = project(CONUS.east, CONUS.south);
-    return { x: x0 * VW, y: y0 * VW, w: (x1 - x0) * VW, h: (y1 - y0) * VW };
-  }, []);
-
-  // Ступени, а не плавный размер: иначе каждый щелчок колеса — новый запрос.
-  const radarStep = layers.radar
-    ? (view.z < 2 ? 0 : view.z < 6 ? 1 : view.z < 16 ? 2 : 3)
-    : -1;
-
+  // Тайлы, а не один растр на прямоугольник. Причина простая: слой стал
+  // мировым, а мир одним PNG в разумном разрешении не покрыть. Тайлы лежат
+  // внутри той же группы, что и контуры суши, поэтому панораму и зум двигает
+  // трансформация на GPU, и ни один запрос при этом не уходит — новые тайлы
+  // нужны только когда сменилась ступень или пришёл новый кадр.
   useEffect(() => {
-    if (!layers.radar || !online) { setRadarUrl(null); setRadarReady(null); return; }
-    const ladder = quality === "eco" ? [512, 768, 1024, 1280]
-      : quality === "max" ? [1024, 1792, 2304, 3072]
-      : [768, 1280, 1792, 2304];
-    const px = ladder[radarStep] || 1024;
-    const p = new URLSearchParams({
-      service: "WMS", version: "1.1.1", request: "GetMap",
-      layers: "conus_bref_qcd", srs: "EPSG:3857",
-      bbox: [toMercX(project(CONUS.west, 0)[0]), toMercY(project(0, CONUS.south)[1]),
-             toMercX(project(CONUS.east, 0)[0]), toMercY(project(0, CONUS.north)[1])].join(","),
-      width: String(px),
-      height: String(Math.max(1, Math.round((px * conusRect.h) / conusRect.w))),
-      format: "image/png", transparent: "true",
-      stamp: String(radarNonce),
-    });
-    const url = `${WMS_BASE}?${p}`;
-
-    // Догружаем в память и только потом показываем: <image> с меняющимся href
-    // рисует пустоту всё время загрузки, и именно это выглядело как «плохо работает».
+    if (!layers.radar || !online) return undefined;
     let alive = true;
-    setRadarUrl(url);
-    const img = new Image();
-    img.onload = () => { if (alive) setRadarReady(url); };
-    img.onerror = () => { if (alive) setRadarReady(null); };
-    img.src = url;
-    return () => { alive = false; img.onload = img.onerror = null; };
-  }, [layers.radar, online, radarStep, radarNonce, conusRect, quality]);
+    const grab = async () => {
+      setRvBusy(true);
+      try {
+        const j = await (await fetch(RV_INDEX, { cache: "no-store" })).json();
+        const past = (j.radar && j.radar.past) || [];
+        const last = past[past.length - 1];
+        if (alive && last) setRv({ host: j.host, path: last.path, time: last.time * 1000 });
+      } catch { /* нет сети — слой просто останется пустым, это видно и так */ }
+      if (alive) setRvBusy(false);
+    };
+    grab();
+    // Мозаика пересобирается раз в десять минут — чаще спрашивать нечего.
+    const id = setInterval(grab, 300000);
+    return () => { alive = false; clearInterval(id); };
+  }, [layers.radar, online]);
+
+  // Ступень тайлов. Ступени, а не непрерывный размер: иначе каждый щелчок
+  // колеса — новая пачка запросов. Один тайл 512 px на VW/2^z единиц карты,
+  // значит при view.z ≈ 2^z / 2 пиксель тайла попадает в пиксель экрана.
+  const tileZ = useMemo(() => {
+    const bump = quality === "eco" ? -1 : quality === "max" ? 1 : 0;
+    const raw = Math.round(Math.log2(Math.max(0.25, view.z * (VW / 512)))) + bump;
+    return Math.max(0, Math.min(7, raw));
+  }, [view.z, quality]);
+
+  const tiles = useMemo(() => {
+    if (!layers.radar || !rv) return [];
+    const n = 2 ** tileZ, step = VW / n;
+    const halfW = 0.5 / view.z, halfH = ((VH / VW) * 0.5) / view.z;
+    const x0 = Math.max(0, Math.floor((view.cx - halfW) * n));
+    const x1 = Math.min(n - 1, Math.floor((view.cx + halfW) * n));
+    const y0 = Math.max(0, Math.floor((view.cy - halfH) * n));
+    const y1 = Math.min(n - 1, Math.floor((view.cy + halfH) * n));
+    const out = [];
+    // Потолок на всякий случай: ошибка в расчёте кадра не должна превращаться
+    // в сотню запросов к чужому серверу.
+    for (let x = x0; x <= x1 && out.length < 48; x++) {
+      for (let y = y0; y <= y1 && out.length < 48; y++) {
+        out.push({
+          key: `${rv.path}/${tileZ}/${x}/${y}/${pixelRadar ? "p" : "s"}`,
+          x: x * step, y: y * step, s: step,
+          href: `${rv.host}${rv.path}/512/${tileZ}/${x}/${y}/${RV_COLOR}/${rvTail(pixelRadar)}`,
+        });
+      }
+    }
+    return out;
+  }, [layers.radar, rv, tileZ, view, pixelRadar]);
+
+  // ---------- где сегодня рождаются суперклетки ----------
+  // Сетка считается по видимому куску карты, а не по всему миру: на весь глобус
+  // в разумном числе точек ячейка выходит размером с Европу, и смысла в ней
+  // нет. Зато при подходе к region-у сетка сгущается сама, и на масштабе штата
+  // ячейка уже около сотни километров — это разрешение самой модели.
+  const viewRef = useRef(view);
+  viewRef.current = view;
 
   useEffect(() => {
-    if (!layers.radar) return;
-    // Продукт на сервере обновляется раз в несколько минут — чаще спрашивать
-    // бессмысленно и невежливо по отношению к бесплатной государственной службе.
-    const id = setInterval(() => setRadarNonce((n) => n + 1), 240000);
-    return () => clearInterval(id);
-  }, [layers.radar]);
+    if (!layers.outlook || !online) return undefined;
+    // Карту тянут мышью, и слать запрос на каждый пиксель движения нельзя ни
+    // по совести, ни по лимитам бесплатной службы. Считаем по устоявшемуся
+    // кадру, огрубляя ключ: мелкое дрожание кадра запроса не стоит.
+    const id = setTimeout(() => {
+      const v = viewRef.current;
+      setCellKey(`${Math.round(Math.log2(v.z) * 2)}|${v.cx.toFixed(2)}|${v.cy.toFixed(2)}`);
+    }, 900);
+    return () => clearTimeout(id);
+  }, [layers.outlook, online, view]);
+
+  useEffect(() => {
+    if (!layers.outlook || !online || !cellKey) return undefined;
+    const v = viewRef.current;
+    const halfW = 0.5 / v.z, halfH = ((VH / VW) * 0.5) / v.z;
+    const u0 = Math.max(0, v.cx - halfW), u1 = Math.min(1, v.cx + halfW);
+    const v0 = Math.max(0, v.cy - halfH), v1 = Math.min(1, v.cy + halfH);
+    const [lonW, latN] = unproject(u0, v0);
+    const [lonE, latS] = unproject(u1, v1);
+    const dLon = (lonE - lonW) / CELL_COLS, dLat = (latS - latN) / CELL_ROWS;
+    const pts = [];
+    for (let r = 0; r < CELL_ROWS; r++) {
+      for (let c = 0; c < CELL_COLS; c++) {
+        pts.push({ lat: latN + dLat * (r + 0.5), lon: lonW + dLon * (c + 0.5) });
+      }
+    }
+    let alive = true;
+    (async () => {
+      setCellsBusy(true);
+      try {
+        const q = new URLSearchParams({
+          latitude: pts.map((s) => s.lat.toFixed(2)).join(","),
+          longitude: pts.map((s) => s.lon.toFixed(2)).join(","),
+          hourly: "cape,windspeed_10m,winddirection_10m,windspeed_500hPa,winddirection_500hPa",
+          forecast_hours: "1",
+          cell_selection: "nearest",
+        });
+        const j = await (await fetch(`${OM_URL}?${q}`)).json();
+        const arr = Array.isArray(j) ? j : [j];
+        // Вектор ветра «куда дует»: у метеорологического направления отсчёт
+        // «откуда», поэтому +180. Сдвиг — модуль разности векторов, а не
+        // разность модулей: два одинаковых по силе, но встречных ветра дают
+        // сдвиг вдвое больше каждого из них, и именно он крутит грозу.
+        const vec = (spd, dir) => {
+          const r = ((dir + 180) * Math.PI) / 180;
+          return [spd * Math.sin(r), spd * Math.cos(r)];
+        };
+        const out = arr.map((o, i) => {
+          const h = o && o.hourly;
+          if (!h) return null;
+          const cape = (h.cape || [])[0];
+          const [ax, ay] = vec((h.windspeed_10m || [])[0] || 0, (h.winddirection_10m || [])[0] || 0);
+          const [bx, by] = vec((h.windspeed_500hPa || [])[0] || 0, (h.winddirection_500hPa || [])[0] || 0);
+          const shear = Math.hypot(bx - ax, by - ay) / 3.6;   // км/ч → м/с
+          if (!Number.isFinite(cape)) return null;
+          return {
+            lat: pts[i].lat, lon: pts[i].lon, cape, shear,
+            v: (cape / 1500) * (shear / 20),
+          };
+        }).filter(Boolean);
+        if (alive) setCells({ pts: out, dLon, dLat, at: new Date() });
+      } catch { if (alive) setCells(null); }
+      if (alive) setCellsBusy(false);
+    })();
+    return () => { alive = false; };
+  }, [cellKey, layers.outlook, online]);
 
   // ---------- жесты ----------
   // Пересчёт из пикселей события в единицы viewBox: холст тянется по ширине
@@ -742,6 +1012,12 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
     // за край и приходится догонять её перетаскиванием.
     const r = svgRef.current?.getBoundingClientRect();
     if (!r) return;
+    // Колесо над картой не должно заодно листать страницу. Отменять прокрутку
+    // можно только из непассивного слушателя, а React вешает wheel на корень
+    // пассивным — поэтому этот обработчик подключается вручную ниже, а не
+    // атрибутом onWheel: с атрибутом preventDefault молча ничего не делает, и
+    // карта приближается вместе с уезжающим из-под курсора дашбордом.
+    e.preventDefault();
     const f = VW / r.width;
     const px = (e.clientX - r.left) * f - VW / 2;
     const py = (e.clientY - r.top) * f - VH / 2;
@@ -755,6 +1031,18 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
       });
     });
   };
+
+  // Ссылка на свежий обработчик: слушатель вешается один раз, а замыкание в
+  // нём должно быть сегодняшним.
+  const wheelRef = useRef(onWheel);
+  wheelRef.current = onWheel;
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return undefined;
+    const h = (e) => wheelRef.current(e);
+    el.addEventListener("wheel", h, { passive: false });
+    return () => el.removeEventListener("wheel", h);
+  }, []);
 
   // Уехать в пустоту нельзя: по вертикали центр держится так, чтобы карта не
   // отрывалась от холста, по горизонтали — то же самое.
@@ -829,9 +1117,22 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
     return alerts.filter((a) => a.center).map((a) => {
       const t = alertThreat(a.props);
       const color = THREAT_COLOR[t];
-      const [x, y] = toScreen(a.center.lon, a.center.lat);
-      if (x < -60 || x > VW + 60 || y < -60 || y > VH + 60) return null;
+      const torn = a.props.event === "Tornado Warning";
+      // Движение известно не всегда, и когда известно — оно указано вместе с
+      // точкой самого шторма. Она гораздо ближе к делу, чем центр зоны:
+      // зона нарезана по границам округов и её середина может оказаться в
+      // сорока километрах от воронки.
+      const mot = parseMotion(a.props);
+      const at = (mot && mot.at) || a.center;
+      const [x, y] = toScreen(at.lon, at.lat);
+      if (x < -80 || x > VW + 80 || y < -80 || y > VH + 80) return null;
       const rings = geometryRings(a.geometry);
+      let cone = null;
+      if (mot && mot.kmh > 1) {
+        const [lon2, lat2] = forward(at.lat, at.lon, mot.heading, mot.kmh / 2);  // полчаса хода
+        const [x2, y2] = toScreen(lon2, lat2);
+        cone = <MotionCone x0={x} y0={y} x1={x2} y1={y2} color={color} minutes={30} g={g} />;
+      }
       return (
         <g key={a.id} onPointerDown={(e) => e.stopPropagation()} onClick={pick(a)} style={{ cursor: "pointer" }}>
           {rings.map((ring, i) => (
@@ -839,11 +1140,16 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
                   fill={color} fillOpacity="0.14" stroke={color} strokeWidth="1"
                   style={{ filter: dropGlow(color, g, 0.5) }} />
           ))}
+          {cone}
           {t >= ALARM_FROM && motion !== "off" && (
             <circle className="map-ping" cx={x} cy={y} r="5" fill="none" stroke={color} strokeWidth="1" />
           )}
-          <circle cx={x} cy={y} r="4" fill={color} strokeWidth="1" stroke="var(--ui-bg, #04070a)"
-                  style={{ filter: dropGlow(color, g, 1) }} />
+          {torn ? (
+            <TornadoGlyph x={x} y={y} s={13} color={color} g={g} motion={motion} />
+          ) : (
+            <circle cx={x} cy={y} r="4" fill={color} strokeWidth="1" stroke="var(--ui-bg, #04070a)"
+                    style={{ filter: dropGlow(color, g, 1) }} />
+          )}
         </g>
       );
     });
@@ -876,15 +1182,19 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
     return reports.map((r) => {
       const [x, y] = toScreen(r.lon, r.lat);
       if (x < -20 || x > VW + 20 || y < -20 || y > VH + 20) return null;
+      // Конуса здесь нет и быть не может: в донесениях SPC направления
+      // движения нет вовсе — это отметки «смерч наблюдали здесь», собранные
+      // после факта. Рисовать им направление значило бы выдумать данные.
       return (
         <g key={r.id} onPointerDown={(e) => e.stopPropagation()} onClick={pick(r)} style={{ cursor: "pointer" }}>
-          <path d={`M${x - 4} ${y - 4}L${x + 4} ${y + 4}M${x + 4} ${y - 4}L${x - 4} ${y + 4}`}
-                stroke="#22d3ee" strokeWidth="1.6" strokeLinecap="round"
-                style={{ filter: dropGlow("#22d3ee", g, 0.8) }} />
+          {/* Прозрачный кружок пошире самой воронки — иначе в неё не попасть
+              пальцем: значок узкий, а нажимать по нему надо. */}
+          <circle cx={x} cy={y - 5} r="11" fill="transparent" />
+          <TornadoGlyph x={x} y={y} s={11} color="#22d3ee" g={g} motion={motion} />
         </g>
       );
     });
-  }, [layers.reports, reports, toScreen, g]);
+  }, [layers.reports, reports, toScreen, g, motion]);
 
   const archiveNodes = useMemo(() => {
     if (!layers.archive) return null;
@@ -913,6 +1223,45 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
       );
     });
   }, [layers.archive, toScreen, g, motion]);
+
+  // Пиксельный экран суперклеток. Ячейки рисуются как есть — прямоугольниками
+  // сетки модели, без интерполяции: сглаживание красивее, но врёт про
+  // разрешение, из которого всё это посчитано. Кому нужна гладкая заливка —
+  // тумблер в основных настройках включает размытие поверх тех же ячеек, и это
+  // честнее, чем интерполировать значения.
+  const cellNodes = useMemo(() => {
+    if (!layers.outlook || !cells || !cells.pts.length) return null;
+    let cw = 0;
+    const rects = cells.pts.map((c, i) => {
+      const col = cellColor(c.v);
+      if (!col) return null;
+      const [ax, ay] = toScreen(c.lon - cells.dLon / 2, c.lat - cells.dLat / 2);
+      const [bx, by] = toScreen(c.lon + cells.dLon / 2, c.lat + cells.dLat / 2);
+      const x = Math.min(ax, bx), y = Math.min(ay, by);
+      const w = Math.abs(bx - ax), h = Math.abs(by - ay);
+      if (x > VW || y > VH || x + w < 0 || y + h < 0) return null;
+      cw = Math.max(cw, w);
+      return (
+        <rect key={i} x={x} y={y} width={w + 0.5} height={h + 0.5} fill={col}
+              opacity={Math.min(0.34, 0.11 + c.v * 0.07)}
+              shapeRendering={pixelCells ? "crispEdges" : "auto"} />
+      );
+    });
+    if (!rects.some(Boolean)) return null;
+    const blur = Math.max(2, cw * 0.42);
+    return (
+      <g style={{ pointerEvents: "none" }}>
+        {!pixelCells && (
+          <defs>
+            <filter id="cellsoft" x="-25%" y="-25%" width="150%" height="150%">
+              <feGaussianBlur stdDeviation={blur.toFixed(1)} />
+            </filter>
+          </defs>
+        )}
+        <g filter={pixelCells ? undefined : "url(#cellsoft)"}>{rects}</g>
+      </g>
+    );
+  }, [layers.outlook, cells, toScreen, pixelCells]);
 
   // Города — самый тихий слой: точка в один пиксель и подпись. Ни рамок,
   // ни выносок: чем их больше, тем быстрее карта перестаёт быть картой.
@@ -983,6 +1332,18 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Своя анимация — здесь, а не в общем <style> дашборда: карта грузится
+          отдельным куском, и её правила не должны ехать на каждую страницу. */}
+      <style>{`
+        /* Вихрь обломков у подошвы воронки. Кольцо, которое видно с ребра,
+           при вращении меняет ширину — этого хватает, чтобы значок читался
+           как крутящийся, и это дешевле любого поворота. */
+        @keyframes tornSwirl { 0%, 100% { transform: scaleX(1) } 50% { transform: scaleX(.52) } }
+        .torn-swirl { animation: tornSwirl 2.6s ease-in-out infinite;
+                      transform-box: fill-box; transform-origin: 50% 50% }
+        .mo-off .torn-swirl { animation: none }
+        .mo-calm .torn-swirl { animation-duration: 5s }
+      `}</style>
       {/* Панель слоёв */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
         <LayerToggle g={g} on={layers.alerts} color="#ef4444" label="ПРЕДУПРЕЖДЕНИЯ" count={counts.alerts}
@@ -990,13 +1351,15 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
         <LayerToggle g={g} on={layers.reports} color="#22d3ee" label="СМЕРЧИ СЕГОДНЯ" count={counts.reports}
                      busy={status.busy} onClick={() => setLayers((l) => ({ ...l, reports: !l.reports }))} />
         <LayerToggle g={g} on={layers.outlook} color="#facc15" label="СУПЕРКЛЕТКИ"
-                     count={outlook ? outlook.length : null} busy={status.busy}
+                     count={cells ? cells.pts.filter((c) => cellColor(c.v)).length
+                                  : (outlook ? outlook.length : null)}
+                     busy={status.busy || cellsBusy}
                      onClick={() => setLayers((l) => ({ ...l, outlook: !l.outlook }))} />
         <LayerToggle g={g} on={layers.archive} color="#b91c1c" label="АРХИВ EF" count={counts.archive}
                      onClick={() => setLayers((l) => ({ ...l, archive: !l.archive }))} />
         <LayerToggle g={g} on={layers.radar} color="#a3e635" label="ОТРАЖАЕМОСТЬ"
-                     busy={layers.radar && !!radarUrl && !radarReady}
-                     count={layers.radar ? (radarReady ? "×" + [1, 2, 3, 4][radarStep] : null) : null}
+                     busy={layers.radar && (rvBusy || !rv)}
+                     count={layers.radar && rv ? `z${tileZ}` : null}
                      onClick={() => setLayers((l) => ({ ...l, radar: !l.radar }))} />
         <LayerToggle g={g} on={layers.cities} color="#94a3b8" label="ГОРОДА"
                      onClick={() => setLayers((l) => ({ ...l, cities: !l.cities }))} />
@@ -1058,7 +1421,6 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          onWheel={onWheel}
           onClick={(e) => {
             if (drag.current?.moved) return;
             if (picking) {
@@ -1098,19 +1460,20 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
           <g transform={landTransform} style={{ pointerEvents: "none" }}>
             {/* Отражаемость под контурами и внутри той же трансформации: берег
                 остаётся читаемым, а панорама и зум двигают растр на GPU без запросов. */}
-            {layers.radar && radarReady && (
-              <image key={radarReady} href={radarReady}
-                     x={conusRect.x} y={conusRect.y} width={conusRect.w} height={conusRect.h}
+            {layers.radar && tiles.map((tl) => (
+              <image key={tl.key} href={tl.href}
+                     x={tl.x} y={tl.y} width={tl.s} height={tl.s}
                      preserveAspectRatio="none"
                      className={motion === "off" ? undefined : "radar-fade"}
-                     style={{ opacity: 0.78, imageRendering: "auto" }} />
-            )}
+                     style={{ opacity: 0.8, imageRendering: pixelRadar ? "pixelated" : "auto" }} />
+            ))}
             {LAND_PATHS.map((d, i) => (
               <path key={i} d={d} fill="rgba(231,238,246,0.045)" stroke={LINE_HI}
                     strokeWidth="0.8" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
             ))}
           </g>
 
+          {cellNodes}
           {outlookNodes}
           {cityNodes}
           {alertNodes}
@@ -1150,6 +1513,25 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
         </span>
       </div>
 
+      {/* Шкала суперклеточного экрана. Без неё цветные квадраты — просто
+          раскраска: непонятно, что тёмно-красный хуже жёлтого. */}
+      {layers.outlook && cells && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+          {CELL_RAMP.map((s) => (
+            <span key={s.at} style={{
+              display: "flex", alignItems: "center", gap: 5,
+              border: `1px solid ${LINE}`, padding: "3px 7px",
+            }}>
+              <span style={{ width: 10, height: 10, background: s.color, opacity: 0.75 }} />
+              <span style={{ fontFamily: SANS, fontSize: 9.5, color: DIM }}>{s.label}</span>
+            </span>
+          ))}
+          <span style={{ fontFamily: SANS, fontSize: 9.5, color: FAINT, marginLeft: 4 }}>
+            энергия × сдвиг ветра, ячейка — узел модели
+          </span>
+        </div>
+      )}
+
       {/* Карточка выбранного события */}
       {selected && <Detail item={selected} g={g} motion={motion} onClose={() => setSelected(null)} />}
 
@@ -1179,13 +1561,19 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
 
       {/* Происхождение данных — на виду, а не в подвале */}
       <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.65, fontFamily: SANS }}>
-        Живые слои — служба погоды США: предупреждения <b style={{ color: DIM }}>api.weather.gov</b>,
-        донесения о смерчах <b style={{ color: DIM }}>SPC</b>, отражаемость{" "}
-        <b style={{ color: DIM }}>NOAA nowCOAST</b> (только материковые США).
+        Предупреждения и донесения о смерчах — служба погоды США:{" "}
+        <b style={{ color: DIM }}>api.weather.gov</b> и <b style={{ color: DIM }}>SPC</b>; они
+        покрывают только США, потому что открытых потоков по смерчам за её пределами,
+        доступных браузеру напрямую, не существует. Конус движения рисуется там, где
+        служба сама указала направление и скорость шторма, — у донесений его нет,
+        и выдумывать направление для них нельзя. Отражаемость — мировая мозаика{" "}
+        <b style={{ color: DIM }}>RainViewer</b>: сводка национальных радарных сетей,
+        от NEXRAD до европейской OPERA. Суперклеточный экран считается из энергии
+        неустойчивости и сдвига ветра модели <b style={{ color: DIM }}>Open-Meteo</b> и
+        показывает сочетание, из которого рождаются суперклетки; это не прогноз службы,
+        а расчёт по двум величинам, и над США поверх него лежат настоящие области SPC.
         {noGeom > 0 && ` Ещё ${noGeom} предупреждений заданы зонами без контура — на карту они не попали.`}
-        {" "}За пределами США живых слоёв нет: открытых бесплатных потоков по смерчам и циклонам,
-        доступных браузеру напрямую, не существует, а рисовать выдуманные значки нельзя.
-        Архив — обследованные события по записям NWS и NCEI.
+        {" "}Архив — обследованные события по записям NWS и NCEI, по умолчанию выключен.
         {status.at && ` Обновлено в ${status.at.toLocaleTimeString("uk-UA")}.`}
         {geoState === "off" && " Своё место показать нельзя: браузер отдаёт координаты только защищённым страницам, а эта копия открыта по обычному HTTP."}
         {geoState === "denied" && " Доступ к геоданным закрыт — вернуть его можно только в настройках сайта в браузере, но своё место всегда можно поставить вручную."}
