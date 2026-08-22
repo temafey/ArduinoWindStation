@@ -163,19 +163,78 @@ const CHASERS = [
   { name: "Прогнозы SPC (официально)", url: "https://www.spc.noaa.gov/" },
 ];
 
+// Экран приёма. Не «крутилка ради крутилки»: строка идёт ровно по той доле
+// файла, которая уже пришла, — это настоящий прогресс, а не анимация вместо
+// него. Когда доля неизвестна (сервер не пускает скрипт читать свой ответ),
+// строка честно уходит в бесконечную развёртку, и процентов не показывается.
+function Receiving({ frac, bytes, total, motion }) {
+  const known = frac != null;
+  const mb = (n) => (n / 1048576).toFixed(1);
+  return (
+    <div className="rcv">
+      <i className="rcv-grid" />
+      <i className="rcv-fill" style={{ height: known ? `${(frac * 100).toFixed(1)}%` : 0 }} />
+      <i className={`rcv-line${known ? "" : " sweep"}`}
+         style={known ? { top: `${(frac * 100).toFixed(1)}%` } : undefined} />
+      <div className="rcv-txt">
+        <div className="rcv-big">{known ? `${Math.round(frac * 100)} %` : "ПРИЁМ"}</div>
+        <div className="rcv-sub">
+          {known && total ? `принято ${mb(bytes)} из ${mb(total)} МБ` : "кадр идёт с сервера NOAA"}
+        </div>
+      </div>
+      {motion !== "off" && <i className="rcv-blip" />}
+    </div>
+  );
+}
+
 function Frame({ src, g, motion, online }) {
   const [state, setState] = useState("load"); // load | ok | fail
   const [nonce, setNonce] = useState(0);
   const [at, setAt] = useState(null);
+  // Что скормить <img>. Сначала пробуем скачать сами — тогда виден настоящий
+  // прогресс; если источник не отдаёт себя скрипту, подставляем прямой адрес,
+  // и картинку тянет уже сам браузер.
+  const [href, setHref] = useState(null);
+  const [got, setGot] = useState(null);   // {bytes, total} или null
 
   // Кэш пришлось бы обходить в любом случае: у всех этих файлов постоянный
   // адрес, меняется только содержимое, и без метки браузер честно отдаст
   // вчерашний снимок из кэша.
   const url = useMemo(() => `${src.url}?t=${nonce}`, [src.url, nonce]);
 
+  // Приём кадра. Читаем поток кусками, чтобы знать долю: у NOAA STAR стоит
+  // Access-Control-Allow-Origin, и его снимки скрипту доступны целиком.
+  // У radar.weather.gov заголовка нет — там fetch падает на CORS, и это не
+  // поломка, а нормальный второй путь: <img> запрет не касается, просто доли
+  // не будет.
   useEffect(() => {
-    setState("load");
-  }, [url]);
+    setState("load"); setGot(null); setHref(null);
+    if (!online) return undefined;
+    let alive = true, objUrl = null;
+    (async () => {
+      try {
+        const r = await fetch(url, { cache: "no-store" });
+        if (!r.ok || !r.body) throw new Error(`HTTP ${r.status}`);
+        const total = Number(r.headers.get("content-length")) || 0;
+        const reader = r.body.getReader();
+        const parts = [];
+        let bytes = 0;
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (!alive) return;
+          parts.push(value); bytes += value.length;
+          setGot({ bytes, total });
+        }
+        objUrl = URL.createObjectURL(new Blob(parts));
+        if (!alive) { URL.revokeObjectURL(objUrl); objUrl = null; return; }
+        setHref(objUrl);
+      } catch {
+        if (alive) { setGot(null); setHref(url); }
+      }
+    })();
+    return () => { alive = false; if (objUrl) URL.revokeObjectURL(objUrl); };
+  }, [url, online]);
 
   useEffect(() => {
     if (!online) return;
@@ -184,7 +243,12 @@ function Frame({ src, g, motion, online }) {
   }, [online, src.id]);
 
   return (
-    <div style={{ border: `1px solid ${LINE}`, background: "linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.008))" }}>
+    <div style={{
+      // Через переменные темы, как настоящие панели: раньше рамка и заливка
+      // были прошиты, и в стеклянной теме окно эфира одно оставалось плоским.
+      border: "1px solid var(--pnl-line)", borderRadius: "var(--pnl-corner)",
+      background: "var(--pnl-bg)", boxShadow: "var(--pnl-shadow)", overflow: "hidden",
+    }}>
       <header style={{
         display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10,
         padding: "9px 13px 8px", borderBottom: `1px solid ${LINE}`,
@@ -214,9 +278,9 @@ function Frame({ src, g, motion, online }) {
       </header>
 
       <div style={{ position: "relative", background: "#020407", aspectRatio: String(src.ratio) }}>
-        {online ? (
+        {online && href ? (
           <img
-            src={url}
+            src={href}
             alt={src.title}
             onLoad={() => { setState("ok"); setAt(new Date()); }}
             onError={() => setState("fail")}
@@ -228,7 +292,14 @@ function Frame({ src, g, motion, online }) {
           />
         ) : null}
 
-        {(state !== "ok" || !online) && (
+        {state === "load" && online && (
+          <Receiving
+            frac={got && got.total ? Math.min(1, got.bytes / got.total) : null}
+            bytes={got ? got.bytes : 0} total={got ? got.total : 0} motion={motion}
+          />
+        )}
+
+        {(state === "fail" || !online) && (
           <div style={{
             position: "absolute", inset: 0, display: "flex", alignItems: "center",
             justifyContent: "center", padding: 20, textAlign: "center",
@@ -236,9 +307,7 @@ function Frame({ src, g, motion, online }) {
           }}>
             {!online
               ? "Нет выхода в интернет — спутник отсюда не достать."
-              : state === "fail"
-                ? "Кадр не пришёл. Либо у устройства нет выхода в интернет (например, вы в точке самой станции), либо запрос к чужому домену заблокирован политикой безопасности страницы."
-                : "Принимаю кадр…"}
+              : "Кадр не пришёл. Либо у устройства нет выхода в интернет (например, вы в точке самой станции), либо запрос к чужому домену заблокирован политикой безопасности страницы."}
           </div>
         )}
       </div>
@@ -290,6 +359,39 @@ export default function LiveWatch({ g, motion, online }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Стили экрана приёма живут здесь, а не в общем <style> дашборда: этот
+          модуль подгружается отдельным куском, и тащить его правила в главный
+          бандл значило бы тянуть их на каждую страницу ради вкладки, куда
+          заходят раз в день. */}
+      <style>{`
+        @keyframes rcvSweep { 0% { top: 0 } 100% { top: 100% } }
+        @keyframes rcvBlip  { 0%, 100% { opacity: .25 } 50% { opacity: 1 } }
+        .rcv { position: absolute; inset: 0; overflow: hidden }
+        .rcv-grid { position: absolute; inset: 0;
+          background-image:
+            repeating-linear-gradient(0deg, rgba(120,170,220,0.07) 0 1px, rgba(0,0,0,0) 1px 4px),
+            repeating-linear-gradient(90deg, rgba(120,170,220,0.05) 0 1px, rgba(0,0,0,0) 1px 26px) }
+        /* Принятая часть кадра. Это не подделка изображения — это заливка,
+           показывающая, сколько байт уже дошло. */
+        .rcv-fill { position: absolute; left: 0; right: 0; top: 0; height: 0;
+          background: linear-gradient(180deg, rgba(110,180,255,0.13), rgba(110,180,255,0.03));
+          transition: height .2s linear }
+        .rcv-line { position: absolute; left: 0; right: 0; top: 0; height: 2px;
+          margin-top: -1px; transition: top .2s linear;
+          background: linear-gradient(90deg, rgba(180,220,255,0), rgba(200,232,255,0.95), rgba(180,220,255,0));
+          box-shadow: 0 0 14px rgba(140,205,255,0.75) }
+        .rcv-line.sweep { animation: rcvSweep 2.4s linear infinite; transition: none }
+        .rcv-txt { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+          text-align: center; pointer-events: none }
+        .rcv-big { font-family: var(--ui-mono, monospace); font-size: 22px; letter-spacing: 3px;
+          color: rgba(231,238,246,0.9) }
+        .rcv-sub { font-family: var(--ui-sans, sans-serif); font-size: 10px; letter-spacing: 1px;
+          color: rgba(231,238,246,0.45); margin-top: 5px }
+        .rcv-blip { position: absolute; right: 10px; top: 10px; width: 6px; height: 6px;
+          border-radius: 50%; background: #67e8f9; animation: rcvBlip 1.1s ease-in-out infinite }
+        .mo-off .rcv-line.sweep, .mo-off .rcv-blip { animation: none }
+        .mo-off .rcv-fill, .mo-off .rcv-line { transition: none }
+      `}</style>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
         {[{ id: "all", label: "Все" }, ...CATS].map((c) => {
           const on = c.id === cat;
