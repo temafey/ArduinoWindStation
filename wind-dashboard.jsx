@@ -1636,6 +1636,7 @@ export default function WindDashboard() {
     ledGreen: "off", ledYellow: "off", ledRed: "off", ledWifi: "off", ledAuto: true,
     battery: null, batteryPercent: null, batteryPresent: false, chargeState: "absent",
     powerSource: null, wifiRssi: 0, adcError: false, hostname: "", uptime: 0,
+    resetReason: "poweron",
   });
   const [connected, setConnected] = useState(false);
   // История хранится парами: розе ветров и конвективному анализу нужно знать,
@@ -1804,6 +1805,7 @@ export default function WindDashboard() {
         powerSource: pct >= 99 ? "external" : "battery",
         wifiRssi: -55 + Math.round(Math.sin(d.t * 0.2) * 10),
         adcError: false, hostname: "demo", uptime: Math.floor(d.t * 20),
+        resetReason: "poweron",
         // Демо показывает и те датчики, которых на плате нет: иначе панель
         // «Атмосфера» невозможно ни увидеть, ни проверить.
         ...demoAtmosphere(d.t, d.speed, new Date().getHours() + new Date().getMinutes() / 60),
@@ -2099,6 +2101,16 @@ export default function WindDashboard() {
   const unit = UNITS[settings.unit] ?? UNITS.ms;
   const uptimeMin = Math.floor(data.uptime / 60);
   const uptimeH = Math.floor(uptimeMin / 60);
+  // Приписка к аптайму: почему плата стартовала в прошлый раз. Обычное включение
+  // ничего не приписывает — в норме это шум. А вот «просадка» рядом с маленьким
+  // аптаймом сразу отвечает на вопрос, который иначе выглядит как «станция не
+  // пускает телефон»: питание не держит передачу, и плата уходит в ресет.
+  const RESET_WHY = {
+    brownout: "просадка", panic: "сбой", watchdog: "зависание",
+    software: "перезапуск", external: "кнопка EN", deepsleep: "сон",
+    unknown: "причина?",
+  };
+  const resetWhy = RESET_WHY[data.resetReason];
   const rssi = rssiQuality(data.wifiRssi);
   const CHARGE_VIEW = { charging: "заряжается", full: "заряжена", discharging: "разряд" };
   const POWER_VIEW = { external: "от сети", battery: "от батареи" };
@@ -2223,7 +2235,9 @@ export default function WindDashboard() {
                         }
                       />
                       <Stat label={`Средняя · ${settings.histMinutes} мин`} value={meanText} unit={unit.short} g={g} />
-                      <Stat label="Аптайм" value={uptimeH > 0 ? `${uptimeH}ч${uptimeMin % 60}м` : `${uptimeMin}м`} g={g} />
+                      <Stat label={resetWhy ? `Аптайм · ${resetWhy}` : "Аптайм"}
+                            value={uptimeH > 0 ? `${uptimeH}ч${uptimeMin % 60}м` : `${uptimeMin}м`}
+                            color={data.resetReason === "brownout" ? "#f97316" : undefined} g={g} />
                     </div>
     ) },
     (sensors.length > 0 || dew != null || chill != null) && { id: "air", h: 34, title: "Атмосфера", node: (

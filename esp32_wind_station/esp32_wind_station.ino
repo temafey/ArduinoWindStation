@@ -377,6 +377,26 @@ bool blinkPhase  = false;
 // ===== ACCESS POINT STATE =====
 bool apUp = false;   // softAP() came up; false only if the radio failed outright
 
+// Why the chip last started. Reported in /api/data because a station used away from
+// the house runs on a battery, and a battery that sags under a transmit burst resets
+// the board — which from the outside looks exactly like "it will not let my phone
+// connect". Uptime alone does not distinguish a fresh power-up from a brownout loop;
+// this does, and it is the one question the dashboard cannot answer by measuring.
+const char* resetReasonName() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON:  return "poweron";
+    case ESP_RST_BROWNOUT: return "brownout";   // supply sagged — battery or wiring
+    case ESP_RST_PANIC:    return "panic";
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_WDT:
+    case ESP_RST_INT_WDT:  return "watchdog";
+    case ESP_RST_SW:       return "software";   // OTA finished, or Restart()
+    case ESP_RST_EXT:      return "external";   // the EN button
+    case ESP_RST_DEEPSLEEP: return "deepsleep";
+    default:               return "unknown";
+  }
+}
+
 #if HAS_HOME_NETWORK
 // ===== UPLINK STATE =====
 // Driver auto-reconnect is turned off in setup() so there is exactly one place that
@@ -816,7 +836,8 @@ String buildDataJson() {
   // The address to show a human, not the mDNS label — this is what the dashboard
   // prints as "станция доступна по адресу".
   json += "\"hostname\":\""     + String(portalHost) + "\",";
-  json += "\"uptime\":"         + String(millis() / 1000);
+  json += "\"uptime\":"         + String(millis() / 1000) + ",";
+  json += "\"resetReason\":\""  + String(resetReasonName()) + "\"";
   json += "}";
   return json;
 }
@@ -1406,6 +1427,8 @@ void setup() {
 #if HAS_STDBY
   pinMode(PIN_STDBY,  INPUT_PULLUP);
 #endif
+
+  Serial.printf("Last reset: %s\n", resetReasonName());
 
   analogReadResolution(12);
   analogSetPinAttenuation(PIN_WIND_SPEED, ADC_11db);

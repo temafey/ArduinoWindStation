@@ -193,8 +193,16 @@ AP+STA, AT-консоль модема, `/api/site`, защита эндпоин
 - `GET /api/data` — JSON: `speed`, `direction`, `dirPresent`, `gust`, `speedMv`, `speedZeroMv`,
   `speedSpreadMv`, `speedMax`, `ledGreen`, `ledYellow`, `ledRed`, `ledWifi`, `ledAuto`,
   `battery`, `batteryPercent`, `batteryPresent`, `chargeState`, `powerSource`, `wifiRssi`,
-  `adcError`, `staSsid`, `staConnected`, `staIp`, `hostname`, `uptime`. Дашборд кладёт сырой
-  ответ прямо в состояние `data` — переименования и смена типов только синхронно с ним.
+  `adcError`, `staSsid`, `staConnected`, `staIp`, `hostname`, `uptime`, `resetReason`.
+  Дашборд кладёт сырой ответ прямо в состояние `data` — переименования и смена типов
+  только синхронно с ним.
+  - `resetReason` — почему чип стартовал в прошлый раз: `poweron` / `brownout` / `panic` /
+    `watchdog` / `software` / `external` / `deepsleep` / `unknown`. Плитка «Аптайм» дописывает
+    причину к заголовку и красит значение оранжевым при `brownout`; обычное включение
+    не дописывает ничего. Смысл узкий и вполне конкретный: станция в поле работает от
+    батареи, а батарея, проседающая на передаче, роняет плату в ресет — снаружи это
+    выглядит как «не пускает телефон», и один аптайм такое от свежего включения
+    не отличает
   - `speed` и `gust` — **два знака после запятой**: при одном квантование в 0.1 м/с было
     грубее собственного шума датчика после усреднения по 32 отсчётам
   - `speedMv` / `speedZeroMv` / `speedSpreadMv` — диагностика, дашборд их игнорирует: сырые
