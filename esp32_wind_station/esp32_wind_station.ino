@@ -119,16 +119,26 @@ const HomeNetwork homeNetworks[] = { SECRET_HOME_NETWORKS };
 const int homeNetworkCount = sizeof(homeNetworks) / sizeof(homeNetworks[0]);
 #endif
 
-// One association attempt gets this long before the next candidate is tried. A
-// successful join takes 2-5 s; the rest is margin for a router that answers slowly.
+// One association attempt gets this long before it is abandoned. A successful join
+// takes 2-5 s; the rest is margin for a router that answers slowly. Only ever spent
+// on a network a scan has just seen, so it is a wait for a slow answer and not a
+// wait for silence.
 const unsigned long STA_ASSOC_MS = 12000;
-// Backoff between full passes over the list — NOT between individual candidates.
-// Association is not free: the driver leaves the AP's channel to do it, and every
-// client on the AP stalls for the duration. Tolerable now and then, intolerable
-// every 30 s forever, which is exactly what happens when none of these networks is
-// there (the board on the mast). So the wait doubles after each failed pass and
-// resets the moment a link comes up.
-const unsigned long STA_RETRY_MIN_MS = 30000;    // after the first failed pass, 30 s
+// Milliseconds the scan dwells on each of the 13 channels. Thirteen times this is
+// how long the AP goes quiet per search, so the number is a direct cost: 120 ms
+// gives ~1.6 s, short enough that an associated client rides it out on beacon-miss
+// tolerance alone, long enough for a router's probe response to come back.
+const unsigned long STA_SCAN_MS_PER_CHAN = 120;
+// Backoff between searches. A search costs the AP its channel — the radio is one
+// radio, and while it looks elsewhere the station's own network is off the air.
+// That is what used to make the board unreachable from a phone in a field: six
+// blind WiFi.begin() calls at 12 s each meant 72 s of thrashing after every
+// power-up, and a phone's association simply does not survive it (a laptop retries
+// long enough to slip through, which is why the fault looked like "phones only").
+// Now a search is one scan, and if none of the known networks is on the air it ends
+// there — no association is attempted at all. The wait still doubles after each
+// failed search and resets the moment a link comes up.
+const unsigned long STA_RETRY_MIN_MS = 30000;    // after the first failed search, 30 s
 const unsigned long STA_RETRY_MAX_MS = 600000;   // ceiling, 10 min
 
 // ===== PINS =====
@@ -373,9 +383,19 @@ bool apUp = false;   // softAP() came up; false only if the radio failed outrigh
 // decides when to associate — otherwise the driver's own retries and the backoff
 // below would both be scanning, and the AP would stall twice as often for it.
 bool staUp = false;                              // last observed link state
-int  staIndex = 0;                               // next candidate in homeNetworks[]
-unsigned long staBackoffMs  = STA_RETRY_MIN_MS;  // wait after a full failed pass
-unsigned long staNextAttempt = 0;                // millis() of the next WiFi.begin()
+unsigned long staBackoffMs  = STA_RETRY_MIN_MS;  // wait after a failed search
+unsigned long staNextAttempt = 0;                // millis() of the next search
+bool staScanning = false;                        // an async scan is in flight
+int  staTrying = -1;                             // homeNetworks[] index being joined, -1 = none
+unsigned long staAssocDeadline = 0;              // when to abandon that association
+// WiFi.status() is only ever written by driver events, never by begin(), so the
+// value standing when an association starts is the previous attempt's verdict.
+// Kept here so a failure can be told from a leftover: see serviceUplink().
+wl_status_t staStatusAtBegin = WL_NO_SHIELD;
+// Set when a completed scan saw none of the known networks. It is the "we are
+// somewhere else entirely" flag, and it is what buys a client on the AP total
+// radio silence: see the guard in serviceUplink().
+bool staNoneInRange = false;
 #endif
 
 // Catch-all DNS: every name resolves to the station. That is deliberate and it is
@@ -1215,10 +1235,16 @@ void startNetworkServices() {
 // The AP is not touched anywhere in here. There is no path in this function that
 // can take the station off the air.
 //
-// With several candidates it walks homeNetworks[] one entry per attempt, giving each
-// STA_ASSOC_MS to answer, and only after a whole pass has failed does it wait out the
-// backoff. Order is preference: the first network that happens to be in range wins,
-// because the pass stops the moment a link comes up.
+// A search is scan first, associate second, and that order is the whole point. The
+// old version walked homeNetworks[] blind, calling WiFi.begin() on each name in turn
+// and waiting STA_ASSOC_MS for silence — six names cost 72 s of the AP's channel
+// every time the board was switched on away from home. Asking the air once who is
+// actually there costs ~1.6 s and answers for the whole list at once, and when the
+// answer is "none of yours" the search ends without touching the station interface.
+//
+// Order is preference: of the known networks the scan found, the earliest one in
+// homeNetworks[] wins, not the loudest. The list is written by preference and that
+// is the meaning it should keep.
 void serviceUplink() {
   bool now = (WiFi.status() == WL_CONNECTED);
 
@@ -1226,7 +1252,8 @@ void serviceUplink() {
     staUp = now;
     if (now) {
       staBackoffMs = STA_RETRY_MIN_MS;   // a good link earns a fast retry next time
-      staIndex = 0;                      // and the next search starts from the top
+      staNoneInRange = false;            // and the surroundings are evidently ours
+      staTrying = -1;                    // the attempt this link came from is over
       Serial.printf("Uplink '%s' joined  IP: %s  RSSI=%d\n",
                     WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(), WiFi.RSSI());
       // mDNS was started when the AP was the only interface, so its responder is
@@ -1251,25 +1278,101 @@ void serviceUplink() {
   }
 
   if (now) return;
-  // Signed comparison so the wrap of millis() at 49.7 days cannot park this forever.
+
+  // ----- an association is in flight -----
+  if (staTrying >= 0) {
+    wl_status_t st = WiFi.status();
+    // Only a status that has MOVED since begin() says anything about this attempt.
+    // begin() does not clear the previous one, so "no such network" left over from
+    // the last candidate would otherwise abort a join to a network the scan has
+    // just seen — on the first pass through loop(), before the radio has done
+    // anything at all. When the verdict repeats unchanged the deadline catches it
+    // instead: slower, and never wrong.
+    bool refused = (st != staStatusAtBegin) && (st == WL_NO_SSID_AVAIL || st == WL_CONNECT_FAILED);
+    // Signed comparison so the wrap of millis() at 49.7 days cannot park this forever.
+    if (!refused && (long)(millis() - staAssocDeadline) < 0) return;
+    Serial.printf("Uplink: '%s' %s\n", homeNetworks[staTrying].ssid,
+                  refused ? "refused the join" : "did not answer in time");
+    staTrying = -1;
+    // The driver keeps retrying an association it started unless it is told to stop,
+    // and those retries are off-channel time nobody asked for. This is the one
+    // WiFi.disconnect() outside setup(); false/false means station interface only
+    // and no NVS write, so the AP does not notice it happened.
+    WiFi.disconnect(false, false);
+    staNextAttempt = millis() + staBackoffMs;
+    if (staBackoffMs < STA_RETRY_MAX_MS) staBackoffMs = min(staBackoffMs * 2, STA_RETRY_MAX_MS);
+    return;
+  }
+
+  // ----- a scan is in flight -----
+  if (staScanning) {
+    int n = WiFi.scanComplete();
+    if (n == WIFI_SCAN_RUNNING) return;
+    staScanning = false;
+    if (n < 0) {
+      Serial.println("Uplink: scan failed — nothing learned, will look again");
+      WiFi.scanDelete();
+      staNextAttempt = millis() + STA_RETRY_MIN_MS;
+      return;
+    }
+
+    // Earliest entry in homeNetworks[] that the scan actually saw. Its channel and
+    // BSSID are copied out before scanDelete() frees the results — handing both to
+    // begin() keeps the association on one channel instead of hunting for the name.
+    int best = -1, bestScan = -1;
+    for (int i = 0; i < n && best != 0; i++) {
+      String found = WiFi.SSID(i);
+      for (int k = 0; k < homeNetworkCount; k++) {
+        if ((best < 0 || k < best) && found.equals(homeNetworks[k].ssid)) { best = k; bestScan = i; }
+      }
+    }
+    int32_t ch = 0;
+    uint8_t bssid[6] = {0};
+    if (best >= 0) {
+      ch = WiFi.channel(bestScan);
+      memcpy(bssid, WiFi.BSSID(bestScan), 6);
+    }
+    WiFi.scanDelete();   // the result table is heap this station has better uses for
+
+    if (best < 0) {
+      // Nothing of ours on the air. This is the field, and there is nothing here to
+      // associate to — so do not spend a single WiFi.begin() proving it.
+      if (!staNoneInRange) Serial.printf("Uplink: none of the %d known networks on the air\n",
+                                         homeNetworkCount);
+      staNoneInRange = true;
+      staNextAttempt = millis() + staBackoffMs;
+      if (staBackoffMs < STA_RETRY_MAX_MS) staBackoffMs = min(staBackoffMs * 2, STA_RETRY_MAX_MS);
+      return;
+    }
+
+    staNoneInRange = false;
+    Serial.printf("Uplink: '%s' is on channel %d, joining\n", homeNetworks[best].ssid, (int)ch);
+    WiFi.begin(homeNetworks[best].ssid, homeNetworks[best].password, ch, bssid);
+    staTrying = best;
+    staStatusAtBegin = WiFi.status();
+    staAssocDeadline = millis() + STA_ASSOC_MS;
+    return;
+  }
+
+  // ----- idle: is it time to look again? -----
   if ((long)(millis() - staNextAttempt) < 0) return;
 
-  const HomeNetwork& candidate = homeNetworks[staIndex];
-  Serial.printf("Uplink: trying '%s' (%d/%d)\n",
-                candidate.ssid, staIndex + 1, homeNetworkCount);
-  WiFi.begin(candidate.ssid, candidate.password);
+  // Somebody is on the AP right now and the last look found nothing of ours: the
+  // board is out in a field being used, exactly the case where a scan can only
+  // interrupt the one client that matters for a network that is not there. Check
+  // again when they leave. This is why the search must be cheap AND skippable —
+  // cheap alone still puts a 1.6 s hole in the middle of somebody's session.
+  if (staNoneInRange && apClients() > 0) {
+    staNextAttempt = millis() + STA_RETRY_MIN_MS;
+    return;
+  }
 
-  staIndex++;
-  if (staIndex < homeNetworkCount) {
-    staNextAttempt = millis() + STA_ASSOC_MS;   // next candidate, no long wait
+  // Async: scanComplete() is read on a later pass, so loop() keeps serving. Active
+  // scan, hidden networks not asked for — a hidden SSID is not one of ours.
+  if (WiFi.scanNetworks(true, false, false, STA_SCAN_MS_PER_CHAN) == WIFI_SCAN_RUNNING) {
+    staScanning = true;
   } else {
-    // Whole list exhausted: back off before starting over, so a station on a mast
-    // with none of these networks in range stops interrupting its own AP.
-    staIndex = 0;
-    staNextAttempt = millis() + staBackoffMs;
-    if (staBackoffMs < STA_RETRY_MAX_MS) {
-      staBackoffMs = min(staBackoffMs * 2, STA_RETRY_MAX_MS);
-    }
+    staNextAttempt = millis() + STA_RETRY_MIN_MS;   // driver busy; ask again shortly
   }
 }
 #endif
@@ -1385,13 +1488,15 @@ void setup() {
   // One radio, one channel: the AP came up on channel 1, and when the uplink
   // associates to a router on another channel the AP follows it there. Clients on
   // the AP drop and rejoin once for that — unavoidable on a single-radio part, and
-  // the reason this is the last thing setup() does.
+  // the reason this is the last thing setup() does. Away from home no association
+  // happens at all (serviceUplink() scans before it joins), so the AP keeps
+  // channel 1 and a phone has a still target to aim at.
   WiFi.setAutoReconnect(false);   // serviceUplink() owns retries, see staBackoffMs
   // No WiFi.begin() here on purpose: staNextAttempt in the past makes the first pass
   // through loop() start the search, so the list is walked by one piece of code
   // instead of two that could disagree about which candidate is next.
   staNextAttempt = millis();
-  Serial.printf("Uplink: %d network(s) to try in the background (2.4 GHz only)\n",
+  Serial.printf("Uplink: %d known network(s), scanning for them in the background (2.4 GHz only)\n",
                 homeNetworkCount);
 #endif
 
