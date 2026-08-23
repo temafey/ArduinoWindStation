@@ -1511,7 +1511,24 @@ void setup() {
   // WPA2-protected AP on the default 192.168.4.1/24. Channel 1, not hidden: hiding
   // an SSID stops nobody who can run a scanner and mostly annoys phones, the
   // passphrase is what actually keeps strangers out.
-  apUp = WiFi.softAP(apSsid, apPassword, 1 /*channel*/, 0 /*hidden*/, apMaxClients);
+  //
+  // The auth mode is spelled out, and that is not decoration. This call used to end
+  // at apMaxClients and take whatever WIFI_AP_DEFAULT_AUTH_MODE happened to be in the
+  // core of the day — and the laptop's saved profile for this SSID says WPA3SAE, so
+  // at some point it was not WPA2 at all. A WPA3-SAE access point is required by spec
+  // to have management frame protection on; this one advertised pmf_cfg all zeros
+  // (see below), which makes it a non-compliant SAE AP. Android's supplicant checks
+  // and walks away — "Connecting..." and then silence, with the network still in the
+  // list — while Windows shrugs and associates. That is the whole "the laptop gets in
+  // and the phone never does" story, and it had nothing to do with distance or radio.
+  //
+  // WPA2-PSK with CCMP is the most widely accepted combination there is, and it is
+  // what the documentation always claimed this AP was. Pinned here so it no longer
+  // depends on a default, a core version, or whatever the driver kept from an older
+  // build.
+  apUp = WiFi.softAP(apSsid, apPassword, 1 /*channel*/, 0 /*hidden*/, apMaxClients,
+                     false /*ftm_responder*/,
+                     WIFI_AUTH_WPA2_PSK, WIFI_CIPHER_TYPE_CCMP);
 
   // Association and its failure, straight from the driver. The reason code is the
   // whole point: 15 (4WAY_HANDSHAKE_TIMEOUT) is a wrong passphrase, 5 (ASSOC_TOOMANY)
@@ -1552,6 +1569,23 @@ void setup() {
     apConf.ap.pmf_cfg.capable  = true;
     apConf.ap.pmf_cfg.required = false;
     esp_wifi_set_config(WIFI_IF_AP, &apConf);
+  }
+
+  // Read back and print what the AP actually went on the air as. The mode was never
+  // stated in code and never shown anywhere, so the only way to learn it was to open
+  // the saved profile on a machine that had already connected — which is a poor way
+  // to find out that half the devices in the house cannot join. Now it is one line
+  // in the boot log.
+  if (esp_wifi_get_config(WIFI_IF_AP, &apConf) == ESP_OK) {
+    const char* mode = apConf.ap.authmode == WIFI_AUTH_WPA2_PSK      ? "WPA2-PSK"
+                     : apConf.ap.authmode == WIFI_AUTH_WPA_WPA2_PSK  ? "WPA/WPA2-PSK"
+                     : apConf.ap.authmode == WIFI_AUTH_WPA2_WPA3_PSK ? "WPA2/WPA3-PSK"
+                     : apConf.ap.authmode == WIFI_AUTH_WPA3_PSK      ? "WPA3-SAE"
+                     : apConf.ap.authmode == WIFI_AUTH_OPEN          ? "OPEN (!)"
+                     : "other";
+    Serial.printf("AP security: %s, PMF capable=%d required=%d, dtim=%d\n",
+                  mode, apConf.ap.pmf_cfg.capable, apConf.ap.pmf_cfg.required,
+                  apConf.ap.dtim_period);
   }
 
   // ===== LOW-LATENCY LINK =====
