@@ -377,6 +377,38 @@ bool blinkPhase  = false;
 // ===== ACCESS POINT STATE =====
 bool apUp = false;   // softAP() came up; false only if the radio failed outright
 
+// ===== WHO CAME TO THE AP AND WHY THEY LEFT =====
+// A client that cannot associate is invisible from the inside: softAPgetStationNum()
+// only counts the ones that made it, so a phone stuck on "Connecting..." leaves no
+// trace at all. The driver does say what happened — WIFI_EVENT_AP_STADISCONNECTED
+// carries an 802.11 reason code — and this ring is the only place that survives long
+// enough to read it: the laptop associates fine, so it can watch the phone fail from
+// /api/wifi without a USB cable anywhere near a field.
+//
+// Written from the WiFi event task and read from the HTTP task without a lock. Both
+// indices are single bytes and the entries are plain values, so the worst a race can
+// do is print one stale line. A mutex here would cost more than the mistake.
+#define AP_LOG_N 8
+struct ApEvent {
+  unsigned long ms;      // millis() when it happened
+  uint8_t  mac[6];
+  bool     joined;       // true = associated, false = left or was refused
+  uint16_t reason;       // 802.11 reason code, meaningful only when joined == false
+};
+ApEvent apEventLog[AP_LOG_N];
+uint8_t apEventCount = 0;   // how many slots are filled, saturates at AP_LOG_N
+uint8_t apEventNext  = 0;   // where the next one goes
+
+void apEventPush(const uint8_t* mac, bool joined, uint16_t reason) {
+  ApEvent& e = apEventLog[apEventNext];
+  e.ms = millis();
+  memcpy(e.mac, mac, 6);
+  e.joined = joined;
+  e.reason = reason;
+  apEventNext = (apEventNext + 1) % AP_LOG_N;
+  if (apEventCount < AP_LOG_N) apEventCount++;
+}
+
 // Why the chip last started. Reported in /api/data because a station used away from
 // the house runs on a battery, and a battery that sags under a transmit burst resets
 // the board — which from the outside looks exactly like "it will not let my phone
@@ -1026,6 +1058,28 @@ void handleWifiControl() {
   json += "\"uplinkRssi\":0,";
   json += "\"uplinkKnown\":[],";
 #endif
+  // Последние приходы и уходы клиентов точки. Читается с ноутбука, пока телефон
+  // пытается подключиться: снаружи «Connecting…» и тишина, а здесь причина отказа
+  // числом. `ago` — секунд назад, чтобы не сверять миллисекунды с аптаймом.
+  json += "\"apLog\":[";
+  for (uint8_t i = 0; i < apEventCount; i++) {
+    // Свежие сверху: идём назад от последней записи.
+    uint8_t idx = (apEventNext + AP_LOG_N - 1 - i) % AP_LOG_N;
+    const ApEvent& e = apEventLog[idx];
+    char mac[18];
+    snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x",
+             e.mac[0], e.mac[1], e.mac[2], e.mac[3], e.mac[4], e.mac[5]);
+    if (i) json += ",";
+    json += "{\"ago\":" + String((millis() - e.ms) / 1000);
+    json += ",\"mac\":\"" + String(mac) + "\"";
+    json += ",\"event\":\"" + String(e.joined ? "join" : "leave") + "\"";
+    if (!e.joined) {
+      json += ",\"reason\":" + String(e.reason);
+      json += ",\"why\":\"" + String(WiFi.STA.disconnectReasonName((wifi_err_reason_t)e.reason)) + "\"";
+    }
+    json += "}";
+  }
+  json += "],";
   json += "\"max\":0,";
   json += "\"nets\":[]}";
 
@@ -1459,6 +1513,26 @@ void setup() {
   // passphrase is what actually keeps strangers out.
   apUp = WiFi.softAP(apSsid, apPassword, 1 /*channel*/, 0 /*hidden*/, apMaxClients);
 
+  // Association and its failure, straight from the driver. The reason code is the
+  // whole point: 15 (4WAY_HANDSHAKE_TIMEOUT) is a wrong passphrase, 5 (ASSOC_TOOMANY)
+  // is a full AP, 2 and 4 are the client giving up on a radio that was elsewhere.
+  // Printed to Serial and kept in the ring for /api/wifi.
+  WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t info) {
+    const uint8_t* m = info.wifi_ap_staconnected.mac;
+    apEventPush(m, true, 0);
+    Serial.printf("AP: %02x:%02x:%02x:%02x:%02x:%02x joined (%d on the air)\n",
+                  m[0], m[1], m[2], m[3], m[4], m[5], apClients());
+  }, ARDUINO_EVENT_WIFI_AP_STACONNECTED);
+
+  WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t info) {
+    const uint8_t* m = info.wifi_ap_stadisconnected.mac;
+    uint16_t r = info.wifi_ap_stadisconnected.reason;
+    apEventPush(m, false, r);
+    Serial.printf("AP: %02x:%02x:%02x:%02x:%02x:%02x left — reason %u (%s)\n",
+                  m[0], m[1], m[2], m[3], m[4], m[5], r,
+                  WiFi.STA.disconnectReasonName((wifi_err_reason_t)r));
+  }, ARDUINO_EVENT_WIFI_AP_STADISCONNECTED);
+
   // A client in power save only listens on the DTIM beacon; until then the AP holds
   // its frames. Arduino's APClass::create() memsets the whole wifi_config_t and then
   // never assigns dtim_period, so what reaches the driver is 0 — outside the documented
@@ -1469,6 +1543,14 @@ void setup() {
   if (esp_wifi_get_config(WIFI_IF_AP, &apConf) == ESP_OK) {
     apConf.ap.beacon_interval = 100;
     apConf.ap.dtim_period     = 1;
+    // Same story as dtim_period, same cause: APClass::create() memsets wifi_config_t
+    // and never restores pmf_cfg, so an AP that IDF would have built as
+    // {capable = true, required = false} goes on the air advertising no management
+    // frame protection at all. Restored to the documented default rather than raised
+    // above it — capable lets a client that wants PMF have it, required would lock
+    // out anything that does not.
+    apConf.ap.pmf_cfg.capable  = true;
+    apConf.ap.pmf_cfg.required = false;
     esp_wifi_set_config(WIFI_IF_AP, &apConf);
   }
 
