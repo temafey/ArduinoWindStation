@@ -45,3 +45,35 @@
 #define SECRET_STATION_LAT   0.0
 #define SECRET_STATION_LON   0.0
 #define SECRET_STATION_ALT_M 0.0
+
+// ============================================
+// CLOUD UPLINK over 4G — task 10. Leave HAS_CLOUD at 0 until the modem is wired:
+// at 0 the whole MQTT client is compiled out and nothing below is read.
+//
+// The station keeps ONE MQTT/TLS connection open for the whole session and pushes
+// five packets per second, so the remote dashboard looks as live as the local one.
+// Everything here is a credential or an identifier, which is why it lives in the
+// untracked file. The dashboard's viewer account is a different, subscribe-only
+// login and lives in wind-ui/.env (VITE_MQTT_VIEWER_*), never here and never in git.
+// ============================================
+#define SECRET_HAS_CLOUD 0
+
+// Broker. Port 8883 is MQTT over TLS; the host name must match the certificate,
+// so it cannot be replaced with an IP address (the network hands out no DNS on
+// this SIM — the firmware sets a resolver by hand, see the task file).
+#define SECRET_MQTT_HOST     "xxxxxxxx.s1.eu.hivemq.cloud"
+#define SECRET_MQTT_PORT     8883
+
+// Station account: may publish wind/<id>/{live,state,status,ack} and subscribe to
+// wind/<id>/cmd — nothing else. Set that up as an ACL on the broker, not as a habit.
+#define SECRET_MQTT_USER     "CHANGE_ME_station_user"
+#define SECRET_MQTT_PASSWORD "CHANGE_ME_station_password"
+
+// Topic prefix. A short nickname on purpose: not the IMEI, not the coordinates —
+// this string ends up in a dashboard that anyone can open.
+#define SECRET_MQTT_STATION_ID "station1"
+
+// Shared key for the HMAC on incoming commands. The station only VERIFIES with it;
+// whoever queues a command signs with the same key from a browser or curl. Random
+// hex, not a passphrase — it is never typed by a human.
+#define SECRET_CMD_HMAC_KEY  "CHANGE_ME_32_random_bytes_in_hex"
