@@ -18,6 +18,12 @@ import gzip
 import pathlib
 import sys
 
+# Консоль Windows по умолчанию в cp1252, и кириллица в print роняла скрипт уже
+# после записи web_content.h — сборка выглядела провалившейся, хотя заголовок
+# был на месте, и следующий шаг цепочки не запускался.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIST = ROOT / "wind-ui" / "dist"
 OUT = pathlib.Path(__file__).resolve().parent / "web_content.h"

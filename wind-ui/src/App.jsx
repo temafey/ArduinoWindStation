@@ -1,5 +1,17 @@
 import WindDashboard from '../../wind-dashboard.jsx'
+import { AppGuard, Boot } from '../../wind-guard.jsx'
 
+// Граница ошибок обязана быть снаружи дашборда, а не внутри него: React
+// отдаёт сбой только тому, кто стоит выше упавшего места. Стой она внутри,
+// падение самого дашборда прошло бы мимо неё — и экран снова стал бы пустым.
+//
+// Экран запуска — рядом с ней, а не под ней: он должен показаться даже тогда,
+// когда дашборд падает при первой же отрисовке.
 export default function App() {
-  return <WindDashboard />
+  return (
+    <AppGuard>
+      <Boot />
+      <WindDashboard />
+    </AppGuard>
+  )
 }

@@ -119,16 +119,26 @@ const HomeNetwork homeNetworks[] = { SECRET_HOME_NETWORKS };
 const int homeNetworkCount = sizeof(homeNetworks) / sizeof(homeNetworks[0]);
 #endif
 
-// One association attempt gets this long before the next candidate is tried. A
-// successful join takes 2-5 s; the rest is margin for a router that answers slowly.
+// One association attempt gets this long before it is abandoned. A successful join
+// takes 2-5 s; the rest is margin for a router that answers slowly. Only ever spent
+// on a network a scan has just seen, so it is a wait for a slow answer and not a
+// wait for silence.
 const unsigned long STA_ASSOC_MS = 12000;
-// Backoff between full passes over the list — NOT between individual candidates.
-// Association is not free: the driver leaves the AP's channel to do it, and every
-// client on the AP stalls for the duration. Tolerable now and then, intolerable
-// every 30 s forever, which is exactly what happens when none of these networks is
-// there (the board on the mast). So the wait doubles after each failed pass and
-// resets the moment a link comes up.
-const unsigned long STA_RETRY_MIN_MS = 30000;    // after the first failed pass, 30 s
+// Milliseconds the scan dwells on each of the 13 channels. Thirteen times this is
+// how long the AP goes quiet per search, so the number is a direct cost: 120 ms
+// gives ~1.6 s, short enough that an associated client rides it out on beacon-miss
+// tolerance alone, long enough for a router's probe response to come back.
+const unsigned long STA_SCAN_MS_PER_CHAN = 120;
+// Backoff between searches. A search costs the AP its channel — the radio is one
+// radio, and while it looks elsewhere the station's own network is off the air.
+// That is what used to make the board unreachable from a phone in a field: six
+// blind WiFi.begin() calls at 12 s each meant 72 s of thrashing after every
+// power-up, and a phone's association simply does not survive it (a laptop retries
+// long enough to slip through, which is why the fault looked like "phones only").
+// Now a search is one scan, and if none of the known networks is on the air it ends
+// there — no association is attempted at all. The wait still doubles after each
+// failed search and resets the moment a link comes up.
+const unsigned long STA_RETRY_MIN_MS = 30000;    // after the first failed search, 30 s
 const unsigned long STA_RETRY_MAX_MS = 600000;   // ceiling, 10 min
 
 // ===== PINS =====
@@ -367,15 +377,77 @@ bool blinkPhase  = false;
 // ===== ACCESS POINT STATE =====
 bool apUp = false;   // softAP() came up; false only if the radio failed outright
 
+// ===== WHO CAME TO THE AP AND WHY THEY LEFT =====
+// A client that cannot associate is invisible from the inside: softAPgetStationNum()
+// only counts the ones that made it, so a phone stuck on "Connecting..." leaves no
+// trace at all. The driver does say what happened — WIFI_EVENT_AP_STADISCONNECTED
+// carries an 802.11 reason code — and this ring is the only place that survives long
+// enough to read it: the laptop associates fine, so it can watch the phone fail from
+// /api/wifi without a USB cable anywhere near a field.
+//
+// Written from the WiFi event task and read from the HTTP task without a lock. Both
+// indices are single bytes and the entries are plain values, so the worst a race can
+// do is print one stale line. A mutex here would cost more than the mistake.
+#define AP_LOG_N 8
+struct ApEvent {
+  unsigned long ms;      // millis() when it happened
+  uint8_t  mac[6];
+  bool     joined;       // true = associated, false = left or was refused
+  uint16_t reason;       // 802.11 reason code, meaningful only when joined == false
+};
+ApEvent apEventLog[AP_LOG_N];
+uint8_t apEventCount = 0;   // how many slots are filled, saturates at AP_LOG_N
+uint8_t apEventNext  = 0;   // where the next one goes
+
+void apEventPush(const uint8_t* mac, bool joined, uint16_t reason) {
+  ApEvent& e = apEventLog[apEventNext];
+  e.ms = millis();
+  memcpy(e.mac, mac, 6);
+  e.joined = joined;
+  e.reason = reason;
+  apEventNext = (apEventNext + 1) % AP_LOG_N;
+  if (apEventCount < AP_LOG_N) apEventCount++;
+}
+
+// Why the chip last started. Reported in /api/data because a station used away from
+// the house runs on a battery, and a battery that sags under a transmit burst resets
+// the board — which from the outside looks exactly like "it will not let my phone
+// connect". Uptime alone does not distinguish a fresh power-up from a brownout loop;
+// this does, and it is the one question the dashboard cannot answer by measuring.
+const char* resetReasonName() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON:  return "poweron";
+    case ESP_RST_BROWNOUT: return "brownout";   // supply sagged — battery or wiring
+    case ESP_RST_PANIC:    return "panic";
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_WDT:
+    case ESP_RST_INT_WDT:  return "watchdog";
+    case ESP_RST_SW:       return "software";   // OTA finished, or Restart()
+    case ESP_RST_EXT:      return "external";   // the EN button
+    case ESP_RST_DEEPSLEEP: return "deepsleep";
+    default:               return "unknown";
+  }
+}
+
 #if HAS_HOME_NETWORK
 // ===== UPLINK STATE =====
 // Driver auto-reconnect is turned off in setup() so there is exactly one place that
 // decides when to associate — otherwise the driver's own retries and the backoff
 // below would both be scanning, and the AP would stall twice as often for it.
 bool staUp = false;                              // last observed link state
-int  staIndex = 0;                               // next candidate in homeNetworks[]
-unsigned long staBackoffMs  = STA_RETRY_MIN_MS;  // wait after a full failed pass
-unsigned long staNextAttempt = 0;                // millis() of the next WiFi.begin()
+unsigned long staBackoffMs  = STA_RETRY_MIN_MS;  // wait after a failed search
+unsigned long staNextAttempt = 0;                // millis() of the next search
+bool staScanning = false;                        // an async scan is in flight
+int  staTrying = -1;                             // homeNetworks[] index being joined, -1 = none
+unsigned long staAssocDeadline = 0;              // when to abandon that association
+// WiFi.status() is only ever written by driver events, never by begin(), so the
+// value standing when an association starts is the previous attempt's verdict.
+// Kept here so a failure can be told from a leftover: see serviceUplink().
+wl_status_t staStatusAtBegin = WL_NO_SHIELD;
+// Set when a completed scan saw none of the known networks. It is the "we are
+// somewhere else entirely" flag, and it is what buys a client on the AP total
+// radio silence: see the guard in serviceUplink().
+bool staNoneInRange = false;
 #endif
 
 // Catch-all DNS: every name resolves to the station. That is deliberate and it is
@@ -655,8 +727,82 @@ LedMode parseLedMode(const String& v) {
 }
 
 // ===== HTTP API =====
+// Read-only endpoints stay wide open. The wildcard is deliberate: the same
+// dashboard bundle is also published over HTTPS as a demo, and a browser there
+// must at least be able to try.
 void sendCors() {
   server.sendHeader("Access-Control-Allow-Origin", "*");
+}
+
+// Headers put on every embedded page. None of them make an http:// origin a
+// secure context — only real TLS does that, and a station on a private IP cannot
+// hold a CA-signed certificate — but they are the part that is actually free.
+// Permissions-Policy explicitly *allows* geolocation for our own origin so the
+// browser's own gate is the only thing left in the way, and shuts the doors
+// nothing here uses.
+void sendPageSecurity() {
+  server.sendHeader("X-Content-Type-Options", "nosniff");
+  server.sendHeader("Referrer-Policy", "no-referrer");
+  server.sendHeader("Permissions-Policy",
+                    "geolocation=(self), camera=(), microphone=(), usb=(), payment=()");
+  // https: is needed wholesale in img/connect: the world map pulls live warnings
+  // from api.weather.gov and radar rasters from NOAA, and those hostnames are not
+  // ours to pin. 'unsafe-inline' for styles because the whole dashboard is styled
+  // with inline style attributes on purpose — see the note in wind-dashboard.jsx.
+  server.sendHeader("Content-Security-Policy",
+                    "default-src 'self'; script-src 'self'; "
+                    "style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; "
+                    "connect-src 'self' https:; font-src 'self'; "
+                    "object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
+}
+
+// Guard for endpoints that change something. The threat is not a neighbour on the
+// LAN, it is any page the phone already has open: this API takes plain GETs, so a
+// random site can point a request at 192.168.4.1/api/led and the browser will
+// send it. A wildcard Access-Control-Allow-Origin hides the *reply* from that
+// script and does nothing to stop the request from arriving and taking effect.
+// With /api/at on the board that request could send an SMS.
+//
+// A same-origin GET from our own dashboard carries no Origin header at all, so
+// "Origin present and not ours" is exactly the cross-site case and nothing else.
+// One string compare, no password to type on a phone keyboard, no state to store.
+// localhost is allowed on purpose: that is `npm run dev` pointed at a real board,
+// and losing it would cost more than the guard is worth.
+bool crossSiteWrite() {
+  if (!server.hasHeader("Origin")) return false;
+  String o = server.header("Origin");
+  if (o == "null") return false;                                  // file:// and sandboxes
+  if (o == String("http://") + portalHost)             return false;
+  if (o == "http://" + WiFi.softAPIP().toString())     return false;
+  if (WiFi.status() == WL_CONNECTED &&
+      o == "http://" + WiFi.localIP().toString())      return false;
+  if (o.startsWith("http://localhost:") ||
+      o.startsWith("http://127.0.0.1:"))               return false;
+  sendCors();
+  server.send(403, "text/plain", "cross-site request refused\n");
+  Serial.printf("HTTP: refused cross-site write from %s\n", o.c_str());
+  return true;
+}
+
+// Where the station physically is. The coordinates have sat in secrets.h unused
+// since they were added -- nothing on the board needed them. The world map does:
+// it has to centre on something, and on a copy served over plain http:// the
+// browser flatly refuses to hand out the *viewer's* position, so the *station's*
+// is the only real coordinate in reach. Served at full precision because this is
+// the owner's own device on the owner's own network; the rounding rule in the docs
+// is about what goes into git, not about what the board tells its own dashboard.
+//
+// 0/0 means "not configured" rather than the Gulf of Guinea, and the dashboard
+// reads it that way.
+void handleSite() {
+  sendCors();
+  String j = "{";
+  j += "\"lat\":"  + String((double)SECRET_STATION_LAT, 5) + ",";
+  j += "\"lon\":"  + String((double)SECRET_STATION_LON, 5) + ",";
+  j += "\"altM\":" + String((double)SECRET_STATION_ALT_M, 1) + ",";
+  j += "\"host\":\"" + String(portalHost) + "\"";
+  j += "}";
+  server.send(200, "application/json", j);
 }
 
 String buildDataJson() {
@@ -722,7 +868,8 @@ String buildDataJson() {
   // The address to show a human, not the mDNS label — this is what the dashboard
   // prints as "станция доступна по адресу".
   json += "\"hostname\":\""     + String(portalHost) + "\",";
-  json += "\"uptime\":"         + String(millis() / 1000);
+  json += "\"uptime\":"         + String(millis() / 1000) + ",";
+  json += "\"resetReason\":\""  + String(resetReasonName()) + "\"";
   json += "}";
   return json;
 }
@@ -808,6 +955,7 @@ void handleStream() {
 }
 
 void handleLedControl() {
+  if (crossSiteWrite()) return;
   if (server.hasArg("auto")) {
     ledAutoMode = server.arg("auto") == "true";
   }
@@ -832,6 +980,7 @@ void handleLedControl() {
 // as the source line to paste back into the constant, which is where it belongs anyway —
 // the value is a property of the resistors, and those do not change between reboots.
 void handleZero() {
+  if (crossSiteWrite()) return;
   if (server.hasArg("reset")) {
 #if HAS_LEVEL_SHIFT
     speedZeroMv = SPEED_BIAS_MV_DEFAULT;
@@ -867,6 +1016,7 @@ void handleZero() {
 }
 
 void handleResetGust() {
+  if (crossSiteWrite()) return;
   windGust = windSpeed;
   gustResetTimer = millis();
   sendCors();
@@ -908,6 +1058,28 @@ void handleWifiControl() {
   json += "\"uplinkRssi\":0,";
   json += "\"uplinkKnown\":[],";
 #endif
+  // Последние приходы и уходы клиентов точки. Читается с ноутбука, пока телефон
+  // пытается подключиться: снаружи «Connecting…» и тишина, а здесь причина отказа
+  // числом. `ago` — секунд назад, чтобы не сверять миллисекунды с аптаймом.
+  json += "\"apLog\":[";
+  for (uint8_t i = 0; i < apEventCount; i++) {
+    // Свежие сверху: идём назад от последней записи.
+    uint8_t idx = (apEventNext + AP_LOG_N - 1 - i) % AP_LOG_N;
+    const ApEvent& e = apEventLog[idx];
+    char mac[18];
+    snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x",
+             e.mac[0], e.mac[1], e.mac[2], e.mac[3], e.mac[4], e.mac[5]);
+    if (i) json += ",";
+    json += "{\"ago\":" + String((millis() - e.ms) / 1000);
+    json += ",\"mac\":\"" + String(mac) + "\"";
+    json += ",\"event\":\"" + String(e.joined ? "join" : "leave") + "\"";
+    if (!e.joined) {
+      json += ",\"reason\":" + String(e.reason);
+      json += ",\"why\":\"" + String(WiFi.STA.disconnectReasonName((wifi_err_reason_t)e.reason)) + "\"";
+    }
+    json += "}";
+  }
+  json += "],";
   json += "\"max\":0,";
   json += "\"nets\":[]}";
 
@@ -1009,6 +1181,7 @@ static bool modemAnswered() {
 // reply — so it cannot lift the IMEI, the ICCID or the SIM contents out of a foreign tab.
 // That narrows the hole. HAS_MODEM 0 is what closes it.
 void handleAt() {
+  if (crossSiteWrite()) return;
   // Re-wiring first, so ?pins=26,25&cmd=AT does both in one request.
   bool reopen = false;
   if (server.hasArg("pins")) {
@@ -1137,10 +1310,16 @@ void startNetworkServices() {
 // The AP is not touched anywhere in here. There is no path in this function that
 // can take the station off the air.
 //
-// With several candidates it walks homeNetworks[] one entry per attempt, giving each
-// STA_ASSOC_MS to answer, and only after a whole pass has failed does it wait out the
-// backoff. Order is preference: the first network that happens to be in range wins,
-// because the pass stops the moment a link comes up.
+// A search is scan first, associate second, and that order is the whole point. The
+// old version walked homeNetworks[] blind, calling WiFi.begin() on each name in turn
+// and waiting STA_ASSOC_MS for silence — six names cost 72 s of the AP's channel
+// every time the board was switched on away from home. Asking the air once who is
+// actually there costs ~1.6 s and answers for the whole list at once, and when the
+// answer is "none of yours" the search ends without touching the station interface.
+//
+// Order is preference: of the known networks the scan found, the earliest one in
+// homeNetworks[] wins, not the loudest. The list is written by preference and that
+// is the meaning it should keep.
 void serviceUplink() {
   bool now = (WiFi.status() == WL_CONNECTED);
 
@@ -1148,7 +1327,8 @@ void serviceUplink() {
     staUp = now;
     if (now) {
       staBackoffMs = STA_RETRY_MIN_MS;   // a good link earns a fast retry next time
-      staIndex = 0;                      // and the next search starts from the top
+      staNoneInRange = false;            // and the surroundings are evidently ours
+      staTrying = -1;                    // the attempt this link came from is over
       Serial.printf("Uplink '%s' joined  IP: %s  RSSI=%d\n",
                     WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(), WiFi.RSSI());
       // mDNS was started when the AP was the only interface, so its responder is
@@ -1173,25 +1353,101 @@ void serviceUplink() {
   }
 
   if (now) return;
-  // Signed comparison so the wrap of millis() at 49.7 days cannot park this forever.
+
+  // ----- an association is in flight -----
+  if (staTrying >= 0) {
+    wl_status_t st = WiFi.status();
+    // Only a status that has MOVED since begin() says anything about this attempt.
+    // begin() does not clear the previous one, so "no such network" left over from
+    // the last candidate would otherwise abort a join to a network the scan has
+    // just seen — on the first pass through loop(), before the radio has done
+    // anything at all. When the verdict repeats unchanged the deadline catches it
+    // instead: slower, and never wrong.
+    bool refused = (st != staStatusAtBegin) && (st == WL_NO_SSID_AVAIL || st == WL_CONNECT_FAILED);
+    // Signed comparison so the wrap of millis() at 49.7 days cannot park this forever.
+    if (!refused && (long)(millis() - staAssocDeadline) < 0) return;
+    Serial.printf("Uplink: '%s' %s\n", homeNetworks[staTrying].ssid,
+                  refused ? "refused the join" : "did not answer in time");
+    staTrying = -1;
+    // The driver keeps retrying an association it started unless it is told to stop,
+    // and those retries are off-channel time nobody asked for. This is the one
+    // WiFi.disconnect() outside setup(); false/false means station interface only
+    // and no NVS write, so the AP does not notice it happened.
+    WiFi.disconnect(false, false);
+    staNextAttempt = millis() + staBackoffMs;
+    if (staBackoffMs < STA_RETRY_MAX_MS) staBackoffMs = min(staBackoffMs * 2, STA_RETRY_MAX_MS);
+    return;
+  }
+
+  // ----- a scan is in flight -----
+  if (staScanning) {
+    int n = WiFi.scanComplete();
+    if (n == WIFI_SCAN_RUNNING) return;
+    staScanning = false;
+    if (n < 0) {
+      Serial.println("Uplink: scan failed — nothing learned, will look again");
+      WiFi.scanDelete();
+      staNextAttempt = millis() + STA_RETRY_MIN_MS;
+      return;
+    }
+
+    // Earliest entry in homeNetworks[] that the scan actually saw. Its channel and
+    // BSSID are copied out before scanDelete() frees the results — handing both to
+    // begin() keeps the association on one channel instead of hunting for the name.
+    int best = -1, bestScan = -1;
+    for (int i = 0; i < n && best != 0; i++) {
+      String found = WiFi.SSID(i);
+      for (int k = 0; k < homeNetworkCount; k++) {
+        if ((best < 0 || k < best) && found.equals(homeNetworks[k].ssid)) { best = k; bestScan = i; }
+      }
+    }
+    int32_t ch = 0;
+    uint8_t bssid[6] = {0};
+    if (best >= 0) {
+      ch = WiFi.channel(bestScan);
+      memcpy(bssid, WiFi.BSSID(bestScan), 6);
+    }
+    WiFi.scanDelete();   // the result table is heap this station has better uses for
+
+    if (best < 0) {
+      // Nothing of ours on the air. This is the field, and there is nothing here to
+      // associate to — so do not spend a single WiFi.begin() proving it.
+      if (!staNoneInRange) Serial.printf("Uplink: none of the %d known networks on the air\n",
+                                         homeNetworkCount);
+      staNoneInRange = true;
+      staNextAttempt = millis() + staBackoffMs;
+      if (staBackoffMs < STA_RETRY_MAX_MS) staBackoffMs = min(staBackoffMs * 2, STA_RETRY_MAX_MS);
+      return;
+    }
+
+    staNoneInRange = false;
+    Serial.printf("Uplink: '%s' is on channel %d, joining\n", homeNetworks[best].ssid, (int)ch);
+    WiFi.begin(homeNetworks[best].ssid, homeNetworks[best].password, ch, bssid);
+    staTrying = best;
+    staStatusAtBegin = WiFi.status();
+    staAssocDeadline = millis() + STA_ASSOC_MS;
+    return;
+  }
+
+  // ----- idle: is it time to look again? -----
   if ((long)(millis() - staNextAttempt) < 0) return;
 
-  const HomeNetwork& candidate = homeNetworks[staIndex];
-  Serial.printf("Uplink: trying '%s' (%d/%d)\n",
-                candidate.ssid, staIndex + 1, homeNetworkCount);
-  WiFi.begin(candidate.ssid, candidate.password);
+  // Somebody is on the AP right now and the last look found nothing of ours: the
+  // board is out in a field being used, exactly the case where a scan can only
+  // interrupt the one client that matters for a network that is not there. Check
+  // again when they leave. This is why the search must be cheap AND skippable —
+  // cheap alone still puts a 1.6 s hole in the middle of somebody's session.
+  if (staNoneInRange && apClients() > 0) {
+    staNextAttempt = millis() + STA_RETRY_MIN_MS;
+    return;
+  }
 
-  staIndex++;
-  if (staIndex < homeNetworkCount) {
-    staNextAttempt = millis() + STA_ASSOC_MS;   // next candidate, no long wait
+  // Async: scanComplete() is read on a later pass, so loop() keeps serving. Active
+  // scan, hidden networks not asked for — a hidden SSID is not one of ours.
+  if (WiFi.scanNetworks(true, false, false, STA_SCAN_MS_PER_CHAN) == WIFI_SCAN_RUNNING) {
+    staScanning = true;
   } else {
-    // Whole list exhausted: back off before starting over, so a station on a mast
-    // with none of these networks in range stops interrupting its own AP.
-    staIndex = 0;
-    staNextAttempt = millis() + staBackoffMs;
-    if (staBackoffMs < STA_RETRY_MAX_MS) {
-      staBackoffMs = min(staBackoffMs * 2, STA_RETRY_MAX_MS);
-    }
+    staNextAttempt = millis() + STA_RETRY_MIN_MS;   // driver busy; ask again shortly
   }
 }
 #endif
@@ -1226,6 +1482,8 @@ void setup() {
   pinMode(PIN_STDBY,  INPUT_PULLUP);
 #endif
 
+  Serial.printf("Last reset: %s\n", resetReasonName());
+
   analogReadResolution(12);
   analogSetPinAttenuation(PIN_WIND_SPEED, ADC_11db);
   analogSetPinAttenuation(PIN_WIND_DIR,   ADC_11db);
@@ -1253,7 +1511,44 @@ void setup() {
   // WPA2-protected AP on the default 192.168.4.1/24. Channel 1, not hidden: hiding
   // an SSID stops nobody who can run a scanner and mostly annoys phones, the
   // passphrase is what actually keeps strangers out.
-  apUp = WiFi.softAP(apSsid, apPassword, 1 /*channel*/, 0 /*hidden*/, apMaxClients);
+  //
+  // The auth mode is spelled out, and that is not decoration. This call used to end
+  // at apMaxClients and take whatever WIFI_AP_DEFAULT_AUTH_MODE happened to be in the
+  // core of the day — and the laptop's saved profile for this SSID says WPA3SAE, so
+  // at some point it was not WPA2 at all. A WPA3-SAE access point is required by spec
+  // to have management frame protection on; this one advertised pmf_cfg all zeros
+  // (see below), which makes it a non-compliant SAE AP. Android's supplicant checks
+  // and walks away — "Connecting..." and then silence, with the network still in the
+  // list — while Windows shrugs and associates. That is the whole "the laptop gets in
+  // and the phone never does" story, and it had nothing to do with distance or radio.
+  //
+  // WPA2-PSK with CCMP is the most widely accepted combination there is, and it is
+  // what the documentation always claimed this AP was. Pinned here so it no longer
+  // depends on a default, a core version, or whatever the driver kept from an older
+  // build.
+  apUp = WiFi.softAP(apSsid, apPassword, 1 /*channel*/, 0 /*hidden*/, apMaxClients,
+                     false /*ftm_responder*/,
+                     WIFI_AUTH_WPA2_PSK, WIFI_CIPHER_TYPE_CCMP);
+
+  // Association and its failure, straight from the driver. The reason code is the
+  // whole point: 15 (4WAY_HANDSHAKE_TIMEOUT) is a wrong passphrase, 5 (ASSOC_TOOMANY)
+  // is a full AP, 2 and 4 are the client giving up on a radio that was elsewhere.
+  // Printed to Serial and kept in the ring for /api/wifi.
+  WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t info) {
+    const uint8_t* m = info.wifi_ap_staconnected.mac;
+    apEventPush(m, true, 0);
+    Serial.printf("AP: %02x:%02x:%02x:%02x:%02x:%02x joined (%d on the air)\n",
+                  m[0], m[1], m[2], m[3], m[4], m[5], apClients());
+  }, ARDUINO_EVENT_WIFI_AP_STACONNECTED);
+
+  WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t info) {
+    const uint8_t* m = info.wifi_ap_stadisconnected.mac;
+    uint16_t r = info.wifi_ap_stadisconnected.reason;
+    apEventPush(m, false, r);
+    Serial.printf("AP: %02x:%02x:%02x:%02x:%02x:%02x left — reason %u (%s)\n",
+                  m[0], m[1], m[2], m[3], m[4], m[5], r,
+                  WiFi.STA.disconnectReasonName((wifi_err_reason_t)r));
+  }, ARDUINO_EVENT_WIFI_AP_STADISCONNECTED);
 
   // A client in power save only listens on the DTIM beacon; until then the AP holds
   // its frames. Arduino's APClass::create() memsets the whole wifi_config_t and then
@@ -1265,7 +1560,32 @@ void setup() {
   if (esp_wifi_get_config(WIFI_IF_AP, &apConf) == ESP_OK) {
     apConf.ap.beacon_interval = 100;
     apConf.ap.dtim_period     = 1;
+    // Same story as dtim_period, same cause: APClass::create() memsets wifi_config_t
+    // and never restores pmf_cfg, so an AP that IDF would have built as
+    // {capable = true, required = false} goes on the air advertising no management
+    // frame protection at all. Restored to the documented default rather than raised
+    // above it — capable lets a client that wants PMF have it, required would lock
+    // out anything that does not.
+    apConf.ap.pmf_cfg.capable  = true;
+    apConf.ap.pmf_cfg.required = false;
     esp_wifi_set_config(WIFI_IF_AP, &apConf);
+  }
+
+  // Read back and print what the AP actually went on the air as. The mode was never
+  // stated in code and never shown anywhere, so the only way to learn it was to open
+  // the saved profile on a machine that had already connected — which is a poor way
+  // to find out that half the devices in the house cannot join. Now it is one line
+  // in the boot log.
+  if (esp_wifi_get_config(WIFI_IF_AP, &apConf) == ESP_OK) {
+    const char* mode = apConf.ap.authmode == WIFI_AUTH_WPA2_PSK      ? "WPA2-PSK"
+                     : apConf.ap.authmode == WIFI_AUTH_WPA_WPA2_PSK  ? "WPA/WPA2-PSK"
+                     : apConf.ap.authmode == WIFI_AUTH_WPA2_WPA3_PSK ? "WPA2/WPA3-PSK"
+                     : apConf.ap.authmode == WIFI_AUTH_WPA3_PSK      ? "WPA3-SAE"
+                     : apConf.ap.authmode == WIFI_AUTH_OPEN          ? "OPEN (!)"
+                     : "other";
+    Serial.printf("AP security: %s, PMF capable=%d required=%d, dtim=%d\n",
+                  mode, apConf.ap.pmf_cfg.capable, apConf.ap.pmf_cfg.required,
+                  apConf.ap.dtim_period);
   }
 
   // ===== LOW-LATENCY LINK =====
@@ -1307,16 +1627,25 @@ void setup() {
   // One radio, one channel: the AP came up on channel 1, and when the uplink
   // associates to a router on another channel the AP follows it there. Clients on
   // the AP drop and rejoin once for that — unavoidable on a single-radio part, and
-  // the reason this is the last thing setup() does.
+  // the reason this is the last thing setup() does. Away from home no association
+  // happens at all (serviceUplink() scans before it joins), so the AP keeps
+  // channel 1 and a phone has a still target to aim at.
   WiFi.setAutoReconnect(false);   // serviceUplink() owns retries, see staBackoffMs
   // No WiFi.begin() here on purpose: staNextAttempt in the past makes the first pass
   // through loop() start the search, so the list is walked by one piece of code
   // instead of two that could disagree about which candidate is next.
   staNextAttempt = millis();
-  Serial.printf("Uplink: %d network(s) to try in the background (2.4 GHz only)\n",
+  Serial.printf("Uplink: %d known network(s), scanning for them in the background (2.4 GHz only)\n",
                 homeNetworkCount);
 #endif
 
+  // WebServer keeps only the headers it is told to keep, and crossSiteWrite()
+  // needs Origin. Without this call server.header("Origin") is always empty and
+  // the guard silently passes everything.
+  static const char* kCollect[] = { "Origin" };
+  server.collectHeaders(kCollect, 1);
+
+  server.on("/api/site",   HTTP_GET, handleSite);
   server.on("/api/data",   HTTP_GET, handleData);
   server.on("/api/stream", HTTP_GET, handleStream);
   server.on("/api/led",    HTTP_GET, handleLedControl);
@@ -1335,6 +1664,7 @@ void setup() {
     server.on(a->path, HTTP_GET, [a]() {
       server.sendHeader("Content-Encoding", "gzip");
       server.sendHeader("Cache-Control", a->cacheControl);
+      sendPageSecurity();
       server.send_P(200, a->mime, (const char*)a->data, a->len);
     });
   }
@@ -1349,6 +1679,16 @@ void setup() {
   // client must have resolved something through our own DNS, so the name is
   // guaranteed to resolve for it too — and it is the address worth showing.
   server.onNotFound([]() {
+    // Файлы дашборда — исключение из перехвата, и это не мелочь. Имена у них
+    // с хэшем: после каждой прошивки они новые, а браузер может держать в кэше
+    // прежнюю index.html и просить по старому имени. Уйди такой запрос на
+    // портал, браузер получил бы в ответ HTML вместо JavaScript, подавился бы
+    // им и не нарисовал ничего — пустой экран с одним фоном, без единого
+    // внятного сообщения. Честный 404 говорит браузеру правду.
+    if (server.uri().startsWith("/assets/")) {
+      server.send(404, "text/plain", "no such asset");
+      return;
+    }
     server.sendHeader("Location", String("http://") + portalHost + "/", true);
     server.send(302, "text/plain", "");
   });
