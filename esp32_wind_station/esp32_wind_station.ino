@@ -46,6 +46,10 @@
   #include "mqtt_client.h"
   #include "mbedtls/md.h"
   #include "esp_random.h"
+  // Pull-OTA: the station fetches its own image over the default route. HTTPClient pulls
+  // NetworkClientSecure in with it, Update is the same staging code ArduinoOTA drives.
+  #include <HTTPClient.h>
+  #include <Update.h>
 #endif
 
 // ===== ACCESS POINT =====
@@ -2324,7 +2328,12 @@ const int CLOUD_NET_TIMEOUT_MS = 10000;
 // future" this bounds the replay window at both ends: a captured packet stops working on
 // its own, and one signed with exp in 2099 is refused rather than being valid forever.
 const uint32_t CLOUD_CMD_MAX_FUTURE_S = 900;
-#define CLOUD_CMD_MAX   384    // a command larger than this is not one of ours
+// A command larger than this is not one of ours. The number is set by the longest legal
+// one, which is the pull-OTA: a URL plus a 64-character hash plus the envelope. It is also
+// the queue's element size (CLOUD_CMD_QUEUE of them), so it is not free — but the whole
+// queue still costs 2 kB, and a limit that silently cut the only command carrying a URL
+// would be the worst kind of bug: rare, remote, and invisible.
+#define CLOUD_CMD_MAX   512
 #define CLOUD_CMD_QUEUE 4
 
 // Minute aggregates, kept in RAM and nowhere else. 200 of them is a bit over three hours.
@@ -2679,6 +2688,22 @@ static bool cloudVerifySig(const char* signedData, const char* sigHex) {
 // that went silent with no answer to the thing they asked for.
 unsigned long cloudRebootAt = 0;
 
+// Same trick for the pull-OTA, and for a second reason on top of the first: the download
+// blocks loop() for the best part of a minute, and doing that from inside the command
+// handler would mean the ack for "ota" left only after the update had already finished or
+// failed. The operator has to hear "started" while it is starting.
+char          cloudOtaUrl[160] = "";
+char          cloudOtaSha[65]  = "";
+long long     cloudOtaId       = 0;     // so the result can be reported against the command
+unsigned long cloudOtaAt       = 0;
+char          cloudOtaLast[96] = "";    // last result, shown in /api/cloud
+
+const uint32_t CLOUD_OTA_TIMEOUT_MS = 20000;   // connect, and the socket's own read timeout
+const uint32_t CLOUD_OTA_STALL_MS   = 30000;   // not one byte for this long — give up
+// Anything smaller than this is not this firmware. A 404 page served with 200 is the
+// realistic case, and catching it here turns a bizarre flash failure into one line.
+const size_t   CLOUD_OTA_MIN_BYTES  = 200000;
+
 // Pull one key out of an /api/led-style argument string: "auto=false&green=on".
 static bool cloudArgValue(const char* args, const char* key, char* out, size_t outLen) {
   size_t klen = strlen(key);
@@ -2750,13 +2775,53 @@ static bool cloudRunCommand(const char* op, const char* args, char* detail, size
   }
 
   if (strcmp(op, "ota") == 0) {
-    // Reserved on purpose rather than quietly missing from the list. Updating over 4G is
-    // pull-only (espota needs an inbound connection, which CGNAT makes impossible), so it
-    // is HTTPUpdate against a URL and it lands with that step — see the OTA section of
-    // tasks/10. Refusing loudly here is better than an operator wondering why nothing
-    // happened.
-    snprintf(detail, detailLen, "ota not implemented yet — see tasks/10, pull-OTA step");
-    return false;
+    // Pull-OTA. espota has to open a connection TO the station and CGNAT has none to open,
+    // so an update that reaches a mast is one the station fetches itself:
+    //
+    //   op=ota  args=url=http://host/wind-2026-09-12.bin&sha256=<64 hex>
+    //
+    // Both arguments are mandatory. The hash is not a checksum against corruption — TCP
+    // already does that — it is what authorises the image, because it travels inside the
+    // signed command. Hosting can be taken over; a swapped file then fails the hash, and a
+    // swapped hash fails the signature. A command without one would mean "flash whatever
+    // that URL happens to serve today", so it is refused rather than defaulted.
+    //
+    // ⚠ The URL must not contain '&' — cloudArgValue() splits on it, and the tail would be
+    // cut off silently (visible later as an http 404 in the result ack).
+    if (cloudOtaAt) {
+      snprintf(detail, detailLen, "an update is already queued");
+      return false;
+    }
+    char url[sizeof(cloudOtaUrl)], sha[sizeof(cloudOtaSha)];
+    if (!cloudArgValue(args, "url", url, sizeof(url))) {
+      snprintf(detail, detailLen, "need url=..., at most %u chars",
+               (unsigned)(sizeof(cloudOtaUrl) - 1));
+      return false;
+    }
+    if (!cloudArgValue(args, "sha256", sha, sizeof(sha))) {
+      snprintf(detail, detailLen, "need sha256=<64 hex>");
+      return false;
+    }
+    uint8_t probe[32];
+    if (!cloudHexToBytes(sha, probe, sizeof(probe))) {
+      snprintf(detail, detailLen, "sha256 must be exactly 64 hex chars");
+      return false;
+    }
+    bool plain  = strncmp(url, "http://",  7) == 0;
+    bool secure = strncmp(url, "https://", 8) == 0;
+    if (!plain && !secure) {
+      snprintf(detail, detailLen, "url must start with http:// or https://");
+      return false;
+    }
+    snprintf(cloudOtaUrl, sizeof(cloudOtaUrl), "%s", url);
+    snprintf(cloudOtaSha, sizeof(cloudOtaSha), "%s", sha);
+    // The result ack has to carry the id of the command that asked for it, and the id has
+    // just been adopted as cloudCmdLastId by the caller — one line above the call. Reading
+    // it back here beats threading an extra parameter through every op.
+    cloudOtaId = (long long)cloudCmdLastId;
+    cloudOtaAt = millis() + 1500;
+    snprintf(detail, detailLen, "fetching %s in 1.5 s", secure ? "over TLS" : "over http");
+    return true;
   }
 
   snprintf(detail, detailLen, "unknown op");
@@ -2767,7 +2832,7 @@ static bool cloudRunCommand(const char* op, const char* args, char* detail, size
 // was rejected is exactly the case where the operator most needs to hear why, and silence
 // is indistinguishable from a dead link.
 static void cloudHandleCommand(const char* json) {
-  char op[32] = "", args[128] = "", sig[80] = "", detail[96] = "";
+  char op[32] = "", args[256] = "", sig[80] = "", detail[96] = "";
   long long id = 0, exp = 0;
   bool ok = false;
 
@@ -2818,7 +2883,7 @@ static void cloudHandleCommand(const char* json) {
       } else {
         // The canonical signed string. Built here and nowhere else, so there is one
         // definition of it in the firmware.
-        char signedData[256];
+        char signedData[384];
         int n = snprintf(signedData, sizeof(signedData), "%lld\n%s\n%s\n%lld\n%s",
                          id, op, args, exp, cloudSessionId);
         if (n <= 0 || n >= (int)sizeof(signedData)) {
@@ -3011,6 +3076,244 @@ static void cloudGoodbye(const char* why) {
   Serial.printf("Cloud: stopped (%s)\n", why);
 }
 
+// ---- pull-OTA ------------------------------------------------------------------------
+//
+// Both schemes are accepted, and the two questions they answer are separate ones.
+//
+// WHAT MAY BE FLASHED is settled before either of them: the signature on the command and
+// the SHA-256 inside it. That holds over plain http, which is why http is here at all —
+// CLOUD_ROOT_CA is a Let's Encrypt chain, and an https-only updater would carry a second
+// expiry date, so the day a hosting provider moves to another root the mast becomes
+// un-updatable, curable only by the update it can no longer receive. That trap is exactly
+// what a pull path exists to avoid, so http must remain a working fallback.
+//
+// WHO MAY READ THE IMAGE is a different question and the answer is not "nobody cares".
+// This firmware carries every password it owns in the clear: the home network keys, the
+// AP and OTA passwords, the broker credentials, the command HMAC key. Over http the file
+// crosses the mobile network as plaintext. So https is the one to prefer whenever the
+// host's root is in flash — and either way the URL belongs on hosting that is not public
+// and not indexed, and the file belongs deleted once the station has taken it.
+//
+// ⚠ A redirect that changes protocol is NOT followed — HTTPClient::setURL() refuses to
+// switch schemes. An http:// URL on a host that bounces everything to https therefore ends
+// as "http 301". Give the final URL.
+static bool cloudOtaDownload(char* detail, size_t detailLen) {
+  bool secure = strncmp(cloudOtaUrl, "https://", 8) == 0;
+
+  // A TLS session costs tens of kilobytes of heap and the MQTT client is already holding
+  // one. Refusing early with the actual number beats an allocation failure halfway into a
+  // handshake, which shows up as a reboot with nothing to read afterwards.
+  size_t heap = ESP.getFreeHeap();
+  size_t need = secure ? 60000 : 20000;
+  if (heap < need) {
+    snprintf(detail, detailLen, "heap %u B, need %u B", (unsigned)heap, (unsigned)need);
+    return false;
+  }
+
+  HTTPClient http;
+  http.setConnectTimeout(CLOUD_OTA_TIMEOUT_MS);
+  http.setTimeout(CLOUD_OTA_TIMEOUT_MS);
+  http.setReuse(false);
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  http.setUserAgent("WindStation-pull-OTA");
+
+  bool begun = secure ? http.begin(String(cloudOtaUrl), CLOUD_ROOT_CA)
+                      : http.begin(String(cloudOtaUrl));
+  if (!begun) {
+    snprintf(detail, detailLen, "url rejected by the http client");
+    return false;
+  }
+
+  // One retry, and only on a negative code — those are HTTPClient's own transport errors
+  // (refused, no route, handshake), raised before a single byte of the image was read, so
+  // repeating them costs nothing and repeats nothing. A real HTTP status is never retried:
+  // 404 will be 404 again, and 200 does not come here.
+  //
+  // Measured 2026-09-12 and the reason this exists: the station's very FIRST connection to
+  // a host it had not talked to before came back -1, while the next three to the same URL
+  // were clean 404s. On a mast that one-off would mean a resent command and a second wait,
+  // for a link the station could have re-dialled itself in two seconds.
+  int code = http.GET();
+  if (code < 0) {
+    Serial.printf("Cloud OTA: http %d on first try, one more\n", code);
+    delay(2000);
+    code = http.GET();
+  }
+  if (code != HTTP_CODE_OK) {
+    snprintf(detail, detailLen, "http %d", code);
+    http.end();
+    return false;
+  }
+
+  int len = http.getSize();
+  if (len <= 0) {
+    // No Content-Length means chunked, and chunked would have to be de-framed before any
+    // of it could be hashed. Static hosting always sends a length for a file, so this is a
+    // sign the URL points at something that is not one.
+    snprintf(detail, detailLen, "no content-length (chunked?)");
+    http.end();
+    return false;
+  }
+  if ((size_t)len < CLOUD_OTA_MIN_BYTES) {
+    snprintf(detail, detailLen, "%d B is too small to be firmware", len);
+    http.end();
+    return false;
+  }
+  if (!Update.begin((size_t)len, U_FLASH)) {
+    snprintf(detail, detailLen, "no room for %d B: %s", len, Update.errorString());
+    http.end();
+    return false;
+  }
+
+  const mbedtls_md_info_t* md = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  mbedtls_md_context_t ctx;
+  mbedtls_md_init(&ctx);
+  bool ok = md && mbedtls_md_setup(&ctx, md, 0) == 0 && mbedtls_md_starts(&ctx) == 0;
+  if (!ok) {
+    snprintf(detail, detailLen, "sha256 context failed");
+    mbedtls_md_free(&ctx);
+    Update.abort();
+    http.end();
+    return false;
+  }
+
+  NetworkClient* stream = http.getStreamPtr();
+  uint8_t buf[1024];
+  int written = 0;
+  unsigned long startedAt = millis();
+  unsigned long lastByteAt = startedAt;
+
+  while (written < len) {
+    int avail = stream->available();
+    if (avail <= 0) {
+      if (!stream->connected()) {
+        snprintf(detail, detailLen, "link dropped at %d of %d B", written, len);
+        ok = false;
+        break;
+      }
+      if (millis() - lastByteAt > CLOUD_OTA_STALL_MS) {
+        snprintf(detail, detailLen, "stalled at %d of %d B", written, len);
+        ok = false;
+        break;
+      }
+      // Never spin: loop() is already stopped for the duration of the download, and the
+      // idle tasks still have to run or the watchdog has an opinion about it.
+      delay(5);
+      continue;
+    }
+    int want = avail;
+    if (want > (int)sizeof(buf)) want = (int)sizeof(buf);
+    if (want > len - written) want = len - written;
+    int n = stream->readBytes(buf, want);
+    if (n <= 0) { delay(5); continue; }
+    if (mbedtls_md_update(&ctx, buf, n) != 0) {
+      snprintf(detail, detailLen, "sha256 failed at %d B", written);
+      ok = false;
+      break;
+    }
+    if (Update.write(buf, n) != (size_t)n) {
+      snprintf(detail, detailLen, "flash write failed at %d B: %s", written,
+               Update.errorString());
+      ok = false;
+      break;
+    }
+    written += n;
+    lastByteAt = millis();
+  }
+
+  uint8_t got[32];
+  if (ok && mbedtls_md_finish(&ctx, got) != 0) {
+    snprintf(detail, detailLen, "sha256 finish failed");
+    ok = false;
+  }
+  mbedtls_md_free(&ctx);
+  http.end();
+
+  if (ok) {
+    uint8_t want[32];
+    cloudHexToBytes(cloudOtaSha, want, sizeof(want));   // already validated by the command
+    if (!cloudEqualCt(got, want, sizeof(got))) {
+      snprintf(detail, detailLen, "sha256 mismatch, %d B discarded", written);
+      ok = false;
+    }
+  }
+
+  if (!ok) {
+    // Nothing has touched the boot partition yet. Update.end() is what would set it, and
+    // it sits BELOW the hash check on purpose: an image that failed verification is thrown
+    // away by abort(), and the firmware that is running stays the firmware that is running.
+    Update.abort();
+    return false;
+  }
+
+  if (!Update.end(true)) {
+    snprintf(detail, detailLen, "Update.end: %s", Update.errorString());
+    return false;
+  }
+  snprintf(detail, detailLen, "%d B in %lu s, sha ok, rebooting", written,
+           (millis() - startedAt) / 1000);
+  return true;
+}
+
+// One ack per outcome, on the same id as the command. Two acks for one "ota" is deliberate
+// and it is the whole point: the first says it started, this one says how it ended. Over a
+// link where the answer may be minutes away, "started" alone is not an answer.
+static void cloudOtaReport(bool ok, const char* detail) {
+  snprintf(cloudOtaLast, sizeof(cloudOtaLast), "%s", detail);
+  Serial.printf("Cloud OTA: %s (%s)\n", ok ? "done" : "failed", detail);
+  char ack[256];
+  snprintf(ack, sizeof(ack), "{\"id\":%lld,\"ok\":%s,\"op\":\"ota\",\"detail\":\"%s\"}",
+           cloudOtaId, ok ? "true" : "false", detail);
+  cloudSend(cloudTopicAck, ack, 1, 0);
+}
+
+// Runs from serviceCloud(), which means it runs in loop() — and it blocks it for the whole
+// download, a minute or so over 4G. The sampler is stopped for that long. That is the same
+// bargain an ArduinoOTA upload already makes, and the alternative (a download on its own
+// task) would put a second writer on the flash partition Update owns.
+static void cloudServicePullOta() {
+  cloudOtaAt = 0;
+
+  // The same courtesies ArduinoOTA.onStart() extends, for the same measured reasons: port
+  // 80 stays shut because unaccepted polls eat lwIP's 16 TCP PCBs in seconds and the reaper
+  // then kills the transfer itself, and the SSE subscriber is dropped because its 20 Hz
+  // frames would fight the download for airtime.
+  sseClient.stop();
+  sseFrame = "";
+  sseSent  = 0;
+  server.close();
+
+  char detail[96] = "";
+  Serial.printf("Cloud OTA: fetching %s\n", cloudOtaUrl);
+  bool ok = cloudOtaDownload(detail, sizeof(detail));
+  cloudOtaReport(ok, detail);
+
+  if (!ok) {
+    server.begin();      // the update failed, the station has not
+    return;
+  }
+
+  // Let the ack leave before the link goes away with everything else — same 1.5 s a
+  // commanded reboot gets, and for the same reason.
+  unsigned long until = millis() + 1500;
+  while ((long)(millis() - until) < 0) delay(10);
+
+  cloudGoodbye("pull-OTA done");
+#if HAS_MODEM && MODEM_USE_PPP
+  // Without this the new image comes up to a modem still sitting in CMUX, where a plain AT
+  // gets no reply at all — an uplink nothing short of a power cycle rebuilds. On a mast
+  // that turns a successful update into a dead station, which is worse than no update.
+  if (modemPppOwnsUart()) {
+    PPP.mode(ESP_MODEM_MODE_COMMAND);
+    PPP.end();
+    Serial.println("Cloud OTA: asked the modem to leave CMUX before reboot");
+  }
+#endif
+  Serial.println("Cloud OTA: rebooting into the new image");
+  Serial.flush();
+  ESP.restart();
+}
+
 // Called every pass, like serviceUplink() and serviceClock(). An ordinary pass is a
 // couple of comparisons; nothing in here blocks, and nothing in here waits on the
 // network — the expensive parts all live on the MQTT task.
@@ -3034,6 +3337,15 @@ static void serviceCloud() {
     Serial.println("Cloud: rebooting on command");
     Serial.flush();
     ESP.restart();
+  }
+
+  // Second in the function, and above every early return for the same reason the reboot is
+  // first: an update that was acknowledged has to be attempted. It does NOT bypass the
+  // "disabled" check below though — the download itself needs no MQTT, but reporting how it
+  // went does, and an update nobody hears the outcome of is not one worth starting.
+  if (cloudOtaAt && cloudEnabled && (long)(millis() - cloudOtaAt) >= 0) {
+    cloudServicePullOta();
+    return;
   }
 
   if (!cloudEnabled) {
@@ -3215,6 +3527,7 @@ void handleCloud() {
   json += "\"heapMin\":"    + String((unsigned long)ESP.getMinFreeHeap()) + ",";
   json += "\"via\":\""       + String(cloudBindPpp ? "ppp" : "auto") + "\",";
   json += "\"boundIf\":\""   + String(cloudBoundIf) + "\",";
+  json += "\"otaLast\":\""   + String(cloudOtaLast) + "\",";
   json += "\"lastError\":\"" + String(cloudLastError) + "\"}";
   server.send(200, "application/json", json);
 }
