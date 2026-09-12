@@ -23,7 +23,9 @@
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include <ArduinoOTA.h>
+#include <PPP.h>          // 4G uplink through the A7670E — see serviceModem()
 #include <lwip/sockets.h> // lwip_send — the SSE frame goes out non-blocking, see sseFlush()
+                          // and the interface-pinned reachability probe in modemProbe()
 #include "web_content.h"  // dashboard build (gzip, PROGMEM) — see gen_web_header.py
 
 // Every password this firmware needs lives in secrets.h, which is NOT in git.
@@ -34,6 +36,16 @@
   #include "secrets.h"
 #else
   #error "secrets.h missing - copy esp32_wind_station/secrets.example.h to secrets.h and fill it in"
+#endif
+
+// The cloud channel is compiled in only when secrets.h says so, which is why these
+// includes sit below it rather than with the others. All three ship inside the ESP32
+// core already — esp-mqtt as libmqtt.a, mbedTLS for the command signatures, esp_random
+// for the session nonce — so there is nothing to install and no library manager entry.
+#if SECRET_HAS_CLOUD
+  #include "mqtt_client.h"
+  #include "mbedtls/md.h"
+  #include "esp_random.h"
 #endif
 
 // ===== ACCESS POINT =====
@@ -146,15 +158,17 @@ const unsigned long STA_RETRY_MAX_MS = 600000;   // ceiling, 10 min
 #define PIN_WIND_DIR     35   // ADC1 input-only — direction (via 15k/10k divider)
 #define PIN_BATTERY      32   // ADC1 — battery (via 100k/100k divider)
 
-// v4: LEDs moved to the ESP32 bottom pin row (breadboard cols 5-9), 220Ω resistors now on the board.
+// v4: LEDs moved to the ESP32 bottom pin row, 220Ω resistors now on the board.
 // Old top-row pins were 26/27/14/25/33. GPIO4/16/17/18 are plain GPIO; GPIO5 is a strapping pin
 // (must be HIGH at boot) — an LED-to-GND via 220Ω doesn't hold it low, so it only flickers briefly
 // at power-up. Harmless: assigned to WiFi LED, which is meant to be off until WiFi is up anyway.
-#define PIN_LED_RED       4   // Red — wind > 15 m/s OR battery 10-30% (blink <10%) (col 5, was 14)
-#define PIN_LED_YELLOW   16   // Yellow — wind > 5 m/s OR battery 30-60%            (col 6, was 27)
-#define PIN_LED_GREEN    17   // Green — battery > 60% (was "station OK")           (col 7, was 26)
-#define PIN_LED_WIFI      5   // Green — solid when reachable (AP client or uplink)  (col 8, was 25; strapping, boot flicker)
-#define PIN_LED_ERROR    18   // Red — error (ADC/WiFi)                             (col 9, was 33)
+// Breadboard columns below are for the 38-pin DevKitC (schematic v8, board seated from column 1);
+// on the old 30-pin board the same five pins sat two columns to the left, in 5..9.
+#define PIN_LED_RED       4   // Red — wind > 15 m/s OR battery 10-30% (blink <10%) (col 7, was 14)
+#define PIN_LED_YELLOW   16   // Yellow — wind > 5 m/s OR battery 30-60%            (col 8, was 27)
+#define PIN_LED_GREEN    17   // Green — battery > 60% (was "station OK")           (col 9, was 26)
+#define PIN_LED_WIFI      5   // Green — solid when reachable (AP client or uplink)  (col 10, was 25; strapping, boot flicker)
+#define PIN_LED_ERROR    18   // Red — error (ADC/WiFi)                             (col 11, was 33)
 
 // TP4056 status, open-drain: the IC pulls the pin to GND, so INPUT_PULLUP and LOW=active.
 // GPIO13/19 chosen because neither is a strapping pin — an open-drain line held LOW at
@@ -171,21 +185,22 @@ const unsigned long STA_RETRY_MAX_MS = 600000;   // ceiling, 10 min
 #if HAS_MODEM
 // v6 layout: the module sits label-DOWN across breadboard columns 36..42 and its pads are
 // identified by silkscreen letter, never by number. Two of them come back here:
-//   col 37 = "R" = modem RXD  <- GPIO26 (this board's TX)
+//   col 37 = "R" = modem RXD  <- GPIO27 (this board's TX)
 //   col 38 = "T" = modem TXD  -> GPIO25 (this board's RX)
 // The letters deliberately do NOT match across the link — this board's TX drives the
 // modem's RX. Swapping the pair leaves both ends deaf and looks exactly like a dead
-// modem, so the letters are spelled out here and not only in wiring-v6.html.
+// modem, so the letters are spelled out here and not only in the wiring diagram.
 //
-// The pins are 25/26 rather than the 26/27 the wiring diagram was drawn for: the harness
-// went in one position off and cannot be moved without taking the board apart, so the
-// firmware follows the copper. GPIO27 is free again; GPIO33 is the pin now reserved for
-// the P-FET gate that will cut modem power (it used to be planned for GPIO25).
+// Third layout for the same two wires, and every time the copper won: v6 was drawn for
+// 27/26, on the 30-pin board the harness actually landed on 26/25, and on the 38-pin board
+// (schematic v8) it lands on 27/25. So GPIO26 is now the free one and sits BETWEEN the two
+// wires — nothing may be plugged into it, or the pair drifts apart again. GPIO33 stays
+// reserved for the P-FET gate that will cut modem power.
 //
 // Both are ADC2 pins, which is allowed: the ADC2-vs-WiFi conflict is about analog reads
 // only, and these two are a UART. Same exemption as GPIO4 (LED) and GPIO13 (CHRG).
-#define PIN_MODEM_RX     25   // ESP32 receives here
-#define PIN_MODEM_TX     26   // ESP32 sends here
+#define PIN_MODEM_RX     25   // ESP32 receives here          (breadboard col 11)
+#define PIN_MODEM_TX     27   // ESP32 sends here             (breadboard col 9)
 // SIMCom's own default, and the module has never been moved off it. Serial2 defaults to
 // GPIO16/17 — the yellow and green LEDs — so begin() is always given the pins explicitly.
 const unsigned long MODEM_BAUD = 115200;
@@ -209,9 +224,147 @@ char   modemBuf[MODEM_BUF_CAP];
 size_t modemLen = 0;
 // Bytes ever received. This is the number that tells a firmware problem from a wiring
 // problem: a console that echoes the command but leaves total at 0 means nothing is
-// coming back on GPIO26 — wrong pin, wrong baud, or the modem has no power.
+// coming back on GPIO25 — wrong pin, wrong baud, or the modem has no power.
 unsigned long modemRxTotal = 0;
+
+// ===== 4G UPLINK (PPP) =====
+// Turns the AT console into an actual network interface: esp-modem drives the same two
+// wires, dials the operator and hands lwIP a routable address. A separate flag from
+// HAS_MODEM because the two really are independent — a modem on the bench is worth
+// talking to long before it is worth routing traffic through, and this is the switch
+// that gives the UART back to the console if PPP itself turns out to be the problem.
+#define MODEM_USE_PPP 1
+
+#if MODEM_USE_PPP
+// Not a secret and deliberately not in secrets.h: the operator hands this string to
+// anyone who registers on the network, and a wrong APN has to be readable while
+// debugging rather than hidden behind a macro. The network volunteered it itself during
+// step 0b — it is not guessed.
+#define MODEM_APN "internet.mnc003.mcc255.gprs"
+
+// Retry cadence. The first attempt is cheap because the usual failure is "the modem has
+// not finished booting yet"; the ceiling is long because the usual PERSISTENT failure is
+// "there is no LTE here at all", and a modem that cannot register burns ~0.1 A doing it.
+// Same shape and the same ceiling as the WiFi uplink's backoff, for the same reason.
+const unsigned long MODEM_RETRY_MIN_MS   = 15000;
+const unsigned long MODEM_RETRY_MAX_MS   = 600000;   // 10 min
+// Attachment is re-checked on a timer, not every pass: each check is a real AT+CGATT?
+// round trip down the UART, and at 50 Hz that would be a permanent conversation.
+const unsigned long MODEM_ATTACH_POLL_MS = 2000;
+// Registration is neither instant nor guaranteed. Past this the DCE is torn down and the
+// whole thing starts over: a module that has sat unattached for two minutes with a live
+// SIM is wedged, not slow, and only a fresh bring-up clears that.
+const unsigned long MODEM_ATTACH_MAX_MS  = 120000;
+// From "CMUX is up" to "IPCP gave us an address". This part is out of our hands — it is
+// the operator's PPP peer answering — and 45 s is several times the worst seen by hand.
+const unsigned long MODEM_DIAL_MAX_MS    = 45000;
+// How long the pre-flight AT waits for any answer at all before an attempt is abandoned.
+// A modem that is awake replies in 10-20 ms, so this is generous by an order of magnitude
+// and still two orders cheaper than letting PPP.begin() find out the hard way.
+const unsigned long MODEM_PREFLIGHT_MS   = 300;
+
+// Where the reachability probe knocks: 8.8.8.8:53. TCP, not ICMP, because a TCP connect
+// is what the station will actually do for MQTT, and because lwIP gives us a raw socket
+// but no ping. An address literal on purpose — resolving a name first would confuse "no
+// route" with "no DNS", and those two failures have completely different fixes.
+const uint32_t      MODEM_PROBE_ADDR     = 0x08080808;
+const uint16_t      MODEM_PROBE_PORT     = 53;
+const unsigned long MODEM_PROBE_MS       = 4000;
+// Time over the modem, checked separately from the TCP reachability probe — see
+// modemNtpProbe() for why a synced clock at home proves nothing about the 4G link.
+// 216.239.35.0 = time1.google.com, an anycast address, used as a number so the check
+// never depends on the resolver.
+const uint32_t      MODEM_NTP_ADDR       = 0xD8EF2300;
+const unsigned long MODEM_NTP_MS         = 4000;
+
+// Where the bring-up is. Named states rather than a pile of booleans because the whole
+// point of this machine is that /api/modem can say exactly which step is stuck, and
+// "attached but never dialled" and "dialled but no address" are different faults.
+enum ModemPppState : uint8_t {
+  MODEM_PPP_STOPPED,    // the console owns the UART: nothing tried yet, or PPP released
+  MODEM_PPP_ATTACHING,  // DCE up and answering AT, waiting for the network to attach
+  MODEM_PPP_DIALING,    // CMUX entered, waiting for the PPP peer to negotiate an address
+  MODEM_PPP_ONLINE,     // address in hand, the interface is usable
+  MODEM_PPP_FAILED      // gave up; sitting out the backoff before trying again
+};
+ModemPppState modemPppState   = MODEM_PPP_STOPPED;
+// RAM only, same rule as /api/zero and the pin override above: /api/modem?off turns the
+// uplink off for this session, and what should survive a reboot goes into MODEM_USE_PPP.
+bool          modemPppEnabled = true;
+unsigned long modemNextTry    = 0;      // 0 = try on the very first pass through loop()
+unsigned long modemRetryMs    = MODEM_RETRY_MIN_MS;
+unsigned long modemStateSince = 0;      // when the current state was entered
+unsigned long modemAttachPoll = 0;
+uint16_t      modemTries      = 0;
+String        modemLastError;
+
+// Worst single stall this subsystem has ever cost loop(). Kept strictly apart from
+// loopMaxMs, and that separation is the point: PPP.begin() and every AT round trip are
+// synchronous calls that genuinely do block, so folding them in would swamp the telemetry
+// window they land in with a number that only ever means "the modem was busy" — exactly
+// the window someone would be reading to see whether the modem hurt the sensor loop.
+// Unlike loopMaxMs this one is never reset: it is a high-water mark for the whole uptime,
+// because the expensive events are rare and the point is to catch them at all. Both
+// numbers are reported, neither is hidden. Measured on the bench: 188 ms for a bring-up
+// that reached the network on the first attempt, against loopMax 3 ms while online.
+unsigned long modemBusyMaxMs  = 0;
+
+// Radio facts, cached. Every one of these is an AT round trip over the CMUX channel —
+// PPP.RSSI() alone is a full AT+CSQ conversation with the module — which is exactly why
+// /api/modem hides them behind ?radio=1 instead of answering them on every read. The
+// telemetry frame is built up to 20 times a second, so asking the modem from inside
+// buildDataJson() would put four synchronous UART conversations into every frame and
+// starve the 50 Hz sensor loop outright. So they are asked once a minute from loop() and
+// the frame only ever reads memory.
+//
+// One minute is chosen from what the numbers are for: signal strength and operator are
+// "what kind of link is this", not a waveform — a dashboard gauge that lags reality by
+// under a minute tells the same story, and the cost of being wrong is nil. Going faster
+// would buy nothing and spend loop() time on every tick.
+struct ModemRadio {
+  int      rssi;        // dBm from AT+CSQ as the driver maps it; 99 = "module does not know"
+  int      mode;        // PPP::networkMode() code — which radio access technology answered
+  char     oper[24];    // network name; long enough for the longest PLMN alpha tag seen
+  bool     attached;    // packet service attached, i.e. data is possible at all
+  uint32_t at;          // millis() of the refresh that filled this; 0 = never filled
+};
+ModemRadio modemRadio = { 0, 0, "", false, 0 };
+// How stale the cache is allowed to get before loop() spends AT time refilling it.
+const unsigned long MODEM_RADIO_POLL_MS = 60000;
+
+// Declared up here because buildDataJson() sits well above the PPP section but reports
+// from it, and the .ino preprocessor does not generate prototypes for static functions.
+static const char* modemPppStateName();
+static void        modemRadioRefresh();
+#endif  // MODEM_USE_PPP
 #endif
+
+// ===== WALL CLOCK =====
+// A real date is not a convenience here, it is the gate in front of the first TLS
+// handshake: a certificate is checked against the clock, and a board that boots at
+// 1970 rejects every valid certificate it is shown. So nothing that needs TLS may run
+// until this says the year is sane.
+//
+// The time comes from SNTP over whichever uplink is the default route — WiFi at home,
+// PPP on the mast — and deliberately NOT from the modem's own clock, even though
+// AT+CTZU=1 is set and the network does deliver NITZ. Measured on the bench 2026-09-11:
+// AT+CCLK? returned "26/09/11,16:57:42+00" while real UTC was 08:57:42 — the date right,
+// the clock ticking at the right rate, and the time of day exactly 8 hours ahead while
+// claiming a zero offset. Eight hours is Beijing, which says where the bias comes from
+// but not how to correct it portably. It happens to be harmless for certificate validity
+// (those are measured in months) and fatal for anything that timestamps a sample, so the
+// modem clock is used for one thing only: the cheap "is the year past 2020" sanity check
+// on a link that has just come up. Real timestamps come from here.
+#define NTP_SERVER_PRIMARY   "pool.ntp.org"
+#define NTP_SERVER_SECONDARY "time.google.com"
+// 2020-01-01T00:00:00Z. Anything below this is the SDK's un-synced epoch, not a date.
+const time_t   CLOCK_VALID_EPOCH = 1577836800;
+const unsigned long CLOCK_POLL_MS = 1000;   // time(nullptr) is cheap, but not free
+
+bool          clockStarted   = false;  // configTime() called once; SNTP retries on its own
+bool          clockValid     = false;  // latched true the first time the year looks real
+unsigned long clockPoll      = 0;
+unsigned long clockValidAtMs = 0;      // uptime at first sync — shows how long the gate held
 
 // ===== CALIBRATION =====
 // Signal divider: 15k top + 10k bottom → Vout = Vin × 10/(15+10) = Vin × 0.4
@@ -448,6 +601,21 @@ wl_status_t staStatusAtBegin = WL_NO_SHIELD;
 // somewhere else entirely" flag, and it is what buys a client on the AP total
 // radio silence: see the guard in serviceUplink().
 bool staNoneInRange = false;
+// Candidates already tried and failed in the current pass over the list, one bit per
+// homeNetworks[] entry. Without this the search re-picks the same network forever:
+// `best` is recomputed from preference order on every scan, so a network that is on
+// the air but will not let us in — stale password, a neighbour broadcasting the same
+// name, a router refusing the join — hides every network below it in the list, and
+// the board never tries the one that would have worked. The blind walk it replaced
+// did get to them. Cleared when a link comes up and when a pass has tried everything
+// the air had to offer.
+//
+// Entries past bit 31 are simply never excluded. The list is a handful of names in a
+// header file, and degrading to the old behaviour is the right failure for a station
+// that would have to grow a 33rd network first.
+uint32_t staFailedMask = 0;
+inline bool staHasFailed(int k) { return k < 32 && (staFailedMask & (1UL << k)); }
+inline void staMarkFailed(int k) { if (k < 32) staFailedMask |= (1UL << k); }
 #endif
 
 // Catch-all DNS: every name resolves to the station. That is deliberate and it is
@@ -751,7 +919,15 @@ void sendPageSecurity() {
   // with inline style attributes on purpose — see the note in wind-dashboard.jsx.
   server.sendHeader("Content-Security-Policy",
                     "default-src 'self'; script-src 'self'; "
-                    "style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; "
+                    // blob: is not decoration either. The live-imagery tab downloads a
+                    // GOES frame with fetch() so it can show real progress in bytes, then
+                    // hands the assembled Blob to an <img>; the background picker does the
+                    // same to measure a photo before shrinking it. 'self' does not cover
+                    // blob: — without it both features fail only on the board, where this
+                    // header exists, and work in dev and on the public copy, where it does
+                    // not. The picker's failure was the nastier one: the CSP block fires
+                    // img.onerror, and the code reports a perfectly good photo as "не картинка".
+                    "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; "
                     "connect-src 'self' https:; font-src 'self'; "
                     "object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
 }
@@ -808,8 +984,11 @@ void handleSite() {
 String buildDataJson() {
   String json = "{";
   // One allocation instead of a dozen reallocs per frame. At 20 Hz the old growth
-  // pattern churned the heap 20x a second and fragmented it over long uptimes.
-  json.reserve(448);
+  // pattern churned the heap 20x a second and fragmented it over long uptimes. Raised
+  // from 448 when the uplink, cloud and site blocks were added: a full frame with a live
+  // 4G link and a cloud error string runs past 700 bytes, and undersizing this puts the
+  // realloc churn straight back.
+  json.reserve(768);
   // 2 decimals, not 1: 0.1 m/s quantising was coarser than the sensor's own noise
   // after 32x averaging, so the last digit of real resolution was being rounded away
   // before it ever reached the air.
@@ -865,11 +1044,89 @@ String buildDataJson() {
   json += "\"staConnected\":false,";
   json += "\"staIp\":null,";
 #endif
+
+  // ----- 4G uplink, cloud channel and where the station stands -----
+  //
+  // One rule governs everything below: a field that has no answer is ABSENT, not zero,
+  // not "" and not null. The dashboard reads a missing key as "do not draw this row at
+  // all" and a present-but-empty value as an honest "no data yet", and those are two
+  // different pictures. A zero here would be the meteorological sin the optional-sensor
+  // contract already spells out: 0 dBm is a signal reading, not the absence of a modem.
+  // So the compile-time cases go behind #if and the runtime ones behind a real test.
+#if HAS_MODEM && MODEM_USE_PPP
+  // Free to report every frame: the state machine's own variable and a netif field, no
+  // AT traffic. Same name normalisation /api/modem uses, so the two endpoints cannot
+  // drift into describing the same state with two different words.
+  json += "\"pppState\":\""     + String(modemPppStateName()) + "\",";
+  // Only once IPCP has actually handed over an address. Before that PPP.localIP() reads
+  // back 0.0.0.0, which looks like an address and is not one.
+  if (PPP.hasIP()) {
+    json += "\"pppIp\":\""      + PPP.localIP().toString() + "\",";
+  }
+  // The cached radio facts. Absent as a group until the cache has been filled at least
+  // once — see ModemRadio for why these are never asked from inside this function.
+  if (modemRadio.at) {
+    json += "\"netOperator\":\"" + String(modemRadio.oper) + "\",";
+    json += "\"netRssi\":"       + String(modemRadio.rssi) + ",";
+    json += "\"netMode\":"       + String(modemRadio.mode) + ",";
+    json += "\"netAttached\":"   + String(modemRadio.attached ? "true" : "false") + ",";
+  }
+#endif
+#if SECRET_HAS_CLOUD
+  // Defined far below this function, in the cloud section, and declared here for the same
+  // reason as the loop counters further down: the JSON is built above everything it
+  // reports on.
+  extern volatile bool cloudConnected;
+  extern char          cloudLastError[];
+  json += "\"cloudConnected\":" + String(cloudConnected ? "true" : "false") + ",";
+  // Only when there is something to say. An empty string would make the dashboard draw an
+  // error row that reads "error: (nothing)" on a channel that is working perfectly.
+  if (cloudLastError[0]) {
+    json += "\"cloudError\":\""  + String(cloudLastError) + "\",";
+  }
+#endif
+  // Where the station stands. THREE decimals, and this is a security boundary rather than
+  // a formatting preference: this very JSON is what cloudPublishState() pushes to the
+  // retained `state` topic, which is read with the viewer credential that ships inside the
+  // public dashboard bundle. Anything that lands here is public. Three decimals is ~100 m
+  // — enough to centre a map, not enough to be a street address. Full precision stays in
+  // /api/site, which only ever answers on the board's own network.
+  // 0/0 still means "not configured" here, exactly as /api/site defines it.
+  json += "\"siteLat\":"        + String((double)SECRET_STATION_LAT, 3) + ",";
+  json += "\"siteLon\":"        + String((double)SECRET_STATION_LON, 3) + ",";
+  json += "\"siteAltM\":"       + String((double)SECRET_STATION_ALT_M, 1) + ",";
+
   // The address to show a human, not the mDNS label — this is what the dashboard
   // prints as "станция доступна по адресу".
   json += "\"hostname\":\""     + String(portalHost) + "\",";
   json += "\"uptime\":"         + String(millis() / 1000) + ",";
-  json += "\"resetReason\":\""  + String(resetReasonName()) + "\"";
+  json += "\"resetReason\":\""  + String(resetReasonName()) + "\",";
+  // Absolute time, seconds since the epoch, UTC — and 0 when the clock has never been
+  // synced. Zero is not a date and the dashboard must read it as "unknown": a board
+  // without an uplink genuinely does not know what day it is, and 1970 on a card would
+  // be a lie told confidently. The flag is what gates TLS inside the firmware; the
+  // number is here so the same fact can be checked from outside without a serial cable.
+  // Both are defined below this function — one in the SSE section, one in the main-loop
+  // section — and declared here because the JSON is built above them.
+  extern unsigned long loopMaxMs;
+  extern unsigned long sseDropped;
+  extern unsigned long logBusyLast;
+  // The health pair that used to exist only in the serial telemetry line. It is here
+  // because the cable stopped being free: on this hardware opening the USB port pulses
+  // DTR and resets the board, and a reset that does not go through ArduinoOTA.onStart()
+  // leaves the modem stuck in CMUX — so reading loopMax over a cable now costs the 4G
+  // uplink until someone power-cycles the module. Same numbers, same meaning, and the
+  // same reset point: both are zeroed when the telemetry line is printed, so this is
+  // "since the last telemetry line", not "since boot".
+  json += "\"loopMax\":"        + String(loopMaxMs) + ",";
+  json += "\"sseDrop\":"        + String(sseDropped) + ",";
+  // How long the telemetry line itself blocked on the UART last time. Subtracted from
+  // loopMax rather than left in it, so loopMax means "something starved the sensor loop"
+  // and this one means "the console is slow" — two different problems that used to share
+  // a number. Nonzero only while something is actually draining the port.
+  json += "\"logMs\":"          + String(logBusyLast) + ",";
+  json += "\"timeValid\":"      + String(clockValid ? "true" : "false") + ",";
+  json += "\"epoch\":"          + String(clockValid ? (uint32_t)time(nullptr) : 0);
   json += "}";
   return json;
 }
@@ -1141,6 +1398,533 @@ static bool modemAnswered() {
   return false;
 }
 
+// True while esp-modem owns GPIO27/25. Everything that touches Serial2 has to ask first:
+// the port is closed for the whole time PPP is up, and reading a closed port returns
+// nothing at all rather than failing — a silence that looks exactly like a dead modem.
+static bool modemPppOwnsUart() {
+#if MODEM_USE_PPP
+  return modemPppState == MODEM_PPP_ATTACHING
+      || modemPppState == MODEM_PPP_DIALING
+      || modemPppState == MODEM_PPP_ONLINE;
+#else
+  return false;
+#endif
+}
+
+#if MODEM_USE_PPP
+static const char* modemPppStateName() {
+  switch (modemPppState) {
+    case MODEM_PPP_ATTACHING: return "attaching";
+    case MODEM_PPP_DIALING:   return "dialing";
+    case MODEM_PPP_ONLINE:    return "online";
+    case MODEM_PPP_FAILED:    return "failed";
+    default:                  return "stopped";
+  }
+}
+
+static void modemSetState(ModemPppState st) {
+  modemPppState   = st;
+  modemStateSince = millis();
+}
+
+// Hands the UART back to the raw console and forgets the DCE.
+//
+// Note what this cannot do: take the modem out of CMUX. A7670 firmware breaks on CMUX
+// exit — the documented way back is a power cycle — so once the dial step has run, the
+// console on the other side of this call sees CMUX framing where it expects plain AT,
+// until the module is power-cycled. Before that step (the common case, since most
+// failures are "no attach") CMUX was never entered and the console really does come back.
+static void modemPppRelease(const char* why) {
+  PPP.end();
+  modemSetState(MODEM_PPP_STOPPED);
+  // Forget the cached radio facts. They describe a link that no longer exists, and a
+  // stale operator name next to a dead uplink reads as "the modem is fine" — the one
+  // conclusion the reader must not draw. Empty cache means the fields vanish from
+  // /api/data entirely, which is honest; a remembered value would be a lie with a
+  // timestamp nobody looks at.
+  modemRadio.at = 0;
+  // end() puts both pin assignments back to -1, so this is not a no-op: the pair has to
+  // be handed back to Serial2 explicitly before the console can hear anything again.
+  modemUartStart();
+  modemLen = 0;
+  Serial.printf("Modem: PPP released (%s)\n", why);
+}
+
+static void modemBackoff() {
+  modemRetryMs = (modemRetryMs > MODEM_RETRY_MAX_MS / 2) ? MODEM_RETRY_MAX_MS : modemRetryMs * 2;
+  modemNextTry = millis() + modemRetryMs;
+}
+
+// One AT down the console UART, waiting briefly for any final result code. A pre-flight
+// for the expensive part, and it earns its place with a measured number: a modem left in
+// CMUX by an earlier boot answers a plain AT with total silence, and PPP.begin() takes
+// 25 s to discover that — 25 s of frozen loop() on every single retry, for as long as the
+// modem stays wedged. This question costs 300 ms and gives the same answer.
+//
+// Only ever called while Serial2 still owns the pins, i.e. from a STOPPED or FAILED state.
+static bool modemRespondsToAt() {
+  modemLen = 0;
+  Serial2.print("AT");
+  Serial2.write('\r');     // SIMCom terminates on a bare CR, never on LF
+  unsigned long t0 = millis();
+  while (millis() - t0 < MODEM_PREFLIGHT_MS) {
+    modemPump();
+    if (modemAnswered()) return true;
+    delay(2);              // vTaskDelay underneath — the WiFi stack keeps running
+  }
+  return false;
+}
+
+// Brings the 4G interface up and keeps it up, from loop(), in slices.
+//
+// The station cannot afford the shape the PPP example uses — begin(), then a 60 s busy
+// wait for the network to attach — because that is a full minute of dead sensor, dead
+// dashboard, dead SSE and dead OTA on a board that is otherwise perfectly healthy, every
+// single time the modem is slow. So the wait is turned inside out: the state lives in
+// globals, each pass does at most one AT round trip and returns, and a modem that never
+// registers at all costs nothing but one poll every two seconds.
+//
+// What still blocks, stated plainly rather than papered over: PPP.begin() is synchronous
+// (~0.3 s when the modem answers, seconds when it does not) and so is every AT round trip
+// in here. That time is charged to modemBusyMaxMs and subtracted from the loop timer —
+// see the note there for why the two numbers must not be added together.
+static void serviceModem() {
+  if (!modemPppEnabled) return;
+  unsigned long now = millis();
+
+  switch (modemPppState) {
+
+    case MODEM_PPP_ONLINE: {
+      // The netif clears CONNECTED by itself when the carrier drops, and nothing else in
+      // the firmware watches for it. Free to poll — this reads a status bit, not the UART.
+      if (PPP.connected()) return;
+      modemLastError = "carrier lost";
+      modemPppRelease("carrier lost");
+      modemSetState(MODEM_PPP_FAILED);
+      // A link that WAS up gets the fast retry instead of the accumulated backoff: it has
+      // just proved there is coverage here, so this is a handover, not a dead cell.
+      modemRetryMs = MODEM_RETRY_MIN_MS;
+      modemNextTry = now + modemRetryMs;
+      return;
+    }
+
+    case MODEM_PPP_DIALING: {
+      // Waiting on IPCP, which runs in the lwIP PPP task — so this poll is a local status
+      // bit read and can happen every pass without saying a word to the modem.
+      if (PPP.connected()) {
+        // Pin public resolvers on the interface. The A7670 hands back 0.0.0.0 for DNS
+        // often enough that it has to be handled rather than hoped about: IPCP gives an
+        // address and a route, and then every name lookup fails on a link that looks
+        // perfectly healthy.
+        //
+        // Unconditional, and NOT guarded by "only if IPCP gave us nothing", because that
+        // test cannot be written: with a WiFi uplink up, dnsIP() reads back the GLOBAL
+        // lwIP resolver table (the home router) rather than what this interface
+        // negotiated, so the guard would never fire and the fix would never run. Measured
+        // on the bench — the first build reported dns0 = the home router on a PPP link
+        // that had just come up. Writing, unlike reading, is per interface and lands
+        // where it is needed: the value takes effect when PPP becomes the default route,
+        // which on the mast it will be, with no WiFi around to outrank it.
+        PPP.dnsIP(0, IPAddress(8, 8, 8, 8));
+        PPP.dnsIP(1, IPAddress(1, 1, 1, 1));
+        modemSetState(MODEM_PPP_ONLINE);
+        modemRetryMs   = MODEM_RETRY_MIN_MS;
+        modemLastError = "";
+        Serial.print("Modem: PPP online, IP ");
+        Serial.print(PPP.localIP());
+        Serial.print(", DNS ");
+        Serial.println(PPP.dnsIP(0));
+        return;
+      }
+      if (now - modemStateSince > MODEM_DIAL_MAX_MS) {
+        modemLastError = "no address after CMUX";
+        modemPppRelease("dial timeout");
+        modemSetState(MODEM_PPP_FAILED);
+        modemBackoff();
+      }
+      return;
+    }
+
+    case MODEM_PPP_ATTACHING: {
+      if (now - modemAttachPoll < MODEM_ATTACH_POLL_MS) return;
+      modemAttachPoll = now;
+      if (!PPP.attached()) {
+        if (now - modemStateSince > MODEM_ATTACH_MAX_MS) {
+          modemLastError = "no attach in " + String(MODEM_ATTACH_MAX_MS / 1000) + " s";
+          modemPppRelease("attach timeout");
+          modemSetState(MODEM_PPP_FAILED);
+          modemBackoff();
+        }
+        return;
+      }
+      // Attached. Dialling is the one step with nothing left to slice: set_mode() runs the
+      // entire CMUX handshake and starts PPP inside a single synchronous call.
+      //
+      // CMUX and not plain DATA mode, and this is a one-way door. CMUX multiplexes an AT
+      // channel alongside the data channel, which is the only reason /api/at survives the
+      // station going online — and the A7670 cannot be taken back out of CMUX without a
+      // power cycle, so entering it is a decision rather than a step.
+      if (!PPP.mode(ESP_MODEM_MODE_CMUX)) {
+        modemLastError = "CMUX refused";
+        modemPppRelease("CMUX refused");
+        modemSetState(MODEM_PPP_FAILED);
+        modemBackoff();
+        return;
+      }
+      modemSetState(MODEM_PPP_DIALING);
+      Serial.println("Modem: attached, CMUX up, waiting for an address");
+      return;
+    }
+
+    default: {   // STOPPED or FAILED — start an attempt once the backoff has run out
+      if ((long)(now - modemNextTry) < 0) return;
+      modemTries++;
+
+      // Pre-flight on the console UART, before esp-modem is involved at all. Silence here
+      // means one of exactly two things, and neither is fixable from this side: no modem
+      // on the wires, or a modem still sitting in CMUX from an earlier boot of this chip.
+      // Both want the same thing — power removed and restored — which is why GPIO33 is
+      // reserved for a P-FET and why this message says so out loud.
+      if (!modemRespondsToAt()) {
+        modemLastError = "no answer to a bare AT: modem absent, or left in CMUX by an "
+                         "earlier boot and needs its power cycled";
+        modemSetState(MODEM_PPP_FAILED);
+        modemBackoff();
+        return;
+      }
+
+      // Serial2 and esp-modem want the same two pins from two different UART peripherals.
+      // The console has to let go first, or begin() configures pins another peripheral is
+      // still driving and the modem hears a fight instead of an AT.
+      Serial2.end();
+      PPP.setApn(MODEM_APN);
+      // (tx, rx) — the opposite order from Serial2.begin(), worth spelling out because
+      // getting it backwards leaves both ends deaf and looks exactly like dead hardware.
+      // Re-set on every attempt on purpose: PPP::end() puts both pins back to -1, so this
+      // is not the one-time call it reads like.
+      PPP.setPins(modemPinTx, modemPinRx);
+      // No setResetPin(), and that is deliberate. PWRKEY is tied to ground through R104 on
+      // this board, so there is no reset line to pulse — and asking for one would send
+      // begin() down the path that waits up to 50 s for the modem to answer instead of
+      // giving up in half a second. Nothing called from loop() may cost 50 s.
+      if (!PPP.begin(PPP_MODEM_SIM7600, 1, (int)modemBaud)) {
+        modemLastError = "begin() failed";
+        modemPppRelease("begin failed");
+        modemSetState(MODEM_PPP_FAILED);
+        modemBackoff();
+        return;
+      }
+
+      // LTE only. Left alone the module falls back to 2G/3G the moment LTE wobbles, and on
+      // this operator that is a data path which does not come back on its own. The setting
+      // persists in NVM, so this is belt and braces after a factory reset.
+      PPP.cmd("AT+CNMP=38", 2000);
+      // NITZ. The time the network delivers is the ONLY clock this station will ever trust
+      // for TLS: GNSS here reports a coherent, confident, moving fix in another hemisphere
+      // whenever the jammers are on, and by every quality metric that fake looks BETTER
+      // than the truth. Note AT+CTZU and not AT+CLTS — this module has no CLTS at all.
+      PPP.cmd("AT+CTZU=1", 2000);
+
+      modemSetState(MODEM_PPP_ATTACHING);
+      modemAttachPoll = now;
+      Serial.printf("Modem: PPP attempt %u, waiting for network attach\n", modemTries);
+      return;
+    }
+  }
+}
+
+// Refills the radio cache, at most once a MODEM_RADIO_POLL_MS, and only when the link is
+// genuinely up. Called from loop() right behind serviceModem() so its cost lands inside
+// the same measured window and is charged to modemBusyMaxMs — these are four synchronous
+// AT round trips and they must not be allowed to hide inside loopMaxMs, which exists to
+// answer a different question ("what starved readSensors()").
+//
+// The guard is ONLINE and not merely modemPppOwnsUart(): the AT channel only exists once
+// CMUX is up, and asking during ATTACHING would talk to a UART that esp-modem is still
+// bringing up. PPP.connected() on top of that because the netif clears the carrier bit by
+// itself, and a module whose cell has just gone away answers AT+CSQ with a long silence.
+// The operator name is the only string in this section that comes back as free text from
+// the network, and it must never be emitted raw. Both places that report it build JSON by
+// hand, so one stray quote in a PLMN alpha tag does not corrupt "the operator field" — it
+// corrupts the whole object, for everyone reading it. On /api/data that reader is also the
+// public dashboard subscribed to the retained `state` topic; on /api/modem it is the system
+// card, which parses the answer the same way. Control characters go too: they are legal in
+// a C string and illegal inside a JSON string literal.
+static String modemSafeText(const String& in, size_t maxLen) {
+  String out;
+  out.reserve(in.length() < maxLen ? in.length() : maxLen);
+  for (size_t i = 0; i < in.length() && out.length() < maxLen; i++) {
+    char c = in[i];
+    if (c == '"' || c == '\\' || (unsigned char)c < 0x20) continue;
+    out += c;
+  }
+  return out;
+}
+
+static void modemRadioRefresh() {
+  if (modemPppState != MODEM_PPP_ONLINE) return;
+  if (!PPP.connected()) return;
+  if (modemRadio.at && (millis() - modemRadio.at) < MODEM_RADIO_POLL_MS) return;
+
+  modemRadio.attached = PPP.attached();
+  modemRadio.rssi     = PPP.RSSI();
+  modemRadio.mode     = PPP.networkMode();
+
+  // Through the same filter, once a minute, rather than on every frame at 20 Hz.
+  String op = modemSafeText(PPP.operatorName(), sizeof(modemRadio.oper) - 1);
+  strlcpy(modemRadio.oper, op.c_str(), sizeof(modemRadio.oper));
+
+  modemRadio.at = millis();
+  // millis() is 0 for exactly one millisecond after boot and 0 is the "never filled"
+  // marker here. Cheaper to nudge the timestamp by 1 ms than to carry a second flag.
+  if (modemRadio.at == 0) modemRadio.at = 1;
+}
+
+// Proves the ESP32's own TCP/IP stack reaches the internet THROUGH THE MODEM. That is a
+// narrower claim than either "the modem is online" or "the station has internet", and with
+// a WiFi uplink also up all three can disagree. The ordinary test — open a socket, see
+// whether it connects — would quietly leave over WiFi and report success for the wrong
+// interface, so the socket is bound to the PPP address before it is allowed to connect.
+// Worst case that turns into a false NEGATIVE (a bind lwIP declines to route), never a
+// false positive, which is the right way round for a test whose whole job is to stop us
+// believing the link works when it does not.
+//
+// Blocks for up to MODEM_PROBE_MS, like /api/at?wait= and for the same reason: an operator
+// asked for it, the stall is bounded, and it shows up honestly in loopMax.
+static bool modemProbe(String& detail) {
+  if (!PPP.hasIP()) { detail = "no PPP address"; return false; }
+
+  int sock = lwip_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (sock < 0) { detail = "socket() failed"; return false; }
+
+  bool ok = false;
+  struct sockaddr_in src;
+  memset(&src, 0, sizeof(src));
+  src.sin_family      = AF_INET;
+  src.sin_port        = 0;
+  src.sin_addr.s_addr = (uint32_t)PPP.localIP();
+
+  if (lwip_bind(sock, (struct sockaddr*)&src, sizeof(src)) != 0) {
+    detail = "bind to the PPP address failed, errno " + String(errno);
+  } else {
+    // SO_SNDTIMEO is what bounds a blocking connect() in lwIP — there is no connect
+    // timeout option. Without it a black-holed route hangs in here for over a minute.
+    struct timeval tv;
+    tv.tv_sec  = MODEM_PROBE_MS / 1000;
+    tv.tv_usec = (MODEM_PROBE_MS % 1000) * 1000;
+    lwip_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+    struct sockaddr_in dst;
+    memset(&dst, 0, sizeof(dst));
+    dst.sin_family      = AF_INET;
+    dst.sin_port        = lwip_htons(MODEM_PROBE_PORT);
+    dst.sin_addr.s_addr = lwip_htonl(MODEM_PROBE_ADDR);
+
+    unsigned long t0 = millis();
+    ok = (lwip_connect(sock, (struct sockaddr*)&dst, sizeof(dst)) == 0);
+    detail = ok ? ("connected in " + String(millis() - t0) + " ms")
+                : ("connect failed after " + String(millis() - t0) + " ms, errno " + String(errno));
+  }
+  lwip_close(sock);
+  return ok;
+}
+
+// The same trick as modemProbe(), asking a different question: does a UDP round trip
+// complete over the modem, and does the answer carry a date. Together they are the whole
+// prerequisite for TLS on the mast — a certificate is checked against a clock, and the
+// clock has to arrive over the only link there is.
+//
+// It exists because serviceClock() cannot answer this at home. SNTP goes out over the
+// DEFAULT route, and at home that is WiFi (priority 100 against PPP's 20), so a synced
+// clock here proves the house has internet, not the modem. Binding the socket to the PPP
+// address is what makes the question specific, exactly as in modemProbe().
+//
+// The server is an IP, not a name, on purpose: a name would drag in the resolver, and
+// the resolver is global in lwIP — so a failure would not say whether DNS or the modem
+// was at fault. 216.239.35.0 is one of Google's anycast NTP addresses; it is stable, and
+// being anycast it is answered by whatever is nearest rather than by one machine.
+static bool modemNtpProbe(String& detail) {
+  if (!PPP.hasIP()) { detail = "no PPP address"; return false; }
+
+  int sock = lwip_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (sock < 0) { detail = "socket() failed"; return false; }
+
+  bool ok = false;
+  struct sockaddr_in src;
+  memset(&src, 0, sizeof(src));
+  src.sin_family      = AF_INET;
+  src.sin_port        = 0;
+  src.sin_addr.s_addr = (uint32_t)PPP.localIP();
+
+  if (lwip_bind(sock, (struct sockaddr*)&src, sizeof(src)) != 0) {
+    detail = "bind to the PPP address failed, errno " + String(errno);
+  } else {
+    struct timeval tv;
+    tv.tv_sec  = MODEM_NTP_MS / 1000;
+    tv.tv_usec = (MODEM_NTP_MS % 1000) * 1000;
+    lwip_setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    struct sockaddr_in dst;
+    memset(&dst, 0, sizeof(dst));
+    dst.sin_family      = AF_INET;
+    dst.sin_port        = lwip_htons(123);
+    dst.sin_addr.s_addr = lwip_htonl(MODEM_NTP_ADDR);
+
+    uint8_t pkt[48];
+    memset(pkt, 0, sizeof(pkt));
+    pkt[0] = 0x1B;   // LI = 0, version 3, mode 3 (client) — the whole request
+
+    unsigned long t0 = millis();
+    int sent = lwip_sendto(sock, pkt, sizeof(pkt), 0, (struct sockaddr*)&dst, sizeof(dst));
+    if (sent != (int)sizeof(pkt)) {
+      detail = "sendto failed, errno " + String(errno);
+    } else {
+      int got = lwip_recv(sock, pkt, sizeof(pkt), 0);
+      unsigned long rt = millis() - t0;
+      if (got < 48) {
+        detail = "no reply in " + String(rt) + " ms, errno " + String(errno);
+      } else {
+        // Transmit timestamp, bytes 40..43: seconds since 1900. 2208988800 is the gap
+        // between the NTP epoch and the Unix one.
+        uint32_t secs1900 = ((uint32_t)pkt[40] << 24) | ((uint32_t)pkt[41] << 16)
+                          | ((uint32_t)pkt[42] << 8)  |  (uint32_t)pkt[43];
+        uint32_t unix = secs1900 - 2208988800UL;
+        struct tm g;
+        time_t tt = (time_t)unix;
+        gmtime_r(&tt, &g);
+        char when[24];
+        snprintf(when, sizeof(when), "%04d-%02d-%02d %02d:%02d:%02dZ",
+                 g.tm_year + 1900, g.tm_mon + 1, g.tm_mday,
+                 g.tm_hour, g.tm_min, g.tm_sec);
+        // The delta against the board's own clock is the useful half: it says whether
+        // the time the mast would get over 4G agrees with the time it already has.
+        long drift = (long)unix - (long)time(nullptr);
+        detail = String(when) + ", round trip " + String(rt) + " ms, board clock off by "
+               + String(drift) + " s";
+        ok = true;
+      }
+    }
+  }
+  lwip_close(sock);
+  return ok;
+}
+
+// Third question of the same shape: does a NAME turn into an address over the modem.
+//
+// It has to be asked by hand, because lwIP's resolver is global — one table shared by
+// every interface — so an ordinary getaddrinfo() at home is answered by the home router
+// over WiFi and says nothing about the 4G link. The resolver pinned on the PPP interface
+// in the DIALING branch cannot be read back either (dnsIP() reads that same global
+// table), so the only honest way to know the pin works is to send the query at it
+// directly, from a socket bound to the PPP address. On the mast this whole dance stops
+// being necessary — there PPP is the default route and the global resolver IS this one —
+// but on the mast is exactly where finding out would be too late.
+//
+// The query is assembled by hand rather than borrowed from a library: it is 12 bytes of
+// header, the name in length-prefixed labels, and four bytes of type and class.
+static bool modemDnsProbe(const String& name, IPAddress server, String& detail) {
+  if (!PPP.hasIP()) { detail = "no PPP address"; return false; }
+  if (name.length() == 0 || name.length() > 200) { detail = "bad name"; return false; }
+
+  uint8_t  q[300];
+  uint16_t id = (uint16_t)random(1, 65535);
+  q[0] = id >> 8; q[1] = id & 0xFF;
+  q[2] = 0x01; q[3] = 0x00;      // standard query, recursion desired
+  q[4] = 0x00; q[5] = 0x01;      // one question
+  q[6] = q[7] = q[8] = q[9] = q[10] = q[11] = 0;
+  int w = 12;
+
+  // Labels: every dot becomes a length byte in front of the piece that follows it.
+  int start = 0;
+  while (start <= (int)name.length()) {
+    int dot = name.indexOf('.', start);
+    if (dot < 0) dot = name.length();
+    int len = dot - start;
+    if (len <= 0 || len > 63) { detail = "bad label in name"; return false; }
+    q[w++] = (uint8_t)len;
+    for (int i = 0; i < len; i++) q[w++] = (uint8_t)name.charAt(start + i);
+    start = dot + 1;
+  }
+  q[w++] = 0x00;                 // root label ends the name
+  q[w++] = 0x00; q[w++] = 0x01;  // QTYPE  = A
+  q[w++] = 0x00; q[w++] = 0x01;  // QCLASS = IN
+
+  int sock = lwip_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (sock < 0) { detail = "socket() failed"; return false; }
+
+  bool ok = false;
+  struct sockaddr_in src;
+  memset(&src, 0, sizeof(src));
+  src.sin_family      = AF_INET;
+  src.sin_port        = 0;
+  src.sin_addr.s_addr = (uint32_t)PPP.localIP();
+
+  if (lwip_bind(sock, (struct sockaddr*)&src, sizeof(src)) != 0) {
+    detail = "bind to the PPP address failed, errno " + String(errno);
+  } else {
+    struct timeval tv;
+    tv.tv_sec  = MODEM_NTP_MS / 1000;
+    tv.tv_usec = (MODEM_NTP_MS % 1000) * 1000;
+    lwip_setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    struct sockaddr_in dst;
+    memset(&dst, 0, sizeof(dst));
+    dst.sin_family      = AF_INET;
+    dst.sin_port        = lwip_htons(53);
+    dst.sin_addr.s_addr = (uint32_t)server;
+
+    unsigned long t0 = millis();
+    if (lwip_sendto(sock, q, w, 0, (struct sockaddr*)&dst, sizeof(dst)) != w) {
+      detail = "sendto failed, errno " + String(errno);
+    } else {
+      uint8_t r[512];
+      int got = lwip_recv(sock, r, sizeof(r), 0);
+      unsigned long rt = millis() - t0;
+      if (got < 12) {
+        detail = "no reply in " + String(rt) + " ms, errno " + String(errno);
+      } else if (r[0] != q[0] || r[1] != q[1]) {
+        detail = "reply id does not match the query";   // someone else's answer
+      } else if ((r[3] & 0x0F) != 0) {
+        detail = "server answered rcode " + String(r[3] & 0x0F) + " after " + String(rt) + " ms";
+      } else {
+        int qd = (r[4] << 8) | r[5];
+        int an = (r[6] << 8) | r[7];
+        int at = 12;
+        // Walk past the echoed question(s): labels until a zero byte, then type+class.
+        for (int i = 0; i < qd && at < got; i++) {
+          while (at < got && r[at] != 0) {
+            if ((r[at] & 0xC0) == 0xC0) { at += 2; break; }   // compression pointer
+            at += 1 + r[at];
+          }
+          if (at < got && r[at] == 0) at++;
+          at += 4;
+        }
+        for (int i = 0; i < an && at + 12 <= got; i++) {
+          if ((r[at] & 0xC0) == 0xC0) at += 2;
+          else { while (at < got && r[at] != 0) at += 1 + r[at]; at++; }
+          if (at + 10 > got) break;
+          int type = (r[at] << 8) | r[at + 1];
+          int rdl  = (r[at + 8] << 8) | r[at + 9];
+          at += 10;
+          if (type == 1 && rdl == 4 && at + 4 <= got) {
+            detail = name + " -> " + String(r[at]) + "." + String(r[at + 1]) + "."
+                   + String(r[at + 2]) + "." + String(r[at + 3])
+                   + " in " + String(rt) + " ms, asked " + server.toString();
+            ok = true;
+            break;
+          }
+          at += rdl;
+        }
+        if (!ok) detail = "reply carried no A record, " + String(an) + " answers, "
+                        + String(rt) + " ms";
+      }
+    }
+  }
+  lwip_close(sock);
+  return ok;
+}
+#endif  // MODEM_USE_PPP
+
 // AT console for the 4G/GPS module, over the network instead of over a cable. It exists
 // because the module sits label-down on the breadboard with its own micro-USB facing the
 // table: the UART pair is the only way in, and the alternative was flashing a bridge
@@ -1158,7 +1942,7 @@ static bool modemAnswered() {
 //                               to 0..3000). AT+COPS=? can take two minutes: fire it with
 //                               wait=0 and pick the answer up afterwards. That is the
 //                               whole reason the buffer outlives the request.
-//   &pins=RX,TX                 re-open UART2 on other pins, e.g. pins=26,25. Only 25, 26
+//   &pins=RX,TX                 re-open UART2 on other pins, e.g. pins=25,27. Only 25, 26
 //                               and 27 are accepted — the three this harness can plausibly
 //                               sit on. Which of the two wires landed on which pin is a
 //                               coin flip, and guessing wrong otherwise costs a USB
@@ -1182,7 +1966,7 @@ static bool modemAnswered() {
 // That narrows the hole. HAS_MODEM 0 is what closes it.
 void handleAt() {
   if (crossSiteWrite()) return;
-  // Re-wiring first, so ?pins=26,25&cmd=AT does both in one request.
+  // Re-wiring first, so ?pins=25,27&cmd=AT does both in one request.
   bool reopen = false;
   if (server.hasArg("pins")) {
     String v = server.arg("pins");
@@ -1201,7 +1985,10 @@ void handleAt() {
     long b = server.arg("baud").toInt();
     if (b >= 9600 && b <= 921600) { modemBaud = (unsigned long)b; reopen = true; }
   }
-  if (reopen) { modemUartStart(); modemLen = 0; }
+  // Silently ignored while PPP owns the pair: Serial2 is closed, and re-opening it here
+  // would point a second UART peripheral at pins esp-modem is actively driving. Use
+  // /api/modem?off first if the wiring really has to be moved.
+  if (reopen && !modemPppOwnsUart()) { modemUartStart(); modemLen = 0; }
 
   String cmd;
   if (server.hasArg("plain"))     cmd = server.arg("plain");   // POST body, not form-decoded
@@ -1213,6 +2000,36 @@ void handleAt() {
 
   String out;
   unsigned long waited = 0;
+
+#if MODEM_USE_PPP
+  // Same console, same URL, different pipe. Once PPP is up the UART belongs to esp-modem
+  // and Serial2 is closed, but CMUX carries an AT channel alongside the data channel — so
+  // the command goes down that instead and the console keeps working while the station is
+  // online. That matters more than it sounds: on the mast this is the only handle on the
+  // modem there will ever be, and losing it the moment the link comes up would be the
+  // worst possible trade.
+  if (modemPppOwnsUart()) {
+    if (cmd.length()) {
+      // wait=0 is meaningless here — esp_modem takes a timeout, not a poll budget, and 0
+      // would fail every command instantly. The console's "fire and collect later" trick
+      // does not exist on this path because CMUX answers on its own channel anyway.
+      String reply;
+      unsigned long t0 = millis();
+      bool ok = PPP.cmd(cmd.c_str(), reply, (int)(waitMs ? waitMs : 500));
+      waited = millis() - t0;
+      out = "> " + cmd + "\n" + reply;
+      if (!out.endsWith("\n")) out += "\n";
+      out += "-- ok=" + String(ok ? 1 : 0);
+    } else {
+      // No URC buffer on this path: esp-modem consumes the unsolicited traffic itself.
+      out = "-- no command; URCs are consumed by esp-modem while PPP is up";
+    }
+    out += " via=CMUX state=" + String(modemPppStateName())
+         + " waited=" + String(waited) + "ms\n";
+    server.send(200, "text/plain", out);
+    return;
+  }
+#endif
 
   if (cmd.length()) {
     modemLen = 0;              // the reply to THIS command and nothing older
@@ -1242,7 +2059,1167 @@ void handleAt() {
 
   server.send(200, "text/plain", out);
 }
+
+#if MODEM_USE_PPP
+// Read-out for the 4G uplink, plus the two controls that matter when it misbehaves.
+//
+//   GET /api/modem           cheap: netif-level facts only, no word said to the modem
+//   GET /api/modem?radio=1   adds RSSI, operator and network mode — four AT round trips,
+//                            so it is opt-in rather than part of every read
+//   GET /api/modem?probe=1   opens a TCP connection to 8.8.8.8:53 pinned to the PPP
+//                            interface (see modemProbe) — the actual "does the station
+//                            have internet through the modem" question, blocks up to 4 s
+//   GET /api/modem?ntp=1     asks an NTP server for the date over a UDP socket pinned to
+//                            the PPP interface — "can the mast learn what day it is over
+//                            4G", which is the prerequisite for TLS and which a synced
+//                            clock at home does not answer (SNTP leaves over WiFi here)
+//   GET /api/modem?dns=NAME  resolves NAME by hand over a UDP socket pinned to the PPP
+//                            interface, asking the resolver that was pinned there. The
+//                            value IS the name ("?dns=1" asks for a default one) — this
+//                            is the only way to tell whether the pin took, because
+//                            lwIP's resolver table is global and reads back the router
+//   GET /api/modem?off=1     release the UART back to the AT console and stop retrying
+//   GET /api/modem?on=1      re-enable and retry immediately
+//
+// The "=1" is not decoration and it is not optional. WebServer::_parseArguments() DROPS
+// any query argument that has no '=' — it logs "arg missing value" and moves on — so a
+// bare ?probe never reaches hasArg() at all and the endpoint answers as if nothing was
+// asked. Silent, and indistinguishable from a flag that simply did nothing.
+//
+// Behind crossSiteWrite() and, like /api/at, deliberately without the CORS header: ?off
+// takes the station's uplink down, and the readout carries the operator and the assigned
+// address. Same reasoning as the AT console — a foreign tab can fire a request blind but
+// must not be able to read the answer.
+void handleModem() {
+  if (crossSiteWrite()) return;
+
+  if (server.hasArg("off")) {
+    modemPppEnabled = false;
+    modemPppRelease("api");
+  }
+  if (server.hasArg("on")) {
+    modemPppEnabled = true;
+    modemRetryMs    = MODEM_RETRY_MIN_MS;
+    modemNextTry    = millis();          // now, not after the backoff
+  }
+
+  String j = "{";
+  j += "\"state\":\"" + String(modemPppStateName()) + "\"";
+  j += ",\"enabled\":"    + String(modemPppEnabled ? "true" : "false");
+  j += ",\"ownsUart\":"   + String(modemPppOwnsUart() ? "true" : "false");
+  j += ",\"tries\":"      + String(modemTries);
+  j += ",\"stateForMs\":" + String(millis() - modemStateSince);
+  j += ",\"retryMs\":"    + String(modemRetryMs);
+  j += ",\"busyMaxMs\":"  + String(modemBusyMaxMs);
+  j += ",\"lastError\":"  + (modemLastError.length() ? ("\"" + modemLastError + "\"") : String("null"));
+  j += ",\"apn\":\"" MODEM_APN "\"";
+
+  // Address, route and resolvers. All local reads — no AT traffic, no stall.
+  j += ",\"hasIp\":" + String(PPP.hasIP() ? "true" : "false");
+  j += ",\"ip\":\""   + PPP.localIP().toString()   + "\"";
+  j += ",\"gw\":\""   + PPP.gatewayIP().toString() + "\"";
+  j += ",\"dns0\":\"" + PPP.dnsIP(0).toString()    + "\"";
+  j += ",\"dns1\":\"" + PPP.dnsIP(1).toString()    + "\"";
+  // Which interface the stack would use by default. Worth reporting rather than forcing:
+  // at home the WiFi uplink outranks PPP and that is the right answer — the 4G link is
+  // for the mast, where there is no WiFi to outrank it. Changing the priority is a
+  // decision for the cloud client, not for the code that just brings the link up.
+  j += ",\"routePrio\":" + String(PPP.getRoutePrio());
+  j += ",\"isDefault\":" + String(PPP.isDefault() ? "true" : "false");
+
+  if (server.hasArg("radio") && modemPppOwnsUart()) {
+    j += ",\"attached\":" + String(PPP.attached() ? "true" : "false");
+    j += ",\"rssi\":"     + String(PPP.RSSI());
+    j += ",\"netMode\":"  + String(PPP.networkMode());
+    j += ",\"operator\":\"" + modemSafeText(PPP.operatorName(), 48) + "\"";
+    // IMEI is deliberately NOT here. It identifies the SIM's owner to anyone who can
+    // reach this endpoint, and /api/at can print it on request when it is actually needed.
+  }
+
+  if (server.hasArg("probe")) {
+    String detail;
+    bool ok = modemProbe(detail);
+    j += ",\"probe\":"       + String(ok ? "true" : "false");
+    j += ",\"probeDetail\":\"" + detail + "\"";
+  }
+
+  if (server.hasArg("dns")) {
+    String name = server.arg("dns");
+    if (name.length() == 0 || name == "1") name = "pool.ntp.org";
+    String detail;
+    bool ok = modemDnsProbe(name, IPAddress(8, 8, 8, 8), detail);
+    j += ",\"dns\":"       + String(ok ? "true" : "false");
+    j += ",\"dnsDetail\":\"" + detail + "\"";
+  }
+
+  if (server.hasArg("ntp")) {
+    String detail;
+    bool ok = modemNtpProbe(detail);
+    j += ",\"ntp\":"       + String(ok ? "true" : "false");
+    j += ",\"ntpDetail\":\"" + detail + "\"";
+  }
+
+  j += "}";
+  server.send(200, "application/json", j);
+}
+#endif  // MODEM_USE_PPP
 #endif
+
+// ===== CLOUD UPLINK (MQTT over TLS) =====
+// The station's half of the remote channel: ONE MQTT/TLS connection held open for the
+// whole session, wind pushed up at 5 packets a second, signed commands coming back down
+// the same socket. CGNAT means nothing can ever connect TO the station (see the modem
+// section), so every byte in both directions rides a connection the station opened.
+//
+// Why esp-mqtt and not PubSubClient. Any client built on NetworkClientSecure does its TLS
+// handshake synchronously in the calling task — one to three seconds during which the
+// 50 Hz sampler, the SSE push and the web server all stop. In a session-based deployment
+// that handshake happens on every power-up and again on every reconnect, so it is not a
+// rare cost. esp-mqtt runs its own FreeRTOS task and nothing here ever waits on the
+// network: loop() only ever hands it buffers. It ships inside the ESP32 core already
+// (libmqtt.a, CONFIG_MQTT_PROTOCOL_311=y) — there is nothing to install.
+//
+// Memory, because it is not free and not what one would guess: the core's mbedTLS is
+// built with CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN=16384 and no asymmetric variant, so the
+// record buffers are 16 kB EACH and both live as long as the socket does. That is ~32 kB
+// of heap gone for the whole session, plus this client's own buffers and task stack, plus
+// a handshake peak on top. The Serial telemetry line carries free/min heap for exactly
+// this reason — read it after the link has been up a while, not right after boot.
+#if SECRET_HAS_CLOUD
+
+// Root certificates, in the order that makes the pin survive the transition Let's Encrypt
+// is in the middle of. Measured against the live broker 2026-09-12, the chain served is
+//
+//     leaf CN=*.s1.eu.hivemq.cloud  <-  CN=YR1  <-  CN=Root YR  <-  ISRG Root X1
+//
+// i.e. "Generation Y", with Root YR cross-signed by the old X1. Today EITHER root alone
+// validates it — X1 through the cross-signature, Root YR directly — which is precisely
+// why both are here rather than whichever one happens to work this month: pinning X1
+// alone breaks on the day the cross-signature stops being sent, and pinning Root YR alone
+// breaks if the broker rolls back to a classic chain. Two roots cost 3.8 kB of flash and
+// remove both failure modes. Neither expires before 2035.
+//
+// PEM, and the length field stays 0: esp-mqtt then requires a NUL-terminated buffer and
+// works the length out itself.
+static const char CLOUD_ROOT_CA[] = R"CACERT(
+-----BEGIN CERTIFICATE-----
+MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
+TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
+cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
+WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
+ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
+MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
+h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
+0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
+A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
+T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH
+B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC
+B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv
+KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn
+OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn
+jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw
+qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI
+rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
+HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
+hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL
+ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ
+3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK
+NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5
+ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur
+TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC
+jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc
+oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
+4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
+mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
+emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIIFKTCCAxGgAwIBAgIRAOxGNJNgz0sP+KmC2Tqpyj0wDQYJKoZIhvcNAQELBQAw
+LjELMAkGA1UEBhMCVVMxDTALBgNVBAoTBElTUkcxEDAOBgNVBAMTB1Jvb3QgWVIw
+HhcNMjUwOTAzMDAwMDAwWhcNNDUwOTAyMjM1OTU5WjAuMQswCQYDVQQGEwJVUzEN
+MAsGA1UEChMESVNSRzEQMA4GA1UEAxMHUm9vdCBZUjCCAiIwDQYJKoZIhvcNAQEB
+BQADggIPADCCAgoCggIBANvGJnN78CTJdWL3+eGfsLN5TrNBJs+VH9hRXqRbwxu9
+sGNiB0BD1fcOxbSUQCJIM1xE13Db+5Cw1w0s0EBYsvuIP/6joF0w8cuImbgR1OGg
+YbSQ4OpzI+DG8SGuTlcE873OCS+kh3srlo6vl43M5OJg4Aeo1sfHp6kTJDoIiFBN
+JAY+OKfX/FUvYKuhjT+no49lmqmupSBI5PkBQiqrEGtWU5uxU/cQWHGu8jSjFBzn
+ZqvbNPLMXMLFxCb3WTfrJBXXjqvWG+v4bjzxjjeAtOlU7qarRDvNOyAuQYLln904
+M+faKx8hnLCpJ15ZqaEgcNlY+9MMWcC5yvL2A2j3l9+2buggZX+dOE91zYmIdawT
+vSZuVvlbRrAlLxIB6pwMBjneXCjYQ8+3BCCjssbSNpZU3hTcBDdhfAlEDlYr6pEa
+tnMdmDT5BqnKC92bd0EhM1fbLHioLccLCuievT8ZkPhZrq7Mii7gNXAcUEAR8+lz
+Yal+9zTg7C5DALyVOeG/CqfRAMn1KSHCR0NSA6P8tn/mGRlnCct5rtVCLnVySVpU
+6H1qGg3DgTOuskf8eahTMiYbI5ezPJmO5ertalskQ1utp74+eDy92PI4ftHKTbq9
+IWhH4YZKh3WnJEIt+oQvlYZbY8tpEroKrFB6PFGzrJIDRyts4HqvuH52RFj2zv/B
+AgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1Ud
+DgQWBBTe51tg0CJtQCh9Pw0B/qS1UrRRlDANBgkqhkiG9w0BAQsFAAOCAgEAWHnf
+713Bdkq7t5yN2dNIgQakUb94X9WuyhMEHHkgx4oDpSUlnG0w4g94MoqaEUE31ZjR
+LU7L5LD1g9ujFHTQu8AD215AHMVQFbm6j8hQxdXHAzDajFNQnOlDJrLjzIx176oy
+AjvUtejZx2NNmdb5fd0WGVGsCdoAJ3N8ozo7ajE8t6vfxStZb4BQ9WYJGHUDrv2N
+i5tJF6CNiPnlzs3BUfECRbE4JSk+jvy8+VoGiFE8qsH/j78x2fjgQhAQFV7P7Zxy
+dBTZ1wEkNpZNW2qnaK1SKBLa+xf6E06YRIq5uaI+HWH8SY1y5VbRgzq40EKg3yxP
+06fz+uYAUIFJoLNfhwRCc3Q6pQVuMX3yAjHAes4gk4moGcLQ5p7HAh39yeylZc1J
+41sx/jKwLIkPE6Rr1Nf4pxdsxf9SA4yOEiAkDgq04DVxn8hgYFdUtBCuiuVC2heA
+EiqVEa+8QZjuw8Gj0EbHXcRd1nInvGqRS1o9Is7YBdQN57X1AYveGBNNqjICSb7c
+awuw1EawTDrs13VUlJVEsbQ0/O/1aaV73mCdOQ8azqL2KTv1Ewu1xbquE2S+kdQU
+To9TUwat3wUA6cwXh1EfpS/3fJ0aGah5hdpRyoCLDlsSn8tkrjMfFFX0viC+GxHc
+sI1ANRYvqSFC2X1VRZfDg+wD6E21BccmifG4yWc=
+-----END CERTIFICATE-----
+)CACERT";
+
+// Topic layout. <id> is SECRET_MQTT_STATION_ID and is deliberately SHORT ("mast"): the
+// topic string is retransmitted in every single PUBLISH, so at 5 packets a second its
+// length is a standing traffic cost — a 32-character cluster id in place of four
+// characters worked out at ~13% of the whole uplink budget.
+//
+//   live    QoS 0, not retained, 5/s   — the fast half: a burst of speed samples
+//   state   QoS 1, retained,     5 s   — the slow half: everything /api/data carries
+//   status  QoS 1, retained,     LWT   — {"online":true|false}
+//   cmd     QoS 1                      — signed commands coming down
+//   ack     QoS 1                      — what was actually done about them
+//   hist    QoS 1                      — minute aggregates that piled up while offline
+//
+// Splitting fast from slow is the whole point of the format: chargeState and uptime do
+// not change between frames and cost more to send than the wind does. The dashboard
+// reassembles {...state, speed: s[i], gust: g} and gets an object shaped exactly like an
+// SSE frame, so its existing render path is untouched.
+#define CLOUD_TOPIC_MAX 64
+char cloudTopicLive  [CLOUD_TOPIC_MAX];
+char cloudTopicState [CLOUD_TOPIC_MAX];
+char cloudTopicStatus[CLOUD_TOPIC_MAX];
+char cloudTopicCmd   [CLOUD_TOPIC_MAX];
+char cloudTopicAck   [CLOUD_TOPIC_MAX];
+char cloudTopicHist  [CLOUD_TOPIC_MAX];
+char cloudClientId   [48];
+
+// 4 samples per packet at 5 packets/s is 20 Hz delivered in bursts — the same rate the
+// local SSE stream runs at, and indistinguishable from it once the dashboard plays the
+// burst back one sample per 50 ms. Going faster buys nothing: LTE Cat-1 RTT is 150-400 ms,
+// so past ~5 Hz packets queue behind the network instead of arriving sooner. That is a
+// number from the physics of the link, not from the tariff.
+#define CLOUD_LIVE_SAMPLES 4
+const unsigned long CLOUD_SAMPLE_MS       = 50;     // 20 Hz, same cadence as the SSE push
+const unsigned long CLOUD_LIVE_MS         = 200;    // 5 packets/s
+// On battery the rate drops to 1 packet/s. Cheap, and on a mast running off the pack
+// there is most likely nobody watching anyway.
+const unsigned long CLOUD_LIVE_MS_BATTERY = 1000;
+const unsigned long CLOUD_STATE_MS        = 5000;   // slow half, unconditionally
+const unsigned long CLOUD_STATE_MIN_MS    = 1000;   // floor for change-driven pushes
+const unsigned long CLOUD_AGG_MS          = 60000;  // one aggregate a minute
+
+// TLS handshake needs more stack than the default. 8192 is the documented figure for
+// certificate verification and it is not generous — the default is what fails, and it
+// fails silently, as a reconnect loop.
+const int CLOUD_TASK_STACK     = 8192;
+// Both directions of the MQTT-level buffer. The largest thing passing through is a state
+// frame (~600 B) or a history batch, so 2 kB has room and costs 4 kB of heap.
+const int CLOUD_BUFFER_SIZE    = 2048;
+// Hard backstop on the outbox. Live frames are never queued while disconnected (see
+// serviceCloud) so this should never be reached; it is here so a bug in that rule costs
+// a few dropped frames instead of the heap.
+const uint64_t CLOUD_OUTBOX_LIMIT = 4096;
+const int CLOUD_KEEPALIVE_S    = 60;
+const int CLOUD_RECONNECT_MS   = 10000;
+const int CLOUD_NET_TIMEOUT_MS = 10000;
+
+// How far ahead a command's expiry may sit. Combined with "exp must still be in the
+// future" this bounds the replay window at both ends: a captured packet stops working on
+// its own, and one signed with exp in 2099 is refused rather than being valid forever.
+const uint32_t CLOUD_CMD_MAX_FUTURE_S = 900;
+#define CLOUD_CMD_MAX   384    // a command larger than this is not one of ours
+#define CLOUD_CMD_QUEUE 4
+
+// Minute aggregates, kept in RAM and nowhere else. 200 of them is a bit over three hours.
+// The 5 Hz live stream is deliberately NOT buffered across a disconnect: wind data is
+// alive exactly as long as it is live, and replaying a minute of stale samples into a
+// gauge would be showing the viewer something untrue. A min/avg/max per minute is the
+// honest thing to keep, it survives a reconnect, and it costs 3.2 kB.
+//
+// RAM and not SPIFFS on purpose: this firmware never writes flash (same rule as
+// /api/zero), and a ring that dies with the power is a smaller loss than breaking that.
+#define CLOUD_AGG_N 200
+struct CloudAgg {
+  uint32_t t;      // epoch seconds at the end of the minute, 0 if the clock was not set
+  float    mn;
+  float    avg;
+  float    mx;
+};
+CloudAgg cloudAgg[CLOUD_AGG_N];
+uint32_t cloudAggTotal = 0;    // how many have ever been produced; index = total % N
+uint32_t cloudAggSent  = 0;    // how many of those have reached the broker
+float    cloudAccMin = 0, cloudAccMax = 0, cloudAccSum = 0;
+uint32_t cloudAccN   = 0;
+unsigned long cloudAccSince = 0;
+// Big enough to drain three hours in a few seconds, small enough to fit the buffer.
+#define CLOUD_HIST_BATCH 15
+
+// Client handle and the flags the MQTT task writes. Anything the MQTT task touches is
+// either volatile or a queue: its handler runs on its own task, on the other core.
+esp_mqtt_client_handle_t cloudClient = nullptr;
+volatile bool     cloudConnected = false;
+volatile bool     cloudNeedHello = false;   // connected: subscribe + status + backlog
+bool              cloudStarted   = false;   // client created and started
+// RAM only, same rule as /api/modem?off and /api/zero: this turns the channel off for
+// this session, and what should survive a reboot belongs in SECRET_HAS_CLOUD.
+bool              cloudEnabled   = true;
+// Pin the MQTT socket to the modem instead of letting the routing table choose. RAM only,
+// like every other runtime switch here, and false on every boot: on the mast PPP is the
+// only route and the question does not arise, so this exists purely to ask "does TLS
+// survive a 4G link" while a WiFi route is also present — the one situation in which
+// watching the default route cannot answer it. Set through /api/cloud?via=ppp.
+bool              cloudBindPpp   = false;
+char              cloudBoundIf[8] = "";   // lwIP name actually bound, empty when unbound
+volatile uint32_t cloudConnects  = 0;
+volatile uint32_t cloudErrors    = 0;
+uint32_t          cloudPubLive   = 0;
+uint32_t          cloudPubDrop   = 0;
+uint32_t          cloudCmdOk     = 0;
+uint32_t          cloudCmdBad    = 0;
+// Written by the MQTT task, read by loop() and /api/cloud. A torn read here shows a
+// mangled diagnostic string and nothing worse, which is the right trade against taking a
+// lock on the error path.
+char              cloudLastError[96] = "";
+
+char     cloudSessionId[17] = "";     // 8 random bytes as hex, regenerated every boot
+uint32_t cloudCmdLastId     = 0;      // highest command id executed in THIS session
+uint8_t  cloudHmacKey[32];
+bool     cloudHmacKeyOk     = false;
+
+float         cloudLiveBuf[CLOUD_LIVE_SAMPLES];
+uint8_t       cloudLiveCount = 0;
+uint32_t      cloudLiveSeq   = 0;
+unsigned long cloudSampleAt  = 0;
+unsigned long cloudLiveAt    = 0;
+unsigned long cloudStateAt   = 0;
+unsigned long cloudHistAt    = 0;
+QueueHandle_t cloudCmdQueue  = nullptr;
+
+// The slow fields, remembered so a change can push a state frame without waiting out the
+// 5 s tick. Comparing the built JSON would not work — uptime moves every second, so every
+// comparison would differ and every tick would publish.
+struct CloudSlow {
+  const char* charge;
+  const char* power;
+  int         batteryPercent;
+  uint8_t     leds;        // four 2-bit modes packed
+  bool        ledAuto;
+  bool        adcError;
+  bool        staUp;
+  bool        clockValid;
+};
+CloudSlow cloudSlowLast = { nullptr, nullptr, -1, 0xFF, false, false, false, false };
+// Set when a slow field moves, cleared when the frame carrying it actually leaves. See
+// the publish site in serviceCloud() for why this cannot be a local.
+bool cloudSlowDirty = false;
+
+// ---- small helpers -------------------------------------------------------------------
+
+static int cloudHexNibble(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  return -1;
+}
+
+// Strict: the whole string must be hex and must fill the buffer exactly. Anything else is
+// a configuration mistake, and a half-decoded key would be a silent one.
+static bool cloudHexToBytes(const char* hex, uint8_t* out, size_t outLen) {
+  if (!hex || strlen(hex) != outLen * 2) return false;
+  for (size_t i = 0; i < outLen; i++) {
+    int hi = cloudHexNibble(hex[i * 2]);
+    int lo = cloudHexNibble(hex[i * 2 + 1]);
+    if (hi < 0 || lo < 0) return false;
+    out[i] = (uint8_t)((hi << 4) | lo);
+  }
+  return true;
+}
+
+// Constant-time compare. On a 32-byte tag over a slow link the timing channel is mostly
+// theoretical, but the memcmp version is not shorter or clearer, so there is nothing to
+// trade away by doing it properly.
+static bool cloudEqualCt(const uint8_t* a, const uint8_t* b, size_t n) {
+  uint8_t diff = 0;
+  for (size_t i = 0; i < n; i++) diff |= (uint8_t)(a[i] ^ b[i]);
+  return diff == 0;
+}
+
+// Minimal field readers for a message of known, fixed shape. Not a JSON parser and not
+// pretending to be one: a command is a flat object of five fields that we generate the
+// signing rules for, so the useful behaviour here is to be rigid. Any payload with a
+// backslash inside a string is refused outright by the caller rather than unescaped —
+// nothing we send needs an escape, so their presence means the message is not ours.
+static bool cloudJsonStr(const char* json, const char* key, char* out, size_t outLen) {
+  char pat[24];
+  snprintf(pat, sizeof(pat), "\"%s\"", key);
+  const char* p = strstr(json, pat);
+  if (!p) return false;
+  p = strchr(p + strlen(pat), ':');
+  if (!p) return false;
+  p++;
+  while (*p == ' ' || *p == '\t') p++;
+  if (*p != '"') return false;
+  p++;
+  size_t n = 0;
+  while (*p && *p != '"') {
+    if (*p == '\\' || n + 1 >= outLen) return false;
+    out[n++] = *p++;
+  }
+  if (*p != '"') return false;
+  out[n] = 0;
+  return true;
+}
+
+static bool cloudJsonNum(const char* json, const char* key, long long* out) {
+  char pat[24];
+  snprintf(pat, sizeof(pat), "\"%s\"", key);
+  const char* p = strstr(json, pat);
+  if (!p) return false;
+  p = strchr(p + strlen(pat), ':');
+  if (!p) return false;
+  p++;
+  while (*p == ' ' || *p == '\t') p++;
+  if (*p != '-' && (*p < '0' || *p > '9')) return false;
+  char* end = nullptr;
+  long long v = strtoll(p, &end, 10);
+  if (end == p) return false;
+  *out = v;
+  return true;
+}
+
+// ---- outgoing frames -----------------------------------------------------------------
+
+// Non-blocking publish, and the choice of call is the entire point of this wrapper.
+//
+// esp_mqtt_client_publish() writes to the socket in the CALLER's context for QoS 0 — one
+// slow socket and loop() is stopped, which is exactly the stall this whole subsystem was
+// built to avoid. enqueue() hands the message to the MQTT task and returns.
+//
+// The `store` argument is the second trap and it is not obvious: with store=false only
+// QoS 1 and 2 are enqueued and a QoS 0 message is silently DROPPED. Every live frame is
+// QoS 0, so store must be true or the fast half of the channel publishes nothing at all
+// while reporting no error whatsoever.
+//
+// What it costs, measured 2026-09-12 rather than assumed. The MQTT task sits in a poll on
+// the socket and only drains the outbox when it wakes, so an enqueued message waits out
+// the remainder of that poll — about a second on the stock build (the core ships esp-mqtt
+// with CONFIG_MQTT_USE_CUSTOM_CONFIG unset, so the poll timeout is the default one).
+// Command round trip, operator to station and back over the broker:
+//
+//     1162 ms median          — ack alone, waiting for the poll to expire
+//      442 ms median          — same ack when a second inbound message wakes the task
+//                               250 ms early, i.e. the real path is ~200 ms
+//
+// So roughly a second of the delay is queue, not network, and it is a CONSTANT lag rather
+// than jitter: live frames at 1 Hz arrive 1005 ms apart (median over 30), evenly spaced.
+// At the 5 Hz rate expect one burst of five per wake-up instead of five even frames —
+// harmless, because the dashboard plays a burst back on its own 50 ms clock.
+//
+// Left as is on purpose. The cure would be esp_mqtt_client_publish(), whose own
+// documentation says it "might block for several seconds", in the CALLER's task — which
+// is loop(), which is the 50 Hz sampler. A second of lag on a wind reading is worth far
+// less than a sampler that stops. Nothing in the public API wakes the task early.
+static bool cloudSend(const char* topic, const char* payload, int qos, int retain) {
+  if (!cloudClient || !cloudConnected) return false;
+  int id = esp_mqtt_client_enqueue(cloudClient, topic, payload, (int)strlen(payload),
+                                   qos, retain, true);
+  if (id < 0) {
+    cloudPubDrop++;
+    return false;
+  }
+  return true;
+}
+
+// The fast half. {"q":<seq>,"s":[...],"g":<gust>} — about 60 bytes on the wire.
+//
+// `q` is a packet counter, not a timestamp: the dashboard plays the burst back on its own
+// 50 ms clock and only needs to know whether it missed a packet. A timestamp would cost
+// ten bytes in every packet to say something the receiver already knows.
+static void cloudPublishLive() {
+  if (cloudLiveCount == 0) return;
+  char buf[128];
+  int n = snprintf(buf, sizeof(buf), "{\"q\":%lu,\"s\":[", (unsigned long)cloudLiveSeq);
+  for (uint8_t i = 0; i < cloudLiveCount && n > 0 && n < (int)sizeof(buf); i++) {
+    n += snprintf(buf + n, sizeof(buf) - n, "%s%.2f", i ? "," : "", cloudLiveBuf[i]);
+  }
+  if (n > 0 && n < (int)sizeof(buf)) {
+    snprintf(buf + n, sizeof(buf) - n, "],\"g\":%.2f}", windGust);
+  }
+  // QoS 0 and not retained: a live sample that arrives late is worse than one that never
+  // arrives, so there is nothing here worth a retransmission.
+  if (cloudSend(cloudTopicLive, buf, 0, 0)) cloudPubLive++;
+  cloudLiveSeq++;
+  cloudLiveCount = 0;
+}
+
+// The slow half. Exactly what /api/data carries, plus sessionId — so the public dashboard
+// gets the same object shape the local one already renders, and the whole difference
+// between the two builds is where the bytes came from.
+static void cloudPublishState() {
+  String json = buildDataJson();
+  if (json.length() < 2) return;
+  json.remove(json.length() - 1);                       // drop the closing brace
+  json += ",\"sessionId\":\"" + String(cloudSessionId) + "\"}";
+  cloudSend(cloudTopicState, json.c_str(), 1, 1);       // retained: a late viewer still
+  cloudStateAt = millis();                              // gets the current picture
+}
+
+// Has anything in the slow half actually moved? Cheap enough to run every pass.
+static bool cloudSlowChanged() {
+  CloudSlow now;
+  now.charge         = chargeState;
+  now.power          = powerSource;
+  now.batteryPercent = batteryPresent ? batteryPercent : -1;
+  now.leds           = (uint8_t)(ledGreen | (ledYellow << 2) | (ledRed << 4) | (ledWifi << 6));
+  now.ledAuto        = ledAutoMode;
+  now.adcError       = adcError;
+#if HAS_HOME_NETWORK
+  now.staUp          = staUp;
+#else
+  now.staUp          = false;
+#endif
+  now.clockValid     = clockValid;
+
+  bool changed = (now.charge != cloudSlowLast.charge) ||
+                 (now.power  != cloudSlowLast.power)  ||
+                 (now.batteryPercent != cloudSlowLast.batteryPercent) ||
+                 (now.leds   != cloudSlowLast.leds)   ||
+                 (now.ledAuto    != cloudSlowLast.ledAuto)  ||
+                 (now.adcError   != cloudSlowLast.adcError) ||
+                 (now.staUp      != cloudSlowLast.staUp) ||
+                 (now.clockValid != cloudSlowLast.clockValid);
+  cloudSlowLast = now;
+  return changed;
+}
+
+// ---- minute aggregates ---------------------------------------------------------------
+
+static void cloudAggSample(float v) {
+  if (cloudAccN == 0) {
+    cloudAccMin = cloudAccMax = v;
+    cloudAccSum = 0;
+    cloudAccSince = millis();
+  }
+  if (v < cloudAccMin) cloudAccMin = v;
+  if (v > cloudAccMax) cloudAccMax = v;
+  cloudAccSum += v;
+  cloudAccN++;
+
+  if (millis() - cloudAccSince < CLOUD_AGG_MS) return;
+
+  CloudAgg& slot = cloudAgg[cloudAggTotal % CLOUD_AGG_N];
+  slot.t   = clockValid ? (uint32_t)time(nullptr) : 0;
+  slot.mn  = cloudAccMin;
+  slot.mx  = cloudAccMax;
+  slot.avg = cloudAccSum / (float)cloudAccN;
+  cloudAggTotal++;
+  cloudAccN = 0;
+
+  // The ring has overwritten what was never sent — count it as sent so the backlog
+  // pointer cannot chase entries that no longer exist.
+  if (cloudAggTotal - cloudAggSent > CLOUD_AGG_N) cloudAggSent = cloudAggTotal - CLOUD_AGG_N;
+}
+
+// Drain whatever piled up while the link was down, a batch per call so the outbox is
+// never handed three hours of history in one go.
+static void cloudPublishHist() {
+  if (cloudAggSent >= cloudAggTotal) return;
+  uint32_t take = cloudAggTotal - cloudAggSent;
+  if (take > CLOUD_HIST_BATCH) take = CLOUD_HIST_BATCH;
+
+  String json = "{\"from\":" + String(cloudAggSent) + ",\"a\":[";
+  for (uint32_t i = 0; i < take; i++) {
+    const CloudAgg& a = cloudAgg[(cloudAggSent + i) % CLOUD_AGG_N];
+    if (i) json += ",";
+    json += "[" + String(a.t) + "," + String(a.mn, 2) + "," + String(a.avg, 2) + "," +
+            String(a.mx, 2) + "]";
+  }
+  json += "]}";
+  if (cloudSend(cloudTopicHist, json.c_str(), 1, 0)) cloudAggSent += take;
+}
+
+// ---- commands ------------------------------------------------------------------------
+//
+// The socket is TLS and the broker authenticates both ends, and neither of those is why a
+// command is trusted. The topic has two endpoints and the second one is somebody else's
+// infrastructure, so what actually authorises a command is a signature the station can
+// check by itself, whoever delivered it and however.
+//
+//   wind/<id>/cmd  {"id":17,"op":"gust-reset","args":"","exp":1789000000,"sig":"<64 hex>"}
+//
+//   sig = HMAC-SHA256(key, id "\n" op "\n" args "\n" exp "\n" sessionId)
+//
+// sessionId is in the signed data but NOT on the wire: the station knows its own and
+// substitutes it. That is what closes the replay hole the `id` counter leaves open —
+// `id` cannot survive a reboot, because this firmware never writes NVS and there is no
+// RTC, so after a restart lastId is 0 again and yesterday's captured packet would be
+// accepted. A session nonce regenerated at every boot makes it fail the signature check
+// instead, with nothing stored anywhere. `id` stays, and is honestly a within-session
+// defence rather than an across-reboot one.
+//
+// Whoever signs must reproduce that string byte for byte: id and exp are plain decimal
+// with no padding, args is the raw string (empty when there is none), the separator is a
+// single \n, and the key is SECRET_CMD_HMAC_KEY decoded from hex to its 32 bytes.
+
+static bool cloudVerifySig(const char* signedData, const char* sigHex) {
+  if (!cloudHmacKeyOk) return false;
+  uint8_t want[32];
+  if (!cloudHexToBytes(sigHex, want, sizeof(want))) return false;
+
+  uint8_t got[32];
+  const mbedtls_md_info_t* md = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  if (!md) return false;
+  if (mbedtls_md_hmac(md, cloudHmacKey, sizeof(cloudHmacKey),
+                      (const unsigned char*)signedData, strlen(signedData), got) != 0) {
+    return false;
+  }
+  return cloudEqualCt(got, want, sizeof(got));
+}
+
+// Deadline for a commanded restart, 0 when none is pending. A reboot cannot happen inside
+// the command handler: the ack and the offline status have only been ENQUEUED at that
+// point, and restarting immediately would drop both — the operator would see a station
+// that went silent with no answer to the thing they asked for.
+unsigned long cloudRebootAt = 0;
+
+// Pull one key out of an /api/led-style argument string: "auto=false&green=on".
+static bool cloudArgValue(const char* args, const char* key, char* out, size_t outLen) {
+  size_t klen = strlen(key);
+  const char* p = args;
+  while (p && *p) {
+    const char* eq = strchr(p, '=');
+    if (!eq) return false;
+    const char* amp = strchr(eq, '&');
+    if ((size_t)(eq - p) == klen && strncmp(p, key, klen) == 0) {
+      size_t vlen = amp ? (size_t)(amp - eq - 1) : strlen(eq + 1);
+      if (vlen + 1 > outLen) return false;
+      memcpy(out, eq + 1, vlen);
+      out[vlen] = 0;
+      return true;
+    }
+    if (!amp) return false;
+    p = amp + 1;
+  }
+  return false;
+}
+
+// Execute a verified command. Runs in loop(), never on the MQTT task — everything it
+// touches is state loop() owns, and reaching into it from another core would be a race
+// that only ever shows up as an impossible reading.
+//
+// Whitelist, and it is the whole list. There is deliberately no "run this request" or
+// "write this register": the value of a closed list is that reading it is enough to know
+// what a stolen key could do.
+static bool cloudRunCommand(const char* op, const char* args, char* detail, size_t detailLen) {
+  if (strcmp(op, "gust-reset") == 0) {
+    windGust = windSpeed;
+    gustResetTimer = millis();
+    snprintf(detail, detailLen, "gust reset to %.2f", windSpeed);
+    return true;
+  }
+
+  if (strcmp(op, "zero-set") == 0) {
+    // Empty args means "adopt what the pin reads right now", the form used with the cups
+    // held still. Same guard rails as /api/zero: zero would disable the gate and turn the
+    // ADC floor into 2.2 m/s of permanent phantom wind, and a volt is already a big slice
+    // of the useful range. RAM only, like everything else here.
+    float mv = (args[0] == 0) ? speedMvRaw : atof(args);
+    if (!(mv > 20.0f && mv < 1000.0f)) {
+      snprintf(detail, detailLen, "refused %.1f mV, expected 20..1000", mv);
+      return false;
+    }
+    speedZeroMv = mv;
+    snprintf(detail, detailLen, "zero = %.1f mV", mv);
+    return true;
+  }
+
+  if (strcmp(op, "led") == 0) {
+    char v[16];
+    if (cloudArgValue(args, "auto", v, sizeof(v))) ledAutoMode = (strcmp(v, "true") == 0);
+    if (!ledAutoMode) {
+      if (cloudArgValue(args, "green",  v, sizeof(v))) ledGreen  = parseLedMode(String(v));
+      if (cloudArgValue(args, "yellow", v, sizeof(v))) ledYellow = parseLedMode(String(v));
+      if (cloudArgValue(args, "red",    v, sizeof(v))) ledRed    = parseLedMode(String(v));
+      if (cloudArgValue(args, "wifi",   v, sizeof(v))) ledWifi   = parseLedMode(String(v));
+    }
+    snprintf(detail, detailLen, "auto=%s", ledAutoMode ? "true" : "false");
+    return true;
+  }
+
+  if (strcmp(op, "reboot") == 0) {
+    cloudRebootAt = millis() + 1500;
+    snprintf(detail, detailLen, "rebooting in 1.5 s");
+    return true;
+  }
+
+  if (strcmp(op, "ota") == 0) {
+    // Reserved on purpose rather than quietly missing from the list. Updating over 4G is
+    // pull-only (espota needs an inbound connection, which CGNAT makes impossible), so it
+    // is HTTPUpdate against a URL and it lands with that step — see the OTA section of
+    // tasks/10. Refusing loudly here is better than an operator wondering why nothing
+    // happened.
+    snprintf(detail, detailLen, "ota not implemented yet — see tasks/10, pull-OTA step");
+    return false;
+  }
+
+  snprintf(detail, detailLen, "unknown op");
+  return false;
+}
+
+// Verify, then run, then say what happened. Every exit publishes an ack: a command that
+// was rejected is exactly the case where the operator most needs to hear why, and silence
+// is indistinguishable from a dead link.
+static void cloudHandleCommand(const char* json) {
+  char op[32] = "", args[128] = "", sig[80] = "", detail[96] = "";
+  long long id = 0, exp = 0;
+  bool ok = false;
+
+  if (!cloudJsonNum(json, "id", &id) || !cloudJsonNum(json, "exp", &exp) ||
+      !cloudJsonStr(json, "op", op, sizeof(op)) ||
+      !cloudJsonStr(json, "sig", sig, sizeof(sig))) {
+    snprintf(detail, sizeof(detail), "malformed");
+  } else if (!cloudJsonStr(json, "args", args, sizeof(args))) {
+    args[0] = 0;                                   // args is optional, absent == empty
+  }
+
+  // The op is echoed back in the ack, so it has to be safe to paste into JSON. The
+  // extractor already refuses quotes and backslashes; this also rules out control
+  // characters, which would produce an ack no parser would accept. A whitelist rather
+  // than an escaper, because every real op is lowercase letters and a hyphen.
+  if (detail[0] == 0) {
+    for (const char* p = op; *p; p++) {
+      bool sane = (*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
+                  (*p >= '0' && *p <= '9') || *p == '-' || *p == '_';
+      if (!sane) {
+        op[0] = 0;
+        snprintf(detail, sizeof(detail), "bad op");
+        break;
+      }
+    }
+  }
+
+  if (detail[0] == 0) {
+    if (id <= 0 || id > 0x7FFFFFFFLL) {
+      snprintf(detail, sizeof(detail), "bad id");
+    } else if ((uint32_t)id <= cloudCmdLastId) {
+      // Within a session this is the replay guard. Across a reboot it is useless by
+      // construction, which is what sessionId is for.
+      snprintf(detail, sizeof(detail), "id %lld not newer than %lu", id,
+               (unsigned long)cloudCmdLastId);
+    } else if (!clockValid) {
+      // Without a real clock exp cannot be judged, and accepting commands anyway would
+      // mean accepting them forever. The station is not in a hurry.
+      snprintf(detail, sizeof(detail), "no clock yet");
+    } else {
+      time_t now = time(nullptr);
+      if (exp <= (long long)now) {
+        snprintf(detail, sizeof(detail), "expired %lld s ago", (long long)now - exp);
+      } else if (exp - (long long)now > (long long)CLOUD_CMD_MAX_FUTURE_S) {
+        snprintf(detail, sizeof(detail), "exp too far ahead");
+      } else if (!cloudHmacKeyOk) {
+        snprintf(detail, sizeof(detail), "no usable HMAC key in this build");
+      } else {
+        // The canonical signed string. Built here and nowhere else, so there is one
+        // definition of it in the firmware.
+        char signedData[256];
+        int n = snprintf(signedData, sizeof(signedData), "%lld\n%s\n%s\n%lld\n%s",
+                         id, op, args, exp, cloudSessionId);
+        if (n <= 0 || n >= (int)sizeof(signedData)) {
+          snprintf(detail, sizeof(detail), "command too long to sign");
+        } else if (!cloudVerifySig(signedData, sig)) {
+          snprintf(detail, sizeof(detail), "bad signature");
+        } else {
+          // Only past every check does the id advance — otherwise anyone able to reach
+          // the topic could burn the counter forward with garbage and lock the real
+          // operator out.
+          cloudCmdLastId = (uint32_t)id;
+          ok = cloudRunCommand(op, args, detail, sizeof(detail));
+        }
+      }
+    }
+  }
+
+  if (ok) cloudCmdOk++; else cloudCmdBad++;
+  Serial.printf("Cloud cmd id=%lld op=%s: %s (%s)\n", id, op[0] ? op : "?",
+                ok ? "ok" : "refused", detail);
+
+  char ack[256];
+  snprintf(ack, sizeof(ack), "{\"id\":%lld,\"ok\":%s,\"op\":\"%s\",\"detail\":\"%s\"}",
+           id, ok ? "true" : "false", op, detail);
+  cloudSend(cloudTopicAck, ack, 1, 0);
+}
+
+// ---- the client itself ---------------------------------------------------------------
+
+// Retained, so a dashboard that opens the page an hour later still learns the station is
+// away instead of waiting for a frame that is never coming.
+static const char CLOUD_LWT_MSG[] = "{\"online\":false}";
+
+// Runs on the MQTT client's own task, on whichever core it landed. It therefore does as
+// little as possible: raise a flag, or copy a payload into a queue. Subscribing and
+// publishing are left to loop() — not because esp-mqtt forbids doing them here, it does
+// not, but because every byte of station state belongs to loop() and keeping the boundary
+// in one place is worth more than saving a pass.
+static void cloudEventHandler(void* arg, esp_event_base_t base, int32_t id, void* data) {
+  esp_mqtt_event_handle_t ev = (esp_mqtt_event_handle_t)data;
+  switch ((esp_mqtt_event_id_t)id) {
+
+    case MQTT_EVENT_CONNECTED:
+      cloudConnected = true;
+      cloudNeedHello = true;
+      cloudConnects++;
+      break;
+
+    case MQTT_EVENT_DISCONNECTED:
+      cloudConnected = false;
+      break;
+
+    case MQTT_EVENT_ERROR:
+      cloudErrors++;
+      if (ev && ev->error_handle) {
+        if (ev->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
+          snprintf(cloudLastError, sizeof(cloudLastError),
+                   "transport: esp-tls 0x%x, sock errno %d",
+                   ev->error_handle->esp_tls_last_esp_err, ev->error_handle->esp_transport_sock_errno);
+        } else if (ev->error_handle->error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED) {
+          // return code 5 is "not authorized" — wrong user, wrong password, or a
+          // credential the broker has since deleted. 4 is bad user/password on some
+          // brokers. Worth spelling out: this is the failure that otherwise looks like
+          // a network problem and gets debugged as one.
+          snprintf(cloudLastError, sizeof(cloudLastError),
+                   "broker refused connection, CONNACK rc=%d",
+                   (int)ev->error_handle->connect_return_code);
+        } else {
+          snprintf(cloudLastError, sizeof(cloudLastError), "error type %d",
+                   (int)ev->error_handle->error_type);
+        }
+      }
+      break;
+
+    case MQTT_EVENT_DATA: {
+      if (!ev || !cloudCmdQueue) break;
+      // One fragment only. esp-mqtt splits a payload larger than the buffer across
+      // several events, and a command that needs splitting is not a command of ours —
+      // reassembling it would be code that only ever runs for malformed input.
+      if (ev->current_data_offset != 0 || ev->data_len != ev->total_data_len) break;
+      if (ev->data_len <= 0 || ev->data_len >= CLOUD_CMD_MAX) break;
+      if (!ev->topic || ev->topic_len != (int)strlen(cloudTopicCmd)) break;
+      if (strncmp(ev->topic, cloudTopicCmd, ev->topic_len) != 0) break;
+
+      // A stack copy, NUL-terminated: what the event carries is neither terminated nor
+      // valid after this call returns.
+      char msg[CLOUD_CMD_MAX];
+      memcpy(msg, ev->data, ev->data_len);
+      msg[ev->data_len] = 0;
+      // Non-blocking on purpose. A full queue means commands are arriving faster than
+      // loop() can run them, which is either a flood or a bug, and neither is improved
+      // by stalling the MQTT task.
+      xQueueSend(cloudCmdQueue, msg, 0);
+      break;
+    }
+
+    default:
+      break;
+  }
+}
+
+static void cloudStart() {
+  esp_mqtt_client_config_t cfg = {};
+
+  cfg.broker.address.hostname  = SECRET_MQTT_HOST;
+  cfg.broker.address.transport = MQTT_TRANSPORT_OVER_SSL;
+  cfg.broker.address.port      = SECRET_MQTT_PORT;
+  // Certificate verification against the two-root bundle above. Length 0 = PEM, and the
+  // hostname is checked against the certificate CN by default — skip_cert_common_name_check
+  // stays false, which is the entire reason the broker is addressed by name and never by
+  // address.
+  cfg.broker.verification.certificate = CLOUD_ROOT_CA;
+
+  cfg.credentials.username  = SECRET_MQTT_USER;
+  cfg.credentials.client_id = cloudClientId;
+  cfg.credentials.authentication.password = SECRET_MQTT_PASSWORD;
+
+  cfg.session.last_will.topic  = cloudTopicStatus;
+  cfg.session.last_will.msg    = CLOUD_LWT_MSG;
+  cfg.session.last_will.qos    = 1;
+  cfg.session.last_will.retain = 1;
+  cfg.session.keepalive        = CLOUD_KEEPALIVE_S;
+
+  // Auto-reconnect stays ON — the reconnect machine is already written and correct, and
+  // a hand-rolled one here would be a second backoff loop fighting the modem's.
+  cfg.network.reconnect_timeout_ms = CLOUD_RECONNECT_MS;
+  cfg.network.timeout_ms           = CLOUD_NET_TIMEOUT_MS;
+
+#if HAS_MODEM && MODEM_USE_PPP
+  // SO_BINDTODEVICE under the hood, so it must outlive the client — hence static, not a
+  // local that dies with this function. Failing to resolve the name is not fatal: the
+  // client then goes out over the default route, which is honestly reported below rather
+  // than silently pretending the test ran over 4G.
+  static struct ifreq cloudIfr;
+  cloudBoundIf[0] = 0;
+  if (cloudBindPpp && PPP.netif() &&
+      esp_netif_get_netif_impl_name(PPP.netif(), cloudIfr.ifr_name) == ESP_OK) {
+    cfg.network.if_name = &cloudIfr;
+    snprintf(cloudBoundIf, sizeof(cloudBoundIf), "%s", cloudIfr.ifr_name);
+  }
+#endif
+
+  cfg.task.stack_size = CLOUD_TASK_STACK;
+  cfg.buffer.size     = CLOUD_BUFFER_SIZE;
+  cfg.outbox.limit    = CLOUD_OUTBOX_LIMIT;
+
+  cloudClient = esp_mqtt_client_init(&cfg);
+  if (!cloudClient) {
+    snprintf(cloudLastError, sizeof(cloudLastError), "client init failed (out of heap?)");
+    Serial.println("Cloud: client init failed");
+    return;
+  }
+  esp_mqtt_client_register_event(cloudClient, MQTT_EVENT_ANY, cloudEventHandler, nullptr);
+  esp_err_t err = esp_mqtt_client_start(cloudClient);
+  if (err != ESP_OK) {
+    snprintf(cloudLastError, sizeof(cloudLastError), "start failed: %s", esp_err_to_name(err));
+    Serial.printf("Cloud: start failed: %s\n", esp_err_to_name(err));
+    esp_mqtt_client_destroy(cloudClient);
+    cloudClient = nullptr;
+    return;
+  }
+  cloudStarted = true;
+  Serial.printf("Cloud: connecting to %s:%d as '%s', session %s, via %s, free heap %u\n",
+                SECRET_MQTT_HOST, (int)SECRET_MQTT_PORT, SECRET_MQTT_USER,
+                cloudSessionId, cloudBoundIf[0] ? cloudBoundIf : "default route",
+                (unsigned)ESP.getFreeHeap());
+}
+
+// Deliberate shutdown: OTA, or /api/cloud?off=1.
+//
+// The offline status has to be published by hand here, and that is not belt and braces.
+// A clean MQTT DISCONNECT tells the broker NOT to publish the will — that is what the
+// protocol says it means — so a graceful stop would otherwise leave the retained status
+// saying "online" forever. The LWT still covers every UNgraceful case, which is most of
+// them: a dead link, a panic, a brownout, a modem left in CMUX.
+//
+// Honest caveat: the goodbye is enqueued, not flushed. esp-mqtt drains its outbox before
+// honouring the stop in the usual case, but it is not promised. Worst case the retained
+// status lags by the length of an OTA and is corrected the moment the station comes back.
+static void cloudGoodbye(const char* why) {
+  if (!cloudStarted) return;
+  if (cloudConnected) cloudSend(cloudTopicStatus, CLOUD_LWT_MSG, 1, 1);
+  esp_mqtt_client_stop(cloudClient);
+  esp_mqtt_client_destroy(cloudClient);
+  cloudClient    = nullptr;
+  cloudStarted   = false;
+  cloudConnected = false;
+  cloudNeedHello = false;
+  cloudLiveCount = 0;
+  Serial.printf("Cloud: stopped (%s)\n", why);
+}
+
+// Called every pass, like serviceUplink() and serviceClock(). An ordinary pass is a
+// couple of comparisons; nothing in here blocks, and nothing in here waits on the
+// network — the expensive parts all live on the MQTT task.
+static void serviceCloud() {
+  // A commanded restart, once the ack has had time to leave. FIRST thing in the function
+  // and not last: a reboot that has already been acknowledged has to happen even if the
+  // link dies inside the 1.5 s grace period, and every early return below this point
+  // (disabled, no route, not connected) would otherwise swallow it — leaving an operator
+  // with a station that answered "rebooting in 1.5 s" and then simply did not.
+  // The modem needs the same courtesy an OTA gets: restarting the ESP32 while the A7670
+  // sits in CMUX leaves an uplink that nothing short of a power cycle can rebuild.
+  if (cloudRebootAt && (long)(millis() - cloudRebootAt) >= 0) {
+    cloudGoodbye("reboot commanded");
+#if HAS_MODEM && MODEM_USE_PPP
+    if (modemPppOwnsUart()) {
+      PPP.mode(ESP_MODEM_MODE_COMMAND);
+      PPP.end();
+      Serial.println("Cloud: asked the modem to leave CMUX before reboot");
+    }
+#endif
+    Serial.println("Cloud: rebooting on command");
+    Serial.flush();
+    ESP.restart();
+  }
+
+  if (!cloudEnabled) {
+    if (cloudStarted) cloudGoodbye("disabled at runtime");
+    return;
+  }
+
+  bool haveUplink = (WiFi.status() == WL_CONNECTED);
+#if HAS_MODEM && MODEM_USE_PPP
+  haveUplink = haveUplink || (modemPppState == MODEM_PPP_ONLINE);
+#endif
+
+  if (!cloudStarted) {
+    // Two gates, and the second one is the one that gets forgotten. A certificate is
+    // checked against the clock, and the ESP32 boots in 1970 — so the first handshake
+    // fails with "certificate is not yet valid" long before any of this matters. Nothing
+    // may start until serviceClock() has a real date. The route gate is the cheap one:
+    // starting a TLS client with no default route just burns handshakes.
+    if (!haveUplink || !clockValid) return;
+    cloudStart();
+    return;
+  }
+
+  unsigned long now = millis();
+
+  // Sampling runs whether or not the link is up: the aggregate ring is the station's own
+  // record of the last three hours, not a send buffer.
+  if (now - cloudSampleAt >= CLOUD_SAMPLE_MS) {
+    cloudSampleAt = now;
+    cloudAggSample(windSpeed);
+    if (cloudLiveCount >= CLOUD_LIVE_SAMPLES) {
+      // Buffer full and nothing has published it yet — keep the newest window rather
+      // than the oldest. Only reachable at the reduced battery rate, where a packet
+      // covers the last 200 ms of a whole second.
+      memmove(cloudLiveBuf, cloudLiveBuf + 1, sizeof(float) * (CLOUD_LIVE_SAMPLES - 1));
+      cloudLiveCount = CLOUD_LIVE_SAMPLES - 1;
+    }
+    cloudLiveBuf[cloudLiveCount++] = windSpeed;
+  }
+
+  if (!cloudConnected) {
+    // The 5 Hz tail is dropped, not queued. Deliberate: a gauge fed a minute of stale
+    // samples on reconnect would be showing the viewer something that is not true now,
+    // and the minute aggregates already carry what actually happened.
+    cloudLiveCount = 0;
+    return;
+  }
+
+  if (cloudNeedHello) {
+    cloudNeedHello = false;
+    esp_mqtt_client_subscribe(cloudClient, cloudTopicCmd, 1);
+    char hello[96];
+    snprintf(hello, sizeof(hello), "{\"online\":true,\"sessionId\":\"%s\"}", cloudSessionId);
+    cloudSend(cloudTopicStatus, hello, 1, 1);
+    cloudPublishState();
+    Serial.printf("Cloud: connected (#%lu), subscribed to %s, free heap %u / min %u\n",
+                  (unsigned long)cloudConnects, cloudTopicCmd,
+                  (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMinFreeHeap());
+  }
+
+  // Fast half.
+  unsigned long liveEvery = (strcmp(powerSource, "battery") == 0)
+                              ? CLOUD_LIVE_MS_BATTERY : CLOUD_LIVE_MS;
+  if (now - cloudLiveAt >= liveEvery) {
+    cloudLiveAt = now;
+    cloudPublishLive();
+  }
+
+  // Slow half: on the clock, or as soon as something in it actually moves.
+  //
+  // The flag has to be remembered rather than used on the spot. cloudSlowChanged() re-arms
+  // its snapshot on every call, so a given change is reported exactly ONCE — and if that
+  // one report lands inside the CLOUD_STATE_MIN_MS floor, the pass that saw it is not
+  // allowed to publish and no later pass ever hears about it again. The charger could go
+  // from charging to full and the viewer would keep seeing "charging" until the next 5 s
+  // tick. Sticky until the frame is actually sent.
+  if (cloudSlowChanged()) cloudSlowDirty = true;
+  if ((now - cloudStateAt >= CLOUD_STATE_MS) ||
+      (cloudSlowDirty && now - cloudStateAt >= CLOUD_STATE_MIN_MS)) {
+    cloudSlowDirty = false;
+    cloudPublishState();
+  }
+
+  // Backlog, one batch a second so it never competes with the live stream for the outbox.
+  if (cloudAggSent < cloudAggTotal && now - cloudHistAt >= 1000) {
+    cloudHistAt = now;
+    cloudPublishHist();
+  }
+
+  // Commands, run here and nowhere else.
+  if (cloudCmdQueue) {
+    char msg[CLOUD_CMD_MAX];
+    while (xQueueReceive(cloudCmdQueue, msg, 0) == pdTRUE) cloudHandleCommand(msg);
+  }
+
+}
+
+// Once, from setup(), before anything can publish. Nothing here touches the network.
+static void cloudInit() {
+  const char* sid = SECRET_MQTT_STATION_ID;
+  snprintf(cloudTopicLive,   CLOUD_TOPIC_MAX, "wind/%s/live",   sid);
+  snprintf(cloudTopicState,  CLOUD_TOPIC_MAX, "wind/%s/state",  sid);
+  snprintf(cloudTopicStatus, CLOUD_TOPIC_MAX, "wind/%s/status", sid);
+  snprintf(cloudTopicCmd,    CLOUD_TOPIC_MAX, "wind/%s/cmd",    sid);
+  snprintf(cloudTopicAck,    CLOUD_TOPIC_MAX, "wind/%s/ack",    sid);
+  snprintf(cloudTopicHist,   CLOUD_TOPIC_MAX, "wind/%s/hist",   sid);
+
+  // Eight bytes of hardware randomness, new on every boot. This is the session nonce the
+  // command signature is bound to, so it has to be unpredictable, not merely unique —
+  // a counter would let tomorrow's signature be computed today.
+  uint32_t a = esp_random(), b = esp_random();
+  snprintf(cloudSessionId, sizeof(cloudSessionId), "%08lx%08lx",
+           (unsigned long)a, (unsigned long)b);
+  // Unique client id per boot. Two clients sharing an id take turns kicking each other
+  // off the broker forever, and after an unclean disconnect the old session can still be
+  // holding the name — a per-boot suffix makes that impossible rather than unlikely.
+  snprintf(cloudClientId, sizeof(cloudClientId), "wind-%s-%s", sid, cloudSessionId);
+
+  cloudHmacKeyOk = cloudHexToBytes(SECRET_CMD_HMAC_KEY, cloudHmacKey, sizeof(cloudHmacKey));
+  if (!cloudHmacKeyOk) {
+    // Loud, and fail closed: with no usable key every command is refused. The alternative
+    // — falling back to the literal string as key bytes — would mean two builds could
+    // disagree about what was signed while both believing they were right.
+    Serial.println("Cloud: SECRET_CMD_HMAC_KEY is not 64 hex chars — commands DISABLED");
+  }
+
+  cloudCmdQueue = xQueueCreate(CLOUD_CMD_QUEUE, CLOUD_CMD_MAX);
+  if (!cloudCmdQueue) Serial.println("Cloud: command queue alloc failed");
+
+  Serial.printf("Cloud: %s:%d, topics wind/%s/*, session %s\n",
+                SECRET_MQTT_HOST, (int)SECRET_MQTT_PORT, sid, cloudSessionId);
+}
+
+// Diagnostics, shaped like /api/modem and guarded the same way: crossSiteWrite() because
+// ?off=1 drops the channel, and NO CORS header at all because a page in another tab has
+// no business reading where this station reports to. Nothing secret is echoed — not the
+// password, not the HMAC key, not a byte of either.
+void handleCloud() {
+  if (crossSiteWrite()) return;
+
+  if (server.hasArg("off")) {
+    cloudEnabled = false;
+    if (cloudStarted) cloudGoodbye("/api/cloud?off=1");
+  } else if (server.hasArg("on")) {
+    cloudEnabled = true;
+  } else if (server.hasArg("via")) {
+    // ?via=ppp pins the socket to the modem, ?via=auto hands it back to the routing
+    // table. Either way the client is torn down and rebuilt, because the interface is
+    // chosen once, at init. The session nonce is NOT reissued: it belongs to the boot,
+    // not to the socket, so commands signed a moment ago stay valid across the swap.
+    bool want = server.arg("via").equalsIgnoreCase("ppp");
+    if (want != cloudBindPpp) {
+      cloudBindPpp = want;
+      if (cloudStarted) cloudGoodbye(want ? "rebinding to PPP" : "back to the default route");
+    }
+  }
+
+  String json = "{";
+  json += "\"enabled\":"    + String(cloudEnabled ? "true" : "false") + ",";
+  json += "\"started\":"    + String(cloudStarted ? "true" : "false") + ",";
+  json += "\"connected\":"  + String(cloudConnected ? "true" : "false") + ",";
+  json += "\"host\":\""     + String(SECRET_MQTT_HOST) + "\",";
+  json += "\"port\":"       + String((int)SECRET_MQTT_PORT) + ",";
+  json += "\"user\":\""     + String(SECRET_MQTT_USER) + "\",";
+  json += "\"stationId\":\"" + String(SECRET_MQTT_STATION_ID) + "\",";
+  json += "\"sessionId\":\"" + String(cloudSessionId) + "\",";
+  json += "\"clockValid\":" + String(clockValid ? "true" : "false") + ",";
+  json += "\"hmacKey\":"    + String(cloudHmacKeyOk ? "true" : "false") + ",";
+  json += "\"connects\":"   + String((unsigned long)cloudConnects) + ",";
+  json += "\"errors\":"     + String((unsigned long)cloudErrors) + ",";
+  json += "\"pubLive\":"    + String(cloudPubLive) + ",";
+  json += "\"pubDrop\":"    + String(cloudPubDrop) + ",";
+  json += "\"cmdOk\":"      + String(cloudCmdOk) + ",";
+  json += "\"cmdBad\":"     + String(cloudCmdBad) + ",";
+  json += "\"cmdLastId\":"  + String(cloudCmdLastId) + ",";
+  json += "\"aggTotal\":"   + String(cloudAggTotal) + ",";
+  json += "\"aggPending\":" + String(cloudAggTotal - cloudAggSent) + ",";
+  json += "\"heapFree\":"   + String((unsigned long)ESP.getFreeHeap()) + ",";
+  json += "\"heapMin\":"    + String((unsigned long)ESP.getMinFreeHeap()) + ",";
+  json += "\"via\":\""       + String(cloudBindPpp ? "ppp" : "auto") + "\",";
+  json += "\"boundIf\":\""   + String(cloudBoundIf) + "\",";
+  json += "\"lastError\":\"" + String(cloudLastError) + "\"}";
+  server.send(200, "application/json", json);
+}
+
+#endif  // SECRET_HAS_CLOUD
 
 // ===== NETWORK SERVICES =====
 // mDNS + OTA start once, right after the AP is up — the AP's subnet is ours and
@@ -1293,6 +3270,34 @@ void startNetworkServices() {
     sseFrame = "";      // nothing left half-sent to a socket that no longer exists
     sseSent  = 0;
     server.close();
+#if HAS_MODEM && MODEM_USE_PPP
+    // Try to leave the modem in a state the next boot can talk to.
+    //
+    // This is the expensive half of a lesson learned on the bench: the ESP32 reboots after
+    // an OTA, the modem does NOT, and it is still in CMUX — where a plain AT gets no reply
+    // at all (measured: total=0 bytes). So the first build came up on 4G perfectly, and
+    // the very next OTA left an uplink that could not be rebuilt without walking to the
+    // modem and pulling its power. On a mast that is the whole difference between a
+    // remote update and a trip.
+    //
+    // Asking esp-modem for COMMAND mode sends the CMUX close-down frame, which is exactly
+    // the operation A7670 firmware is documented to handle badly. Attempting it anyway is
+    // not recklessness, it is arithmetic: if it works the uplink survives the update, and
+    // if it wedges the module we are in precisely the state we are already in without it
+    // — one that only a power cycle clears. The permanent fix is the P-FET on GPIO33,
+    // because a brownout or a panic reboots the ESP32 without ever reaching this line.
+    if (modemPppOwnsUart()) {
+      PPP.mode(ESP_MODEM_MODE_COMMAND);
+      PPP.end();
+      Serial.println("OTA start: asked the modem to leave CMUX");
+    }
+#endif
+#if SECRET_HAS_CLOUD
+    // Say goodbye before the reboot. A clean DISCONNECT suppresses the will, so without
+    // this the retained status would keep claiming the station is online for the whole
+    // update — and the public dashboard would show a live badge over a frozen gauge.
+    cloudGoodbye("OTA start");
+#endif
     Serial.println("OTA start");
   });
   ArduinoOTA.onEnd  ([]() { Serial.println("OTA end");   });
@@ -1319,7 +3324,11 @@ void startNetworkServices() {
 //
 // Order is preference: of the known networks the scan found, the earliest one in
 // homeNetworks[] wins, not the loudest. The list is written by preference and that
-// is the meaning it should keep.
+// is the meaning it should keep — and it keeps it all the way down, because a
+// candidate that fails is struck off for the rest of the pass (staFailedMask) and
+// the next scan moves on to the one below it. Preference must not become a dead end:
+// without that, a first entry that is on the air but unjoinable would be re-picked
+// forever and every network under it would be unreachable.
 void serviceUplink() {
   bool now = (WiFi.status() == WL_CONNECTED);
 
@@ -1329,6 +3338,7 @@ void serviceUplink() {
       staBackoffMs = STA_RETRY_MIN_MS;   // a good link earns a fast retry next time
       staNoneInRange = false;            // and the surroundings are evidently ours
       staTrying = -1;                    // the attempt this link came from is over
+      staFailedMask = 0;                 // whatever refused us before starts forgiven
       Serial.printf("Uplink '%s' joined  IP: %s  RSSI=%d\n",
                     WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(), WiFi.RSSI());
       // mDNS was started when the AP was the only interface, so its responder is
@@ -1368,14 +3378,19 @@ void serviceUplink() {
     if (!refused && (long)(millis() - staAssocDeadline) < 0) return;
     Serial.printf("Uplink: '%s' %s\n", homeNetworks[staTrying].ssid,
                   refused ? "refused the join" : "did not answer in time");
+    staMarkFailed(staTrying);   // so the next scan looks past it instead of at it
     staTrying = -1;
     // The driver keeps retrying an association it started unless it is told to stop,
     // and those retries are off-channel time nobody asked for. This is the one
     // WiFi.disconnect() outside setup(); false/false means station interface only
     // and no NVS write, so the AP does not notice it happened.
     WiFi.disconnect(false, false);
-    staNextAttempt = millis() + staBackoffMs;
-    if (staBackoffMs < STA_RETRY_MAX_MS) staBackoffMs = min(staBackoffMs * 2, STA_RETRY_MAX_MS);
+    // Straight on to the next candidate, with no wait and no doubling: the backoff is
+    // the price of a whole pass that came up empty, not of one name in it. Doubling
+    // here would push the second network in the list half an hour out for the sole
+    // reason that the first one is broken. The next scan decides whether there is a
+    // next candidate at all, and it is the scan — not this branch — that closes a pass.
+    staNextAttempt = millis();
     return;
   }
 
@@ -1394,11 +3409,20 @@ void serviceUplink() {
     // Earliest entry in homeNetworks[] that the scan actually saw. Its channel and
     // BSSID are copied out before scanDelete() frees the results — handing both to
     // begin() keeps the association on one channel instead of hunting for the name.
+    // Two answers out of one walk through the results. `seen` is whether any of our
+    // names is on the air at all; `best` is the earliest of them in preference order
+    // that this pass has not already tried. They part ways in exactly one case — every
+    // candidate in range has already refused us — and telling that case apart is the
+    // whole point: it has to end the pass, not get reported as somebody else's
+    // neighbourhood.
     int best = -1, bestScan = -1;
+    bool seen = false;
     for (int i = 0; i < n && best != 0; i++) {
       String found = WiFi.SSID(i);
       for (int k = 0; k < homeNetworkCount; k++) {
-        if ((best < 0 || k < best) && found.equals(homeNetworks[k].ssid)) { best = k; bestScan = i; }
+        if (!found.equals(homeNetworks[k].ssid)) continue;
+        seen = true;
+        if (!staHasFailed(k) && (best < 0 || k < best)) { best = k; bestScan = i; }
       }
     }
     int32_t ch = 0;
@@ -1410,11 +3434,22 @@ void serviceUplink() {
     WiFi.scanDelete();   // the result table is heap this station has better uses for
 
     if (best < 0) {
-      // Nothing of ours on the air. This is the field, and there is nothing here to
-      // associate to — so do not spend a single WiFi.begin() proving it.
-      if (!staNoneInRange) Serial.printf("Uplink: none of the %d known networks on the air\n",
-                                         homeNetworkCount);
-      staNoneInRange = true;
+      if (seen) {
+        // Everything of ours that is on the air has now had its turn and refused.
+        // That is a completed pass, so the failures are forgiven and the next pass
+        // starts again from the top of the list. This is the one place the backoff
+        // is actually earned — the wait belongs to an empty pass, not to one name.
+        Serial.println("Uplink: every known network in range refused — pass over, backing off");
+        staFailedMask = 0;
+        staNoneInRange = false;   // they ARE here; we just cannot get in
+      } else {
+        // Nothing of ours on the air. This is the field, and there is nothing here to
+        // associate to — so do not spend a single WiFi.begin() proving it.
+        if (!staNoneInRange) Serial.printf("Uplink: none of the %d known networks on the air\n",
+                                           homeNetworkCount);
+        staNoneInRange = true;
+        staFailedMask = 0;        // nothing pending — wherever we are next, start clean
+      }
       staNextAttempt = millis() + staBackoffMs;
       if (staBackoffMs < STA_RETRY_MAX_MS) staBackoffMs = min(staBackoffMs * 2, STA_RETRY_MAX_MS);
       return;
@@ -1452,6 +3487,45 @@ void serviceUplink() {
 }
 #endif
 
+// ===== WALL CLOCK SERVICE =====
+// Called every pass, like serviceUplink(): an ordinary pass is one comparison, and it
+// never blocks. configTime() does not wait for an answer — it hands the server names to
+// the SNTP task and returns — and the poll below reads the RTC, not the network.
+static void serviceClock() {
+  bool haveUplink = (WiFi.status() == WL_CONNECTED);
+#if HAS_MODEM && MODEM_USE_PPP
+  haveUplink = haveUplink || (modemPppState == MODEM_PPP_ONLINE);
+#endif
+  // Starting SNTP with no route at all just burns retries in a background task, and in
+  // the field (AP only, no uplink of any kind) there is nothing to sync against ever.
+  if (!haveUplink) return;
+
+  if (!clockStarted) {
+    // UTC with no DST rule, on purpose: the station reports absolute time and leaves the
+    // naming of it to whoever reads it. A local offset here is one more thing that would
+    // be quietly wrong twice a year on a mast nobody visits.
+    configTime(0, 0, NTP_SERVER_PRIMARY, NTP_SERVER_SECONDARY);
+    clockStarted = true;
+    Serial.println("Clock: SNTP started (UTC)");
+    return;
+  }
+  if (clockValid) return;              // latched: a clock that became real stays real
+
+  unsigned long now = millis();
+  if (now - clockPoll < CLOCK_POLL_MS) return;
+  clockPoll = now;
+  time_t t = time(nullptr);
+  if (t < CLOCK_VALID_EPOCH) return;
+
+  clockValid     = true;
+  clockValidAtMs = now;
+  struct tm g;
+  gmtime_r(&t, &g);
+  Serial.printf("Clock: synced %04d-%02d-%02d %02d:%02d:%02d UTC, %lu s after boot\n",
+                g.tm_year + 1900, g.tm_mon + 1, g.tm_mday,
+                g.tm_hour, g.tm_min, g.tm_sec, now / 1000);
+}
+
 // ===== SETUP =====
 void setup() {
   // Before Serial.begin — the UART divisor is derived from the CPU clock, so changing
@@ -1468,6 +3542,12 @@ void setup() {
   // from the CPU clock.
   modemUartStart();
   Serial.println("Modem: AT console on /api/at");
+#if MODEM_USE_PPP
+  // Nothing is dialled here on purpose. The first attempt happens on the first pass
+  // through loop(), by which point the AP, the web server and OTA are all already up —
+  // so a modem that is missing, wedged or out of coverage cannot delay any of them.
+  Serial.println("Modem: 4G uplink enabled, status on /api/modem");
+#endif
 #endif
 
   pinMode(PIN_LED_GREEN,  OUTPUT);
@@ -1610,6 +3690,12 @@ void setup() {
   Serial.printf("TX power: %.1f dBm (asked for the maximum the radio allows)\n",
                 (int)WiFi.getTxPower() / 4.0);
 
+#if SECRET_HAS_CLOUD
+  // Topics, session nonce and the HMAC key, all of it local — the client itself is not
+  // started until serviceCloud() sees both a route and a real date.
+  cloudInit();
+#endif
+
   if (apUp) {
     startNetworkServices();
   } else {
@@ -1657,6 +3743,14 @@ void setup() {
   // it raw in the body for a terminal. See handleAt for why both forms exist.
   server.on("/api/at",     HTTP_GET,  handleAt);
   server.on("/api/at",     HTTP_POST, handleAt);
+#if MODEM_USE_PPP
+  server.on("/api/modem",  HTTP_GET,  handleModem);
+#endif
+#endif
+#if SECRET_HAS_CLOUD
+  // Guarded and CORS-free for the same reason as /api/modem: ?off=1 drops the remote
+  // channel, and where this station reports to is nobody else's tab's business.
+  server.on("/api/cloud",  HTTP_GET,  handleCloud);
 #endif
   // Embedded dashboard: "/" is index.html, the rest are its hashed assets.
   for (size_t i = 0; i < WEB_ASSET_COUNT; i++) {
@@ -1709,17 +3803,53 @@ unsigned long lastRssi    = 0;
 // cooperative, so one slow call delays every other subsystem — this is what makes that
 // visible instead of leaving it to be guessed from symptoms.
 unsigned long loopMaxMs   = 0;
+// How long the last telemetry line took to reach the UART. Reported on the NEXT line,
+// because it can only be measured after the printf returns — at 115200 baud a long line
+// is milliseconds of blocking, and this says how many of them.
+unsigned long logBusyLast = 0;
 
 void loop() {
   unsigned long loopStart = millis();
+  // Time spent inside the Serial telemetry line, charged to its own number and taken back
+  // out at the bottom — the same treatment the modem gets, for a sharper reason. The print
+  // happens in the very pass that then zeroes loopMaxMs, so its own cost is the first
+  // thing written into the fresh counter: without this, loopMax reports the length of the
+  // diagnostic string whenever nothing else in the window was slower, and the one number
+  // watched for "something is starving readSensors()" answers a question nobody asked.
+  unsigned long logBusy = 0;
 
   ArduinoOTA.handle();
   server.handleClient();
 
 #if HAS_MODEM
   // Every pass, not on a timer: the driver's ring holds well under a second of a running
-  // NMEA stream, and what is not drained in time is simply lost.
-  modemPump();
+  // NMEA stream, and what is not drained in time is simply lost. Skipped once PPP owns
+  // the pins — Serial2 is closed then, and esp-modem does its own draining.
+  if (!modemPppOwnsUart()) modemPump();
+#endif
+
+#if HAS_MODEM && MODEM_USE_PPP
+  // Unthrottled, like serviceUplink(): an ordinary pass costs one comparison, and every
+  // step that is actually expensive sits behind its own timer inside. The cost of the
+  // expensive passes is measured here rather than left to loopMaxMs — see modemBusyMaxMs.
+  unsigned long modemBusy = millis();
+  serviceModem();
+  // Inside the same measured window on purpose: the once-a-minute radio refresh is four
+  // AT round trips, exactly the kind of stall modemBusyMaxMs exists to account for, and
+  // leaving it outside would push it into loopMaxMs where it would read as "something is
+  // starving the sensor loop" once every sixty seconds.
+  modemRadioRefresh();
+  modemBusy = millis() - modemBusy;
+  if (modemBusy > modemBusyMaxMs) modemBusyMaxMs = modemBusy;
+#endif
+
+  serviceClock();
+
+#if SECRET_HAS_CLOUD
+  // Unthrottled like the other service functions: an ordinary pass is a couple of
+  // comparisons, every periodic action inside is behind its own timer, and nothing here
+  // ever touches the network — publishing is a memcpy into the MQTT task's outbox.
+  serviceCloud();
 #endif
 
   if (millis() - lastRead > READ_INTERVAL_MS) {
@@ -1761,13 +3891,21 @@ void loop() {
     // "±N" is the spread of the last sample burst. It is printed next to the raw mV on
     // purpose: those two together say whether a wrong reading is a wrong zero point
     // (mV off, spread small) or interference (mV jumping, spread large).
+    // heap is here because of the cloud channel and it is not decoration: mbedTLS holds
+    // two 16 kB record buffers for as long as the MQTT socket lives, so the number to
+    // watch is the MINIMUM after the link has been up a while — not the free figure
+    // right after boot, which is measured before any of that has been allocated.
     Serial.printf("V=%.1f m/s (%.0f mV ±%.0f, zero %.0f)  D=%.0f°  G=%.1f  "
-                  "Bat=%.2fV (%d%%) %s/%s  RSSI=%d  loopMax=%lums  sseDrop=%lu\n",
+                  "Bat=%.2fV (%d%%) %s/%s  RSSI=%d  loopMax=%lums (log %lums)  "
+                  "sseDrop=%lu  heap=%lu/min %lu\n",
                   windSpeed, speedMvRaw, speedMvSpread, speedZeroMv, windDir, windGust,
                   batteryVoltage, batteryPercent, powerSource, chargeState, wifiRssi,
-                  loopMaxMs, sseDropped);
-    loopMaxMs  = 0;
-    sseDropped = 0;
+                  loopMaxMs, logBusyLast, sseDropped,
+                  (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMinFreeHeap());
+    logBusy     = millis() - lastLog;
+    logBusyLast = logBusy;
+    loopMaxMs   = 0;
+    sseDropped  = 0;
   }
 
   // LED status updates independently so LED_WIFI follows the client count without
@@ -1809,5 +3947,14 @@ void loop() {
 #endif
 
   unsigned long elapsed = millis() - loopStart;
+#if HAS_MODEM && MODEM_USE_PPP
+  // Modem time is charged to modemBusyMaxMs and taken back out here. Not to flatter the
+  // number: loopMaxMs is reset on every telemetry line, so one synchronous PPP.begin()
+  // would make the line that reports the bring-up — the one someone is reading precisely
+  // to see whether the modem hurt anything — say 188 ms and hide the only thing it is
+  // actually watched for, the sensor loop or an SSE write going slow.
+  elapsed = (elapsed > modemBusy) ? elapsed - modemBusy : 0;
+#endif
+  elapsed = (elapsed > logBusy) ? elapsed - logBusy : 0;
   if (elapsed > loopMaxMs) loopMaxMs = elapsed;
 }

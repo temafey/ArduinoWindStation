@@ -49,12 +49,85 @@ const DEFAULT_HOST = SERVED_FROM_STATION ? window.location.host : "MyWindProbeBE
 // Публичная копия на внешнем хостинге. Признак — HTTPS: сама станция слушает
 // только HTTP на 192.168.4.1, и подняться на 443 ей нечем.
 //
-// Живых данных здесь не может быть в принципе, и это не недоделка, а два
+// ПРЯМЫХ данных здесь по-прежнему быть не может, и это не недоделка, а два
 // независимых запрета: браузер блокирует запрос с HTTPS-страницы на http://
-// (mixed content), а сама плата сидит в изолированной точке доступа без выхода
-// в интернет и снаружи не адресуема. Поэтому публичная копия честно объявляет
-// себя демонстрацией, а не молча висит с надписью OFFLINE.
+// (mixed content), а сама плата сидит за CGNAT и снаружи не адресуема.
+//
+// ⚠️ Но «прямого канала нет» перестало значить «живых данных нет». Станция
+// сама выходит наружу и публикует показания на брокер по TLS, а страница
+// читает их оттуда по wss:// — в том же защищённом контексте, поэтому правило
+// смешанного контента к этому пути не относится вовсе. Демо стало фолбэком,
+// а не режимом по умолчанию.
+//
+// ⚠️ И ещё одно следствие, которое легко потерять: PUBLIC_COPY и !GEO_AVAILABLE
+// БОЛЬШЕ НЕ ОДИН И ТОТ ЖЕ ПРИЗНАК. До облака они были взаимоисключающими
+// (публичная копия = HTTPS = геолокация есть; копия с платы = HTTP = её нет),
+// и один флаг спокойно обслуживал два разных смысла. Теперь их надо различать:
+//   PUBLIC_COPY     — «прямого HTTP к плате нет». ЛЕЧИТСЯ облаком.
+//   !GEO_AVAILABLE  — «браузер не отдаёт координаты смотрящего». Не лечится
+//                     ничем, кроме настоящего HTTPS, и облако тут ни при чём.
+// Текст, написанный про один из них, к другому не подходит.
 const PUBLIC_COPY = window.location.protocol === "https:";
+
+// Вошёл ли облачный модуль в этот бандл. Константа сборки — её объявляет
+// сборка фронтенда, и здесь она читается через try, чтобы старый бандл без
+// define не падал с ReferenceError, а честно отвечал «нет».
+//
+// Это ПЕРВЫЙ из трёх уровней, и смешивать их нельзя:
+//   CLOUD_BUILT      — облачный модуль вообще есть в сборке (и учётка зрителя
+//                      попала в неё; окончательный ответ даёт CLOUD_CONFIGURED
+//                      из самого модуля, но он известен только после загрузки);
+//   station.cloudId  — у ЭТОЙ станции есть облачный канал. У чужой мачты без
+//                      модема его нет, сколько бы ни было в сборке;
+//   cloudPhase       — канал работает ПРЯМО СЕЙЧАС.
+// Развести тексты только по первому — значит пообещать владельцу второй
+// станции без модема то, чего дашборд не выполнит.
+//
+// && PUBLIC_COPY — ровно та же охрана, под которой модуль грузится ниже.
+// Бандл один на оба места, и без неё тумблер «через облако» появился бы и на
+// копии, отданной платой, где модуль никто не подтянет.
+const CLOUD_BUILT = PUBLIC_COPY && (() => {
+  try { return !!__WIND_CLOUD__; } catch { return false; }
+})();
+
+// Облачный модуль грузится обычным динамическим импортом, а не chunk()/lazy и
+// не через warmUp(): warmUp дёргает загрузку БЕЗУСЛОВНО через 4 секунды и
+// глотает отказ — на копии с платы это был бы 404 при каждом открытии
+// страницы. Здесь загрузка происходит только тогда, когда канал действительно
+// понадобился, и её отказ виден как cloudPhase = failed.
+let cloudModPromise = null;
+function loadCloud() {
+  if (!CLOUD_BUILT) return Promise.resolve(null);
+  if (!cloudModPromise) cloudModPromise = import("./wind-cloud.jsx").catch(() => null);
+  return cloudModPromise;
+}
+
+// Параметры подключения зрителя живут В МОДУЛЕ, а не здесь. Писать в этом
+// файле переменные окружения VITE_* нельзя читать ни одной строкой: Vite
+// подставляет значение литералом в тот модуль, где оно написано, — и адрес
+// брокера вместе с паролем зрителя уехали бы в entry-чанк, то есть внутрь
+// web_content.h и внутрь прошивки. Модуль либо отдаёт готовый объект, либо
+// берёт свои умолчания сам, когда полей нет.
+// Наружу передаётся РОВНО идентификатор станции. Адрес брокера, логин и
+// пароль зрителя дашборд не знает и знать не должен: они читаются из
+// переменных окружения внутри самого облачного модуля, и попади хоть одна
+// такая строка сюда — сборщик подставил бы её литералом в entry-чанк, то
+// есть в прошивку платы и в публичный репозиторий.
+function cloudOpts(stationId) {
+  return { stationId };
+}
+
+// Стадии облачного канала по-русски. Одно состояние вместо трёх булевых:
+// «подключаюсь / идёт / кадров нет / станция ушла / не вышло» — это ступени
+// одного канала, а не независимые признаки, и тремя флагами они складывались
+// бы в невозможные сочетания вроде «подключаюсь и одновременно офлайн».
+const CLOUD_PHASE_VIEW = {
+  connecting: "подключаюсь",
+  live: "идёт",
+  stale: "кадров нет",
+  offline: "станция ушла",
+  failed: "не вышло",
+};
 
 // Карта мира и «эфир» тянут данные у службы погоды США, и им надо знать, есть
 // ли выход наружу. Угадывать по тому, кто отдал страницу, нельзя: у этой
@@ -157,7 +230,19 @@ function convertSpeed(speedMs, unitKey, digitsOverride) {
 // показывать выдуманные показания под видом соседской станции.
 const STATIONS_KEY = "wind_ui_stations";
 const WELCOMED_KEY = "wind_ui_welcomed";
+// Какая из сохранённых станций выбрана. Раньше выбранной считалась та, у
+// которой host совпал с esp32_host, и это работало ровно до появления облака:
+// DEFAULT_HOST одинаков у ЛЮБОЙ станции в режиме точки доступа, поэтому у двух
+// разных мачт один и тот же адрес. Подсвечивались обе.
+const ACTIVE_KEY = "wind_ui_station";
+// Канал до станции: 'direct' (HTTP к плате) или 'cloud' (подписка на брокер).
+const LINK_KEY = "wind_ui_link";
 
+// Миграции в обычном смысле нет и не нужно: проверка только на Array, а у
+// старых записей cloudId === undefined, что читается как «облака у этой
+// станции нет». Тот же контракт, по которому уже живут dirPresent и
+// batteryPresent. Дописывать в старые записи cloudId: null НЕ НАДО — это
+// завело бы отличие, которого не существует.
 function loadStations() {
   try {
     const raw = JSON.parse(localStorage.getItem(STATIONS_KEY));
@@ -165,6 +250,41 @@ function loadStations() {
   } catch {
     return [];
   }
+}
+
+// Ключ дедупликации и опознания станции. Адрес перестал быть уникальным
+// (см. ACTIVE_KEY), а вот облачный идентификатор уникален по построению —
+// это имя ветки топиков на брокере.
+// Часы и случайное число на уровне модуля, а не внутри компонента: во время
+// рендера их звать нельзя (результат нестабилен между повторными рендерами),
+// и правило react-hooks это ловит, даже когда вызов на самом деле сидит в
+// обработчике кнопки.
+function newStationId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function stationKey(st) {
+  return (st && st.cloudId) || (st && st.host) || "";
+}
+
+// Источник по умолчанию. На копии с платы и на dev — всегда станция. На
+// публичной копии станция имеет смысл, только если есть куда подключаться:
+// хотя бы одна сохранённая станция с облачным идентификатором. Иначе демо,
+// как и раньше.
+function initialSource() {
+  if (!PUBLIC_COPY) return "station";
+  return loadStations().some((s) => s.cloudId) ? "station" : "demo";
+}
+
+// Канал по умолчанию. Страница, отданная самой платой, — всегда прямой канал:
+// API живёт на том же хосте, и облако тут только лишний круг через интернет.
+function initialLink() {
+  if (SERVED_FROM_STATION) return "direct";
+  try {
+    const saved = localStorage.getItem(LINK_KEY);
+    if (saved === "direct" || saved === "cloud") return saved;
+  } catch { /* приватный режим */ }
+  return CLOUD_BUILT ? "cloud" : "direct";
 }
 
 function persistStations(list) {
@@ -193,6 +313,13 @@ function formatDistance(km) {
 // Геолокация требует защищённого контекста: по обычному HTTP браузеры её не дают
 // (исключение — localhost). Копия на плате как раз отдаётся по HTTP, поэтому там
 // поиск ближайшей невозможен — но там он и не нужен, вы уже на станции.
+//
+// ⚠️ Это НЕ «PUBLIC_COPY наоборот», хотя до облака выглядело именно так. Облако
+// чинит доступ к плате и не чинит здесь ничего: браузер закрывает координаты
+// не потому, что до станции не достучаться, а потому, что страница пришла по
+// HTTP. Поэтому все условия вида !GEO_AVAILABLE остаются как есть — меняются
+// только тексты рядом с ними, и только там, где они обещали лишнего. См.
+// длинный комментарий у PUBLIC_COPY выше.
 const GEO_AVAILABLE =
   typeof navigator !== "undefined" && !!navigator.geolocation && window.isSecureContext;
 
@@ -754,6 +881,24 @@ function Row({ k, v, g, mono = true }) {
       </span>
     </div>
   );
+}
+
+// Совместимость со старой прошивкой — МЕХАНИЧЕСКИ, а не «по вниманию автора».
+// Правило одно и проверяется здесь: поля нет в кадре → строки нет; поле есть,
+// но пустое → честное «нет данных». Нужно потому, что новые поля появляются в
+// прошивке не мгновенно и не на всех станциях сразу, а строка «PPP: —» под
+// сборкой без модема врёт ровно так же, как 0 °C вместо отсутствующего
+// термометра.
+//
+// ⚠️ `in` отвечает true и на ключ, который дашборд положил в начальное
+// состояние сам (hostname, uptime, resetReason, wifiRssi) — то есть ДО первого
+// кадра. Поэтому панели, собранные из RowMaybe, показываются только когда
+// кадр уже был: см. `frameSeen` на вкладке «Система».
+function RowMaybe({ k, src, f, g, mono = true, fmt }) {
+  if (!src || !(f in src)) return null;
+  const raw = src[f];
+  const empty = raw == null || raw === "";
+  return <Row k={k} v={empty ? "нет данных" : fmt ? fmt(raw) : String(raw)} g={g} mono={mono} />;
 }
 
 function Tab({ id, active, onClick, children, g }) {
@@ -1412,10 +1557,14 @@ function WelcomeModal({ g, onFindNearest, onAddStation, onDismiss, busy, message
         <Btn onClick={onDismiss} g={g}>ПОСМОТРЕТЬ ДЕМО</Btn>
       </div>
 
+      {/* Условие не тронуто намеренно: это про геолокацию браузера, а её
+          облако не чинит — оно чинит доступ к плате. Дополнен только текст,
+          чтобы «координат нет» не читалось как «станция потеряна». */}
       {!GEO_AVAILABLE && (
         <div style={{ color: DIM, fontSize: 10.5, marginTop: 12, lineHeight: 1.6 }}>
           Поиск ближайшей недоступен: браузер отдаёт координаты только защищённым
-          страницам, а эта копия открыта по обычному HTTP.
+          страницам, а эта копия открыта по обычному HTTP. А где стоит сама станция,
+          дашборд знает и так: это её собственные координаты, а не геолокация браузера.
         </div>
       )}
 
@@ -1438,10 +1587,15 @@ function WelcomeModal({ g, onFindNearest, onAddStation, onDismiss, busy, message
   );
 }
 
-function AddStationModal({ g, onSave, onClose, onLocate, locating, coords, testResult, onTest, busy }) {
+function AddStationModal({ g, onSave, onClose, onLocate, locating, coords, testResult, onTest, busy, cloudBuilt }) {
   const [name, setName] = useState("Моя станция");
   const [host, setHost] = useState(DEFAULT_HOST);
   const [via, setVia] = useState("ap");
+  // Облачный идентификатор станции — имя ветки топиков на брокере. Поле
+  // необязательное и намеренно отделено от `via`: тот отвечает на вопрос «в
+  // какой сети искать плату», а облако — не сеть, в которой она стоит.
+  // Станция с модемом сидит в своей точке доступа ровно так же, как и без.
+  const [cloudId, setCloudId] = useState("");
 
   const inputStyle = {
     width: "100%", marginTop: 7, background: BG,
@@ -1477,13 +1631,25 @@ function AddStationModal({ g, onSave, onClose, onLocate, locating, coords, testR
       </div>
 
       <div style={{ marginBottom: 16 }}>
+        <Label g={g}>Идентификатор в облаке</Label>
+        <input value={cloudId} onChange={(e) => setCloudId(e.target.value)}
+               placeholder="mast" style={inputStyle} />
+        <div style={{ color: DIM, fontSize: 10.5, marginTop: 8, lineHeight: 1.6 }}>
+          {cloudBuilt
+            ? "Необязательно. Заполняется только у станции с модемом: она сама выходит наружу и публикует показания на брокер, и тогда её видно откуда угодно, а не только из её сети. Это то же имя, что записано в secrets.h как идентификатор станции. Пустое поле — станция работает как раньше, только по своей сети."
+            : "Необязательно. В эту сборку дашборда учётка зрителя не попала, поэтому читать облако отсюда всё равно нечем — поле сохранится, но работать начнёт только в сборке с облаком."}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
         <Label g={g}>Место установки</Label>
         <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
           <Btn onClick={onLocate} g={g} disabled={locating || !GEO_AVAILABLE}>
             {locating ? "ОПРЕДЕЛЯЮ…" : coords ? "ОБНОВИТЬ КООРДИНАТЫ" : "ПРИВЯЗАТЬ К ТЕКУЩЕМУ МЕСТУ"}
           </Btn>
-          <Btn onClick={() => onTest(host.trim())} g={g} disabled={busy || !host.trim()}>
-            {busy ? "ПРОВЕРЯЮ…" : "ПРОВЕРИТЬ СВЯЗЬ"}
+          <Btn onClick={() => onTest({ host: host.trim(), cloudId: cloudId.trim() })} g={g}
+               disabled={busy || (!host.trim() && !cloudId.trim())}>
+            {busy ? "ПРОВЕРЯЮ…" : cloudId.trim() ? "ПРОВЕРИТЬ ОБЛАКО" : "ПРОВЕРИТЬ СВЯЗЬ"}
           </Btn>
         </div>
         <div style={{ color: DIM, fontSize: 10.5, marginTop: 8, lineHeight: 1.6 }}>
@@ -1491,7 +1657,7 @@ function AddStationModal({ g, onSave, onClose, onLocate, locating, coords, testR
             ? `Сохранено: ${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}. По этим координатам станция будет находиться как ближайшая.`
             : GEO_AVAILABLE
               ? "Без координат станция всё равно работает — её просто не найдёт поиск ближайшей."
-              : "Координаты недоступны: браузер отдаёт их только защищённым страницам."}
+              : "Координаты недоступны: браузер отдаёт их только защищённым страницам. Речь именно о вашем месте — где стоит сама станция, дашборд узнаёт у неё самой, и для этого геолокация не нужна."}
         </div>
       </div>
 
@@ -1507,7 +1673,14 @@ function AddStationModal({ g, onSave, onClose, onLocate, locating, coords, testR
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <Btn onClick={onClose} g={g}>ОТМЕНА</Btn>
         <Btn primary g={g} disabled={!host.trim() || !name.trim()}
-             onClick={() => onSave({ name: name.trim(), host: host.trim().replace(/^https?:\/\//, "").replace(/\/$/, ""), via })}>
+             onClick={() => onSave({
+               name: name.trim(),
+               host: host.trim().replace(/^https?:\/\//, "").replace(/\/$/, ""),
+               via,
+               // Пустое поле — не пустая строка, а отсутствие ключа: «облака у
+               // этой станции нет» читается по undefined, как dirPresent.
+               ...(cloudId.trim() ? { cloudId: cloudId.trim() } : {}),
+             })}>
           СОХРАНИТЬ
         </Btn>
       </div>
@@ -1515,7 +1688,11 @@ function AddStationModal({ g, onSave, onClose, onLocate, locating, coords, testR
   );
 }
 
-function LEDPanel({ leds, autoMode, onToggle, onAutoToggle, g, delay }) {
+// readOnly — «этот канал не умеет писать». Без него оптимистичный апдейт в
+// toggleLed нарисовал бы переключившийся светодиод, а через пять секунд
+// очередной кадр отыграл бы его назад: человек увидел бы, что плата «сама
+// вернула как было», хотя команда никуда и не уходила.
+function LEDPanel({ leds, autoMode, onToggle, onAutoToggle, g, delay, readOnly, readOnlyNote }) {
   const items = [
     { key: "green", label: "Батарея" },
     { key: "yellow", label: "Жёлтый" },
@@ -1530,13 +1707,14 @@ function LEDPanel({ leds, autoMode, onToggle, onAutoToggle, g, delay }) {
              /* Переключателем работает вся кнопка целиком, поэтому внутри
                 стоит не тумблер, а его вид: вложенная кнопка была бы
                 недопустимой разметкой, а клик всё равно ловил бы внешнюю. */
-             <button onClick={onAutoToggle} role="switch" aria-checked={autoMode} style={{
+             <button onClick={onAutoToggle} role="switch" aria-checked={autoMode} disabled={readOnly} style={{
                display: "inline-flex", alignItems: "center", gap: 7,
                background: "transparent",
                border: `1px solid ${autoMode ? "rgba(231,238,246,0.7)" : LINE}`,
                color: autoMode ? TEXT : DIM, textShadow: autoMode ? glow(g, 0.7) : "none",
                fontFamily: SANS, fontSize: 9, letterSpacing: 1.5,
-               padding: "3px 8px 3px 5px", cursor: "pointer",
+               padding: "3px 8px 3px 5px", cursor: readOnly ? "default" : "pointer",
+               opacity: readOnly ? 0.5 : 1,
              }}>
                <SwitchGlyph on={autoMode} />
                {autoMode ? "АВТО" : "РУЧНОЙ"}
@@ -1549,8 +1727,8 @@ function LEDPanel({ leds, autoMode, onToggle, onAutoToggle, g, delay }) {
           return (
             <div key={key} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7, flex: 1 }}>
               <button
-                onClick={() => !autoMode && onToggle(key)}
-                disabled={autoMode}
+                onClick={() => !autoMode && !readOnly && onToggle(key)}
+                disabled={autoMode || readOnly}
                 style={{
                   width: "100%", maxWidth: 58, aspectRatio: "1",
                   border: `1px solid ${isLit ? TEXT : LINE}`,
@@ -1560,8 +1738,8 @@ function LEDPanel({ leds, autoMode, onToggle, onAutoToggle, g, delay }) {
                     : "none",
                   color: isLit ? TEXT : DIM,
                   textShadow: isLit ? glow(g, 0.7) : "none",
-                  cursor: autoMode ? "default" : "pointer",
-                  opacity: autoMode ? 0.75 : 1,
+                  cursor: autoMode || readOnly ? "default" : "pointer",
+                  opacity: readOnly ? 0.55 : autoMode ? 0.75 : 1,
                   fontFamily: MONO, fontSize: 9,
                   transition: "all .3s ease",
                   animation: mode === "blink" ? "ledBlink 1s steps(1) infinite" : undefined,
@@ -1576,7 +1754,11 @@ function LEDPanel({ leds, autoMode, onToggle, onAutoToggle, g, delay }) {
           );
         })}
       </div>
-      {autoMode && (
+      {readOnly ? (
+        <div style={{ color: DIM, fontSize: 10.5, marginTop: 12, fontFamily: SANS, lineHeight: 1.5 }}>
+          {readOnlyNote || "Отсюда светодиодами не управлять — канал только на чтение. Показанное состояние приходит с платы."}
+        </div>
+      ) : autoMode && (
         <div style={{ color: DIM, fontSize: 10.5, marginTop: 12, fontFamily: SANS, lineHeight: 1.5 }}>
           В авто-режиме цвета задаёт прошивка. Переключи в «ручной», чтобы управлять вручную.
         </div>
@@ -1649,8 +1831,30 @@ export default function WindDashboard() {
   // Источник данных: сама станция, модель или район вокруг дома.
   // Раньше это был булев demoMode; третье значение не влезало, а «не демо»
   // перестало означать «плата» — теперь условия спрашивают про station явно.
-  const [source, setSource] = useState(PUBLIC_COPY ? "demo" : "station");
+  //
+  // ⛔ Четвёртого значения «cloud» здесь НЕТ и быть не должно. source отвечает
+  // не только на «откуда цифры», но и на «про что они»: подпись панели
+  // «Атмосфера», текст под ней, сброс порыва, метка на карте, заглушка «Точки
+  // доступа». Во всех этих местах облако ведёт себя КАК СТАНЦИЯ — это та же
+  // мачта и тот же датчик, только другой провод, — и четвёртое значение
+  // заставило бы дописать `|| source === "cloud"` в каждое из них.
+  const [source, setSourceState] = useState(initialSource);
+  // Канал до станции — ортогонально источнику. Переживает перезагрузку тем же
+  // приёмом, что и вкладка: страницу открывают с телефона как приложение, и
+  // выбор канала терять при каждом обновлении так же неудобно.
+  const [link, setLinkState] = useState(initialLink);
+  const setLink = (v) => {
+    setLinkState(v);
+    try { localStorage.setItem(LINK_KEY, v); } catch { /* приватный режим */ }
+  };
   const demoMode = source === "demo";
+  // isStation — «цифры с этой платы, каким угодно каналом».
+  // direct     — «до платы можно достучаться по HTTP» (единственное, что даёт
+  //              право звать /api/*: у половины эндпоинтов нет даже CORS).
+  // viaCloud   — «цифры приходят подпиской с брокера».
+  const isStation = source === "station";
+  const direct = isStation && link === "direct";
+  const viaCloud = isStation && link === "cloud";
   const district = useDistrict(source === "district");
   // Картинка живёт отдельно от настроек: она весит сотни килобайт, а настройки
   // читаются и пишутся на каждый чих — держать их в одной записи значило бы
@@ -1676,6 +1880,80 @@ export default function WindDashboard() {
 
   // Каталог станций и мастера подключения.
   const [stations, setStations] = useState(loadStations);
+  // Какая станция выбрана — по id, а не по адресу. Миграция в один проход:
+  // ключа нет → ищем запись с тем host, который лежит в esp32_host, и берём её
+  // id. Сравнение по host держалось ровно до появления облака: DEFAULT_HOST
+  // одинаков у любой станции в режиме точки доступа, и две разные мачты
+  // подсвечивались бы обе.
+  const [activeStationId, setActiveStationIdState] = useState(() => {
+    try {
+      const saved = localStorage.getItem(ACTIVE_KEY);
+      if (saved) return saved;
+      const host = localStorage.getItem("esp32_host");
+      const hit = loadStations().find((st) => st.host === host);
+      if (hit) { localStorage.setItem(ACTIVE_KEY, hit.id); return hit.id; }
+    } catch { /* приватный режим */ }
+    return null;
+  });
+  const setActiveStationId = (id) => {
+    setActiveStationIdState(id);
+    try { localStorage.setItem(ACTIVE_KEY, id); } catch { /* приватный режим */ }
+  };
+  // Выбранная запись каталога. Если id ещё не проставлен (совсем старый
+  // браузерный профиль, в котором миграция ничего не нашла), падаем на прежнее
+  // сравнение по адресу — лучше подсветить не ту, чем не подсветить ничего.
+  const activeStation = useMemo(
+    () => stations.find((st) => st.id === activeStationId)
+      || (activeStationId ? null : stations.find((st) => st.host === esp32Host))
+      || null,
+    [stations, activeStationId, esp32Host]
+  );
+
+  // ---------- облачный канал ----------
+  // Одно состояние вместо трёх флагов: «подключаюсь», «идёт», «молчит» и
+  // «не вышло» — это последовательные стадии одного канала, а не независимые
+  // признаки, и тремя булевыми они складывались бы в невозможные сочетания.
+  const [cloudPhaseState, setCloudPhase] = useState("connecting");
+  // Онлайн ли станция по её собственному retained-статусу. null — ещё не
+  // знаем; это не то же самое, что false («станция сказала, что уходит»).
+  const [cloudOnline, setCloudOnline] = useState(null);
+  // Второй из трёх уровней проверки (см. CLOUD_BUILT). Начальное значение —
+  // лучшая синхронная догадка: настоящий ответ даёт CLOUD_CONFIGURED, но он
+  // известен только после загрузки модуля.
+  const [cloudAvail, setCloudAvail] = useState(CLOUD_BUILT);
+  // Нонс загрузки станции. Через облако его смена — единственный способ
+  // узнать, что плата перезагрузилась: аптайм в retained-кадре может быть
+  // часовой давности, а нонс перевыпускается на каждую загрузку.
+  const [cloudSession, setCloudSession] = useState(null);
+  // Когда пришёл последний живой кадр и последний кадр состояния. Второе
+  // хранится вместе с признаком retained: по нему и только по нему видно,
+  // смотрим мы на текущую картину или на слепок, оставленный брокером.
+  const [cloudLiveAt, setCloudLiveAt] = useState(null);
+  const [cloudStateAt, setCloudStateAt] = useState(null);
+  // Клиентские счётчики: сколько живых кадров пришло и сколько пакетов
+  // потерялось по разрывам в счётчике q. ⛔ Со счётчиками прошивки
+  // (pubDrop, errors) их смешивать нельзя — это разные величины, померенные
+  // с разных концов канала.
+  const [cloudSeen, setCloudSeen] = useState({ frames: 0 });
+  // Счётчики буфера воспроизведения: их знает сам модуль, а не дашборд.
+  // Считать пропуски здесь нечем — до onLive доезжает уже развёрнутый кадр
+  // без номера пакета, номер разбирается уровнем ниже.
+  const [cloudStats, setCloudStats] = useState(null);
+  // Падение в демо — ровно один раз за сеанс. Без этой отметки человек,
+  // вручную вернувший «станцию», вылетал бы в демо на следующем же тике.
+  const fellBackRef = useRef(false);
+  const [fellBack, setFellBack] = useState(false);
+  const setSource = (v) => {
+    fellBackRef.current = false;
+    setFellBack(false);
+    setSourceState(v);
+  };
+  // Ответы /api/modem и /api/cloud. null — ещё не спрашивали, false — эндпоинта
+  // нет вовсе (404 на сборке без модема или без облака), и тогда панель
+  // исчезает, а не показывает пустые строки.
+  const [modem, setModem] = useState(null);
+  const [cloudApi, setCloudApi] = useState(null);
+  const [sysBusy, setSysBusy] = useState("");
   const [showWelcome, setShowWelcome] = useState(() => {
     if (SERVED_FROM_STATION) return false;
     try { return !localStorage.getItem(WELCOMED_KEY); } catch { return true; }
@@ -1696,6 +1974,10 @@ export default function WindDashboard() {
   });
   const [sseActive, setSseActive] = useState(false);
   const histRef = useRef(0);
+  // Последнее известное направление. Живой облачный кадр несёт только скорость
+  // и порыв (~60 байт на пакет — метка времени и направление туда намеренно не
+  // положены), а розе ветров пара «скорость + направление» нужна целиком.
+  const dirRef = useRef(null);
 
   const g = settings.glow;
   // Системная настройка «меньше движения» перекрывает выбор в дашборде: если
@@ -1740,7 +2022,21 @@ export default function WindDashboard() {
     pushRose(speed, dir);
   }, [histLen, pushRose]);
 
-  const applyData = useCallback((json) => {
+  // live = «кадр приехал только что». Единственный случай, когда это не так —
+  // retained-сообщение брокера: зритель, открывший страницу через час после
+  // ухода станции, получает её последний кадр МГНОВЕННО, и всё, что считает
+  // время от момента приёма, начинает врать.
+  //
+  // ⛔ Три вещи, которые для retained делать НЕЛЬЗЯ:
+  //   1. setLastUpdate(new Date()) — дало бы «КАДР · 0с» под часовой давности
+  //      показаниями. Метка берётся из самих часов станции (epoch), а когда
+  //      их нет — прочерк: он честнее нуля;
+  //   2. pushHistory — history не хранит меток времени ВОВСЕ, позиция в
+  //      массиве и есть время. Один старый отсчёт рядом с текущим необратимо
+  //      врёт графику и розе, и по виду массива это потом не отличить;
+  //   3. setGustAt(new Date()) — подпись «Порыв · 14:32» означала бы, что мы
+  //      знаем момент пика. Значение обновляем, момент — нет.
+  const applyData = useCallback((json, { live = true } = {}) => {
     // Older firmware has no *Present flags — infer from the value being there.
     const normLed = (v) => (v === true ? "on" : v === false || v == null ? "off" : v);
     const norm = {
@@ -1757,8 +2053,16 @@ export default function WindDashboard() {
     };
     setData(norm);
     setConnected(true);
-    setLastUpdate(new Date());
-    if (Number.isFinite(json.gust) && json.gust > gustRef.current + 0.05) {
+    dirRef.current = norm.dirPresent ? json.direction : null;
+    if (live) {
+      setLastUpdate(new Date());
+    } else {
+      setLastUpdate(json.timeValid && json.epoch ? new Date(json.epoch * 1000) : null);
+    }
+    if (!live) {
+      if (Number.isFinite(json.gust)) gustRef.current = json.gust;
+      setGustAt(null);
+    } else if (Number.isFinite(json.gust) && json.gust > gustRef.current + 0.05) {
       gustRef.current = json.gust;
       setGustAt(new Date());
     } else if (json.gust < gustRef.current - 0.05) {
@@ -1766,7 +2070,29 @@ export default function WindDashboard() {
       gustRef.current = json.gust;
       setGustAt(null);
     }
-    pushHistory(json.speed, norm.dirPresent ? json.direction : null);
+    if (live) pushHistory(json.speed, norm.dirPresent ? json.direction : null);
+  }, [pushHistory]);
+
+  // Живой кадр из облака. Приходит уже из буфера воспроизведения с шагом 50 мс,
+  // поэтому здесь никакой развёртки пачки нет — только раскладка полей.
+  // Форма кадра допускается обе: и развёрнутая (speed/gust), и та, что летит
+  // по проводу (s/g) — модуль волен отдавать любую, а разбирать это в двух
+  // местах смысла нет.
+  const applyCloudLive = useCallback((f) => {
+    if (!f) return;
+    const speed = Number.isFinite(f.speed) ? f.speed : Number.isFinite(f.s) ? f.s : null;
+    if (speed == null) return;
+    const gust = Number.isFinite(f.gust) ? f.gust : Number.isFinite(f.g) ? f.g : null;
+    setData((prev) => (gust == null ? { ...prev, speed } : { ...prev, speed, gust }));
+    setConnected(true);
+    setLastUpdate(new Date());
+    setCloudLiveAt(Date.now());
+    if (gust != null) {
+      if (gust > gustRef.current + 0.05) { gustRef.current = gust; setGustAt(new Date()); }
+      else if (gust < gustRef.current - 0.05) { gustRef.current = gust; setGustAt(null); }
+    }
+    setCloudSeen((prev) => ({ frames: prev.frames + 1 }));
+    pushHistory(speed, dirRef.current);
   }, [pushHistory]);
 
   const fetchData = useCallback(async () => {
@@ -1832,6 +2158,11 @@ export default function WindDashboard() {
       setLastUpdate(new Date());
       return;
     }
+    // Через облако плату не опрашивают вовсе: HTTP до неё снаружи нет, а
+    // показания приходят подпиской. Ранний выход не оптимизация — без него
+    // дашборд раз в секунду стучался бы в недостижимый адрес и раз в секунду
+    // же получал бы setConnected(false) поверх живых облачных кадров.
+    if (link === "cloud") return;
     try {
       const res = await fetch(`http://${esp32Host}/api/data`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1839,22 +2170,29 @@ export default function WindDashboard() {
     } catch {
       setConnected(false);
     }
-  }, [demoMode, source, district.weather, esp32Host, applyData, pushHistory, demo]);
+  }, [demoMode, source, link, district.weather, esp32Host, applyData, pushHistory, demo]);
 
   useEffect(() => {
+    // Через облако интервал НЕ ЗАВОДИТСЯ вообще — не «заводится и сразу
+    // выходит»: опрашивать нечего, а возраст кадра пересчитывается по уже
+    // тикающему раз в секунду `time` ниже.
+    if (viaCloud) return;
     fetchData();
     // Основной канал — SSE. Опрос остаётся как heartbeat/фолбэк: 1000 ms, not 500 —
     // ESP32 отвечает Connection: close, и каждый опрос держит один из 16 TCP-блоков
     // lwIP все 60 с TIME_WAIT. При живом SSE опрос уходит на раз в 5 с.
-    const id = setInterval(fetchData, sseActive && source === "station" ? 5000 : settings.pollMs);
+    const id = setInterval(fetchData, sseActive && direct ? 5000 : settings.pollMs);
     return () => clearInterval(id);
-  }, [fetchData, sseActive, source, settings.pollMs]);
+  }, [fetchData, sseActive, direct, viaCloud, settings.pollMs]);
 
   useEffect(() => {
     // Поток можно выключить: в сетях, которые рвут долгие соединения, опрос
     // надёжнее, хотя и реже. Без этого выключателя дашборд бесконечно
     // переподключался бы каждые 15 секунд и без толку.
-    if (source !== "station" || !settings.useSse) return;
+    // Не isStation, а direct: поток идёт по HTTP к самой плате, и через
+    // облако его нет ни в каком виде. Условие поправлено целиком — недоделка
+    // здесь выглядела бы как EventSource, который пересоздаётся каждые 15 с.
+    if (!direct || !settings.useSse) return;
     let es = null, retryId = null, closed = false;
     const open = () => {
       es = new EventSource(`http://${esp32Host}/api/stream`);
@@ -1877,7 +2215,7 @@ export default function WindDashboard() {
       if (retryId) clearTimeout(retryId);
       setSseActive(false);
     };
-  }, [source, esp32Host, applyData, settings.useSse]);
+  }, [direct, esp32Host, applyData, settings.useSse]);
 
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000);
@@ -1889,19 +2227,26 @@ export default function WindDashboard() {
   // копии, отданной платой по HTTP, браузер отказывается сообщать место
   // *смотрящего*, так что место *станции* остаётся единственной реальной точкой.
   useEffect(() => {
-    if (source !== "station") { setSite(null); return; }
+    if (!isStation) { setSite(null); return; }
+    // Через облако /api/site недостижим так же, как и всё остальное HTTP.
+    // Координаты в этом случае берутся из кадра (siteLat/siteLon/siteAltM)
+    // или из каталога станций — собирается это ниже, в siteInfo, потому что
+    // источник надо не только подставить, но и подписать.
+    if (viaCloud) { setSite(null); return; }
     let alive = true;
     fetch(`http://${esp32Host}/api/site`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive && j) setSite(j); })
       .catch(() => { /* старая прошивка без этого эндпоинта — просто нет метки */ });
     return () => { alive = false; };
-  }, [source, esp32Host]);
+  }, [isStation, viaCloud, esp32Host]);
 
   // Сведения о точке доступа нужны только на вкладке «система» и почти не меняются —
   // тянем их отдельно и редко, чтобы не мешать потоку данных.
   useEffect(() => {
-    if (source !== "station" || tab !== "system") return;
+    // Именно direct: у /api/wifi нет CORS и он живёт на плате, так что по
+    // облаку недостижим принципиально, а не «пока не сделали».
+    if (!direct || tab !== "system") return;
     let alive = true;
     const load = async () => {
       try {
@@ -1912,27 +2257,158 @@ export default function WindDashboard() {
     load();
     const id = setInterval(load, 10000);
     return () => { alive = false; clearInterval(id); };
-  }, [source, esp32Host, tab]);
+  }, [direct, esp32Host, tab]);
+
+  // ---------- облачный канал ----------
+  // Модуль подтягивается ОБЫЧНЫМ динамическим импортом и только отсюда: ни
+  // chunk(), ни warmUp(). warmUp дёргает загрузку безусловно через четыре
+  // секунды и глотает отказ — на копии, отданной платой, это был бы 404 при
+  // каждом открытии страницы, причём молча.
+  const cloudId = activeStation && activeStation.cloudId ? activeStation.cloudId : null;
+  // motion читается через ref нарочно: смена «плавности» в настройках не
+  // должна рвать и пересоздавать соединение с брокером.
+  const motionRef = useRef(motion);
+  useEffect(() => { motionRef.current = motion; }, [motion]);
+
+  useEffect(() => {
+    if (!viaCloud || !cloudId) return;
+    let alive = true;
+    let live = null;
+    let statsTimer = null;
+    setCloudPhase("connecting");
+    setCloudOnline(null);
+    setCloudSession(null);
+    setCloudLiveAt(null);
+    setCloudStateAt(null);
+    setCloudSeen({ frames: 0 });
+    setCloudStats(null);
+
+    loadCloud().then((mod) => {
+      if (!alive) return;
+      if (!mod) { setCloudPhase("failed"); return; }
+      // Окончательный, третий ответ про учётку: до загрузки было известно
+      // только то, что модуль вошёл в сборку.
+      setCloudAvail(!!mod.CLOUD_CONFIGURED);
+      if (!mod.CLOUD_CONFIGURED) { setCloudPhase("failed"); return; }
+      try {
+        live = mod.connect({ ...cloudOpts(cloudId), motionOff: motionRef.current === "off" });
+      } catch {
+        setCloudPhase("failed");
+        return;
+      }
+      live.onState((json, meta) => {
+        if (!alive || !json) return;
+        const retained = !!(meta && meta.retained);
+        setCloudSession(json.sessionId ?? null);
+        setCloudStateAt({ at: Date.now(), retained, epoch: json.epoch ?? null, timeValid: !!json.timeValid });
+        applyData(json, { live: !retained });
+      });
+      live.onStatus((st) => { if (alive) setCloudOnline(!!(st && st.online)); });
+      live.onLive((f) => { if (alive) applyCloudLive(f); });
+      live.onPhase((phase) => { if (alive) setCloudPhase(phase); });
+      // Раз в две секунды, и это не опрос сети: цифры уже лежат в буфере
+      // воспроизведения на этой же странице. Чаще незачем — кадр идёт раз в
+      // 50 мс, а человек читает карточку глазами.
+      if (live.stats) {
+        statsTimer = setInterval(() => { if (alive) setCloudStats(live.stats()); }, 2000);
+      }
+    }).catch(() => { if (alive) setCloudPhase("failed"); });
+
+    return () => {
+      alive = false;
+      if (statsTimer) clearInterval(statsTimer);
+      if (live) { try { live.close(); } catch { /* уже закрыт */ } }
+    };
+  }, [viaCloud, cloudId, applyData, applyCloudLive]);
+
+  // Второй уровень из трёх — «у ЭТОЙ станции канала нет». Это не состояние
+  // соединения, а его невозможность, и потому оно ПРОИЗВОДНОЕ от выбранной
+  // станции, а не записанное в тот же useState: подключаться некуда, значит
+  // и стадии подключения не существует.
+  const cloudPhase = viaCloud && !cloudId ? "failed" : cloudPhaseState;
+
+  // Фолбэк в демо — РОВНО ОДИН РАЗ за сеанс. Ручной выбор источника снимает
+  // отметку (см. setSource), поэтому человек, вернувший «станцию», больше не
+  // выбрасывается обратно на следующем тике.
+  useEffect(() => {
+    if (cloudPhase !== "failed" || !viaCloud || fellBackRef.current) return;
+    fellBackRef.current = true;
+    setFellBack(true);
+    setSourceState("demo");
+  }, [cloudPhase, viaCloud]);
 
   // Оптимистичный апдейт: сразу меняем локальный state, чтобы кнопка не ждала цикл
   // опроса. Следующий кадр подтвердит или откатит значение с железа.
+  // Выход ДО оптимистичного апдейта, а не после: через облако команду
+  // отправить нечем (она обязана быть подписанной и уходит только с прямого
+  // канала), и нарисованный «переключившийся» светодиод через пять секунд
+  // отыграл бы назад следующим кадром — выглядело бы как «плата сама вернула
+  // как было». Панель в этом режиме к тому же readOnly, так что сюда
+  // попасть нельзя; проверка на всякий случай, а не вместо неё.
   const toggleLed = async (key) => {
+    if (viaCloud) return;
     const NEXT_MODE = { off: "on", on: "blink", blink: "off" };
     const k = `led${key.charAt(0).toUpperCase() + key.slice(1)}`;
     const nextValue = NEXT_MODE[data[k]] ?? "on";
     setData((prev) => ({ ...prev, [k]: nextValue }));
-    if (source !== "station") return;
+    if (!direct) return;
     // Связь рвётся; следующий кадр опроса всё равно вернёт настоящее
     // состояние, поэтому потерянный запрос молча забываем.
     try { await fetch(`http://${esp32Host}/api/led?${key}=${nextValue}`); } catch {}
   };
 
   const toggleAuto = async () => {
+    if (viaCloud) return;
     const nextValue = !data.ledAuto;
     setData((prev) => ({ ...prev, ledAuto: nextValue }));
-    if (source !== "station") return;
+    if (!direct) return;
     try { await fetch(`http://${esp32Host}/api/led?auto=${nextValue}`); } catch {}
   };
+
+  // ---------- модем и облако: только по требованию ----------
+  // ⛔ Периодически /api/modem НЕ ОПРАШИВАТЬ. `?radio=1` — это четыре AT-раунда
+  // синхронно в loop(), а loop() держит 50-герцовый опрос датчика. Блокировка
+  // видна ровно в loopMax — то есть регулярный опрос ИСПОРТИЛ БЫ СОБСТВЕННУЮ
+  // метрику этой же карточки. Поэтому: голый запрос один раз при открытии
+  // вкладки, всё остальное — отдельными кнопками с подписью, во что это
+  // обходится плате.
+  //
+  // Аргумент обязан быть вида `?radio=1`: WebServer выбрасывает аргумент без
+  // знака равенства до того, как до него дойдёт hasArg(), и эндпоинт отвечает
+  // так, будто ничего не спрашивали. Молча.
+  // `reset` — забыть прошлый ответ перед новым запросом. Нужно при смене
+  // станции: иначе до прихода ответа (а он может идти 15 с) на карточке
+  // висели бы цифры ЧУЖОЙ платы. У кнопки «ОБНОВИТЬ» его нет намеренно —
+  // сорвавшееся обновление не должно стирать то, что уже показано.
+  const askEndpoint = useCallback(async (path, setter, busyKey, reset) => {
+    if (reset) setter(null);
+    setSysBusy(busyKey);
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 15000);
+    try {
+      const r = await fetch(`http://${esp32Host}${path}`, { signal: ctl.signal });
+      // 404 — не ошибка связи, а ответ: этой сборки прошивки такой части не
+      // досталось (HAS_MODEM 0, SECRET_HAS_CLOUD 0). Панель тогда исчезает.
+      if (r.status === 404) { setter(false); return; }
+      if (!r.ok) throw new Error(String(r.status));
+      setter(await r.json());
+    } catch {
+      setter((prev) => (prev === null ? false : prev));
+    } finally {
+      clearTimeout(timer);
+      setSysBusy("");
+    }
+  }, [esp32Host]);
+
+  const askModem = useCallback((q, reset) => askEndpoint(`/api/modem${q ? `?${q}=1` : ""}`, setModem, q || "modem", reset), [askEndpoint]);
+  const askCloudApi = useCallback((reset) => askEndpoint("/api/cloud", setCloudApi, "cloud", reset), [askEndpoint]);
+
+  // По одному разу при открытии вкладки. Не интервал — см. комментарий выше.
+  useEffect(() => {
+    if (!direct || tab !== "system") return;
+    askModem(null, true);
+    askCloudApi(true);
+  }, [direct, tab, esp32Host, askModem, askCloudApi]);
 
 
   // Удержание экрана. Блокировка теряется при уходе страницы в фон, поэтому
@@ -1972,7 +2448,15 @@ export default function WindDashboard() {
   const selectStation = (st) => {
     setEsp32Host(st.host);
     try { localStorage.setItem("esp32_host", st.host); } catch { /* приватный режим */ }
-    if (!PUBLIC_COPY) setSource("station");
+    setActiveStationId(st.id);
+    // setSource("station") теперь БЕЗУСЛОВНО. Прежняя оговорка про PUBLIC_COPY
+    // существовала ровно потому, что «станция» на HTTPS была заведомо мёртвой:
+    // выбрать её значило получить OFFLINE. Причина исчезла — у станции с
+    // облачным идентификатором есть живой канал и с публичной копии.
+    setSource("station");
+    // Канал выбирается сам: на публичной копии (и когда адреса просто нет)
+    // прямого HTTP не будет, значит остаётся облако — если станции есть чем.
+    setLink(st.cloudId && (PUBLIC_COPY || !st.host) ? "cloud" : "direct");
   };
 
   const findNearest = async () => {
@@ -1993,9 +2477,12 @@ export default function WindDashboard() {
         .map((s) => ({ s, km: distanceKm(here, { lat: s.lat, lon: s.lon }) }))
         .sort((a, b) => a.km - b.km)[0];
       selectStation(nearest.s);
-      if (PUBLIC_COPY) {
+      // ⚠️ Условие ужато намеренно. Текст ниже говорит «показания не
+      // подтянуть», и он не должен появляться рядом с идущими показаниями:
+      // у станции с облачным идентификатором они как раз идут.
+      if (PUBLIC_COPY && !nearest.s.cloudId) {
         setWelcomeMsg({
-          text: `Ближайшая — «${nearest.s.name}», ${formatDistance(nearest.km)}. Показания с этой страницы не подтянуть: она отдаётся по HTTPS, а станция отвечает по HTTP, и такой запрос браузер блокирует. Откройте её напрямую:`,
+          text: `Ближайшая — «${nearest.s.name}», ${formatDistance(nearest.km)}. Показания с этой страницы не подтянуть: у этой станции не заполнен идентификатор в облаке, а напрямую сюда не достучаться — страница отдаётся по HTTPS, станция отвечает по HTTP, и такой запрос браузер блокирует. Откройте её напрямую:`,
           href: `http://${nearest.s.host}/`,
         });
       } else {
@@ -2021,12 +2508,51 @@ export default function WindDashboard() {
     }
   };
 
-  const testStation = async (host) => {
+  const testStation = async ({ host, cloudId: formCloudId }) => {
     setTestResult("");
+    // Заполнено облачное поле — проверяем ОБЛАКО, а не адрес. Это и убирает
+    // прежний тупик: на публичной копии проверить было нечем вообще, и
+    // кнопка возвращала объяснение вместо ответа.
+    if (formCloudId) {
+      if (!cloudAvail) {
+        setTestResult(
+          "В эту сборку дашборда учётка зрителя не попала, поэтому читать облако отсюда нечем. " +
+          "Идентификатор всё равно можно сохранить — он заработает в сборке с облаком."
+        );
+        return;
+      }
+      setTestBusy(true);
+      try {
+        const mod = await loadCloud();
+        if (!mod || !mod.CLOUD_CONFIGURED) throw new Error("нет модуля");
+        const r = await mod.probeStatus({ ...cloudOpts(formCloudId), timeoutMs: 10000 });
+        if (!r || !r.ok) {
+          setTestResult(
+            `Брокер не подтвердил станцию «${formCloudId}»${r && r.error ? `: ${r.error}` : ""}. ` +
+            "Проверьте идентификатор — это то же имя, что записано в secrets.h."
+          );
+        } else if (r.online) {
+          setTestResult(`Станция «${formCloudId}» на связи через облако.`);
+        } else {
+          setTestResult(
+            `Станция «${formCloudId}» в облаке известна, но сейчас офлайн. Идентификатор верный — ` +
+            "показания появятся, когда плата выйдет на связь."
+          );
+        }
+      } catch {
+        setTestResult("Не вышло спросить брокер. Проверьте, есть ли у этого устройства интернет.");
+      } finally {
+        setTestBusy(false);
+      }
+      return;
+    }
     if (PUBLIC_COPY) {
       setTestResult(
         `Отсюда проверить нельзя: страница открыта по HTTPS, а станция отвечает по HTTP — такой запрос браузер блокирует. ` +
-        `Сохраните станцию и откройте её напрямую по адресу http://${host}/`
+        `Сохраните станцию и откройте её напрямую по адресу http://${host}/ ` +
+        (cloudAvail
+          ? "Либо заполните «идентификатор в облаке», если у станции есть модем, — тогда её будет видно и отсюда."
+          : "")
       );
       return;
     }
@@ -2046,16 +2572,19 @@ export default function WindDashboard() {
     }
   };
 
-  const saveStation = ({ name, host, via }) => {
+  const saveStation = ({ name, host, via, cloudId: newCloudId }) => {
     const st = {
-      id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      id: newStationId(),
       name, host, via,
+      ...(newCloudId ? { cloudId: newCloudId } : {}),
       lat: newCoords ? newCoords.lat : null,
       lon: newCoords ? newCoords.lon : null,
     };
-    // Один адрес — одна запись: повторное добавление того же хоста обновляет её,
-    // а не плодит дубликаты, между которыми потом не отличить нужную.
-    const next = [...stations.filter((s) => s.host !== host), st];
+    // Ключ — облачный идентификатор, если он есть, и только иначе адрес.
+    // По одному host дедуплицировать больше нельзя: DEFAULT_HOST одинаков у
+    // любой станции в режиме точки доступа, и вторая мачта затирала бы первую.
+    const key = stationKey(st);
+    const next = [...stations.filter((s) => stationKey(s) !== key), st];
     setStations(next);
     persistStations(next);
     selectStation(st);
@@ -2080,7 +2609,11 @@ export default function WindDashboard() {
     // Порыв района считает модель — сбрасывать его нечему и незачем:
     // следующий же кадр вернул бы прежнее число.
     if (source === "district") return;
-    await fetch(`http://${esp32Host}/api/gust`);
+    // ⚠️ Проверка стоит ДО fetch, а не после. Здесь был голый await fetch без
+    // try: на публичной копии каждое нажатие давало непойманный TypeError в
+    // консоль и ничего больше.
+    if (!direct) return;
+    try { await fetch(`http://${esp32Host}/api/gust`); } catch { /* связь рвётся */ }
   };
 
   // ---------- производные ----------
@@ -2116,6 +2649,65 @@ export default function WindDashboard() {
   const POWER_VIEW = { external: "от сети", battery: "от батареи" };
   const ageSec = lastUpdate ? Math.round((time - lastUpdate) / 1000) : null;
   const lastUpdateStr = ageSec == null ? "—" : `${ageSec}с`;
+
+  // ---------- место станции ----------
+  // Три источника, и каждый подписывается явно. Выдавать введённое человеком
+  // за телеметрию нельзя: координаты из каталога он вбил руками и мог
+  // ошибиться, а метка на карте выглядит одинаково убедительно в обоих случаях.
+  const siteInfo = useMemo(() => {
+    if (!isStation) return null;
+    if (site && Number.isFinite(site.lat) && Number.isFinite(site.lon)) {
+      return { lat: site.lat, lon: site.lon, altM: site.altM, host: site.host, from: "api" };
+    }
+    if (Number.isFinite(data.siteLat) && Number.isFinite(data.siteLon)) {
+      return { lat: data.siteLat, lon: data.siteLon, altM: data.siteAltM, host: data.hostname, from: "frame" };
+    }
+    if (activeStation && activeStation.lat != null && activeStation.lon != null) {
+      return { lat: activeStation.lat, lon: activeStation.lon, altM: null, host: activeStation.host, from: "catalog" };
+    }
+    return null;
+  }, [isStation, site, data.siteLat, data.siteLon, data.siteAltM, data.hostname, activeStation]);
+  // 0/0 в secrets.h означает «не настроено», а не точку в Гвинейском заливе —
+  // то же правило, по которому карта не рисует там метку.
+  const siteUnset = !!siteInfo && siteInfo.lat === 0 && siteInfo.lon === 0;
+  // Подпись «из кадра» зависит от канала, а не от источника поля: те же
+  // siteLat/siteLon приходят в кадре и по прямому каналу, если /api/site
+  // на этой сборке прошивки ещё нет. Написать там «из облака» значило бы
+  // соврать про то, откуда взялась цифра.
+  const SITE_FROM = {
+    api: "ИЗ /API/SITE",
+    frame: viaCloud ? "ИЗ ОБЛАКА" : "ИЗ КАДРА",
+    catalog: "ИЗ КАТАЛОГА",
+  };
+
+  // ---------- строка состояния ----------
+  // Одно место вместо цепочки тернарников в разметке. Главное отличие от
+  // прежней логики: !connected БОЛЬШЕ НЕ СТОИТ ПЕРВЫМ. На холодном старте
+  // станция молчит 25–45 секунд, и всё это время человек читал «НЕТ СВЯЗИ» —
+  // надпись про поломку там, где идёт штатный запуск.
+  const cloudLiveAge = cloudLiveAt == null ? null : time - cloudLiveAt;
+  const linkView = useMemo(() => {
+    if (demoMode) return { text: fellBack ? "ДЕМО · ОБЛАКО МОЛЧИТ" : "ДЕМО", live: true };
+    if (source === "district") return { text: "РАЙОН", live: connected };
+    if (viaCloud) {
+      if (cloudPhase === "connecting") return { text: "ПОДКЛЮЧАЮСЬ К ОБЛАКУ", live: false };
+      if (cloudPhase === "failed") return { text: "ОБЛАКО НЕ ОТВЕТИЛО", live: false };
+      if (cloudOnline === false) return { text: "СТАНЦИЯ ОФЛАЙН", live: false };
+      if (cloudLiveAge != null && cloudLiveAge < 3000) return { text: "ПОТОК ОБЛАКА", live: true };
+      return { text: "КАДРЫ ОБЛАКА · 5 С", live: true };
+    }
+    if (!connected) return { text: "НЕТ СВЯЗИ", live: false };
+    return { text: sseActive ? "ПОТОК SSE" : "ОПРОС HTTP", live: true };
+  }, [demoMode, fellBack, source, viaCloud, cloudPhase, cloudOnline, cloudLiveAge, connected, sseActive]);
+
+  // Сбросить порыв можно там, где сброс что-то меняет: в демо это локальная
+  // модель, на прямом канале — команда плате. Через облако команду отправить
+  // нечем, и кнопка, которая ничего не делает, хуже отсутствующей.
+  const canResetGust = demoMode || direct;
+  // Был ли хоть один кадр. Нужно именно здесь: начальное состояние `data` уже
+  // содержит ключи hostname/uptime/resetReason/wifiRssi, поэтому проверка
+  // `f in src` внутри RowMaybe ответит true ещё до первого ответа станции.
+  const frameSeen = lastUpdate != null || connected;
 
   // Окно графика — подмножество общего буфера: буфер держит 10 минут всегда,
   // чтобы конвективный анализ не терял основание при узком окне графика.
@@ -2226,13 +2818,13 @@ export default function WindDashboard() {
                       <Stat
                         label={gustAt ? `Порыв · ${gustAt.toLocaleTimeString("uk-UA")}` : "Порыв"}
                         value={gustText} unit={unit.short} g={g}
-                        action={
+                        action={canResetGust && (
                           <button onClick={resetGust} title="Сбросить порыв" style={{
                             position: "absolute", top: 7, right: 7, background: "transparent",
                             border: `1px solid ${LINE}`, color: DIM, padding: "1px 6px",
                             fontSize: 10, cursor: "pointer", fontFamily: MONO,
                           }}>↺</button>
-                        }
+                        )}
                       />
                       <Stat label={`Средняя · ${settings.histMinutes} мин`} value={meanText} unit={unit.short} g={g} />
                       <Stat label={resetWhy ? `Аптайм · ${resetWhy}` : "Аптайм"}
@@ -2279,7 +2871,7 @@ export default function WindDashboard() {
                              meta={data.cameraPresent && data.cameraUrl ? "ПОТОК" : "НЕ ПОДКЛЮЧЕНА"}>
                         <CameraWindow url={data.cameraPresent ? data.cameraUrl : null}
                                       accent={accent} g={g} motion={motion} speedMs={data.speed}
-                                      site={site} now={time} />
+                                      site={siteInfo} now={time} />
                         <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 8 }}>
                           {data.cameraPresent && data.cameraUrl
                             ? "Поток с камеры станции."
@@ -2425,18 +3017,21 @@ export default function WindDashboard() {
           <StatusCell g={g} first>
             <span style={{
               width: 6, height: 6, borderRadius: "50%", display: "inline-block", marginRight: 7,
-              background: connected ? (source === "station" ? accent : DIM) : "rgba(231,238,246,0.3)",
-              boxShadow: connected && g !== "off" ? `0 0 8px ${source === "station" ? accent : DIM}` : "none",
-              animation: connected ? undefined : "pulse 1.4s infinite",
+              background: linkView.live ? (isStation ? accent : DIM) : "rgba(231,238,246,0.3)",
+              boxShadow: linkView.live && g !== "off" ? `0 0 8px ${isStation ? accent : DIM}` : "none",
+              // Пульсация — это «идёт процесс», а не «сломалось»: под ней
+              // теперь и подключение к облаку, а не только обрыв.
+              animation: linkView.live ? undefined : "pulse 1.4s infinite",
               verticalAlign: "middle",
             }} />
-            {!connected ? "НЕТ СВЯЗИ"
-              : demoMode ? "ДЕМО"
-              : source === "district" ? "РАЙОН"
-              : sseActive ? "ПОТОК SSE" : "ОПРОС HTTP"}
+            {linkView.text}
           </StatusCell>
           <StatusCell g={g}>
-            ИСТОЧНИК · {demoMode ? "МОДЕЛЬ" : source === "district" ? "OPEN-METEO" : esp32Host}
+            {/* Адрес брокера здесь не нужен: человек выбирал станцию, а не транспорт. */}
+            ИСТОЧНИК · {demoMode ? "МОДЕЛЬ"
+              : source === "district" ? "OPEN-METEO"
+              : viaCloud ? `ОБЛАКО · ${(cloudId || "—").toUpperCase()}`
+              : esp32Host}
           </StatusCell>
           <StatusCell g={g}>КАДР · {lastUpdateStr}</StatusCell>
           <StatusCell g={g}>
@@ -2462,8 +3057,11 @@ export default function WindDashboard() {
       </header>
 
       <main style={{ ...pageWide, margin: "0 auto", padding: "22px 22px 0" }}>
-        {/* Публичная копия — сразу сказать, что это витрина, а не живая станция */}
-        {PUBLIC_COPY && (
+        {/* Плашка наверху публичной копии. Состояний теперь четыре, и это не
+            украшение: раньше здесь стоял один текст «живого ветра здесь нет»,
+            и он стал бы неправдой ровно в тот момент, когда ветер пошёл.
+            Порядок веток — от частного к общему. */}
+        {(PUBLIC_COPY || viaCloud) && (
           <div className="pnl" style={{
             // Через те же переменные, что и настоящие панели: класс .pnl на
             // этой плашке был, а вид был прошит инлайном — и в стеклянной теме
@@ -2473,12 +3071,50 @@ export default function WindDashboard() {
             boxShadow: "var(--pnl-shadow)", padding: "11px 14px",
             marginBottom: 20, fontSize: 11, lineHeight: 1.7, color: "rgba(231,238,246,0.78)",
           }}>
-            <span style={{ color: TEXT, letterSpacing: 2, fontWeight: 600, textShadow: glow(g, 0.6) }}>ДЕМОНСТРАЦИЯ</span>
-            {" — это публичная копия интерфейса, живого ветра здесь нет. "}
-            Настоящая станция работает автономно и раздаёт свою сеть{" "}
-            <b style={{ color: TEXT }}>WindStation</b>; дашборд с реальными показаниями открывается
-            по <b style={{ color: TEXT }}>http://MyWindProbeBETA.org</b> с устройства,
-            подключённого к ней. Все настройки ниже — рабочие, их можно потрогать.
+            {demoMode && fellBack ? (
+              /* (г) упали в демо: сказать почему и дать вернуться. */
+              <>
+                <span style={{ color: TEXT, letterSpacing: 2, fontWeight: 600, textShadow: glow(g, 0.6) }}>ДЕМО · ОБЛАКО МОЛЧИТ</span>
+                {" — подключиться к станции через брокер не вышло, и дашборд показывает модель, "}
+                чтобы экран не остался пустым. Причина бывает и на этой стороне (нет интернета,
+                сеть режет соединение), и на той (станция не выходила на связь, или у неё не
+                заполнен идентификатор в облаке). Это не поломка станции: прямо из её сети она
+                отвечает как обычно.
+                <div style={{ marginTop: 10 }}>
+                  <Btn g={g} onClick={() => { setSource("station"); setLink("cloud"); }}>ПОПРОБОВАТЬ ЕЩЁ РАЗ</Btn>
+                </div>
+              </>
+            ) : viaCloud && cloudOnline === false ? (
+              /* (в) станция офлайн: показать, когда был последний кадр. */
+              <>
+                <span style={{ color: TEXT, letterSpacing: 2, fontWeight: 600, textShadow: glow(g, 0.6) }}>СТАНЦИЯ ОФЛАЙН</span>
+                {" — брокер держит последний кадр, который она успела отдать, и показания ниже "}
+                именно из него. Живыми они не станут, пока плата не выйдет на связь.
+                {lastUpdate
+                  ? ` Последний кадр — ${lastUpdate.toLocaleString("uk-UA")} (по часам самой станции).`
+                  : " Когда именно он снят, сказать нечем: часы станции в нём не были синхронизированы."}
+              </>
+            ) : viaCloud ? (
+              /* (б) идёт через облако — узкая строка, а не простыня. */
+              <>
+                <span style={{ color: TEXT, letterSpacing: 2, fontWeight: 600, textShadow: glow(g, 0.6) }}>ЧЕРЕЗ ОБЛАКО</span>
+                {" — показания настоящие: станция сама выходит наружу и публикует их на брокер. "}
+                Запаздывание около секунды — это очередь на плате, а не сеть.
+                Управление (светодиоды, сброс порыва, калибровка нуля) отсюда недоступно:
+                команды идут только по прямому каналу из сети станции.
+              </>
+            ) : (
+              /* (а) облака нет — прежний текст, слово в слово. */
+              <>
+                <span style={{ color: TEXT, letterSpacing: 2, fontWeight: 600, textShadow: glow(g, 0.6) }}>ДЕМОНСТРАЦИЯ</span>
+                {" — это публичная копия интерфейса, живого ветра здесь нет. "}
+                Настоящая станция работает автономно и раздаёт свою сеть{" "}
+                <b style={{ color: TEXT }}>WindStation</b>; дашборд с реальными показаниями открывается
+                по <b style={{ color: TEXT }}>http://MyWindProbeBETA.org</b> с устройства,
+                подключённого к ней. Все настройки ниже — рабочие, их можно потрогать.
+                {cloudAvail && " Если у станции есть модем, ей можно вписать идентификатор в облаке — тогда её показания видно и отсюда."}
+              </>
+            )}
           </div>
         )}
 
@@ -2639,7 +3275,7 @@ export default function WindDashboard() {
             {radarView === "map" && (
               <Panel title="Карта мира" g={g} delay={0}
                      meta={ONLINE ? "ЖИВЫЕ СЛОИ · NWS / NOAA" : "БЕЗ СЕТИ · ТОЛЬКО АРХИВ"}>
-                <WorldMap g={g} motion={motion} online={ONLINE} site={site}
+                <WorldMap g={g} motion={motion} online={ONLINE} site={siteInfo}
                           showGrid={settings.showGrid} quality={settings.mapQuality}
                           pixelRadar={settings.pixelRadar !== false}
                           pixelCells={settings.pixelCells !== false} />
@@ -2676,13 +3312,215 @@ export default function WindDashboard() {
             <LEDPanel
               leds={{ green: data.ledGreen, yellow: data.ledYellow, red: data.ledRed, wifi: data.ledWifi }}
               autoMode={data.ledAuto} onToggle={toggleLed} onAutoToggle={toggleAuto} g={g} delay={60}
+              readOnly={viaCloud}
+              readOnlyNote="Через облако светодиодами не управлять: команда обязана быть подписанной и уходит только по прямому каналу из сети станции. Показанное состояние настоящее — оно приходит в кадре с платы."
             />
 
+            {/* ---- Место станции ---- */}
+            {/* Место — вкладка «Система», а не блок главной страницы. Блоки
+                главной адресуются по id, а id блока это ключ СОХРАНЁННОЙ
+                раскладки: новый блок появился бы видимым у всех и сдвинул
+                чужую сетку. Плюс соседство по смыслу: точка доступа,
+                светодиоды и loopMax — один разговор о самочувствии платы. */}
+            {isStation && (
+              <Panel title="Место станции" g={g} delay={150}
+                     meta={siteInfo ? SITE_FROM[siteInfo.from] : "НЕ НАСТРОЕНО"}>
+                {!siteInfo ? (
+                  <div style={{ color: DIM, fontSize: 11, lineHeight: 1.6 }}>
+                    Станция своих координат не сообщила. Прямой канал спрашивает их
+                    у <span style={{ ...NUM, fontSize: 10.5 }}>/api/site</span>, облачный берёт из кадра;
+                    если нет ни того ни другого — их можно вписать вручную у станции в каталоге.
+                  </div>
+                ) : siteUnset ? (
+                  <div style={{ color: DIM, fontSize: 11, lineHeight: 1.6 }}>
+                    В <span style={{ ...NUM, fontSize: 10.5 }}>secrets.h</span> не задано: станция
+                    отдаёт 0/0, а это значит «координаты не настроены», а не точка в Гвинейском
+                    заливе. Метки на карте поэтому тоже нет.
+                  </div>
+                ) : (
+                  <>
+                    <Row k="Широта" v={`${siteInfo.lat.toFixed(3)}°`} g={g} />
+                    <Row k="Долгота" v={`${siteInfo.lon.toFixed(3)}°`} g={g} />
+                    {Number.isFinite(siteInfo.altM) && <Row k="Высота" v={`${Math.round(siteInfo.altM)} м`} g={g} />}
+                    {siteInfo.host && <Row k="Адрес" v={siteInfo.host} g={g} />}
+                    <div style={{ display: "flex", gap: 10, marginTop: 11, flexWrap: "wrap", alignItems: "center" }}>
+                      <Btn g={g} onClick={() => { setRadarView("map"); setTab("radar"); }}>ПОКАЗАТЬ НА КАРТЕ</Btn>
+                      <a href={`https://maps.google.com/?q=${siteInfo.lat},${siteInfo.lon}`}
+                         target="_blank" rel="noreferrer"
+                         style={{ color: DIM, fontSize: 10.5, fontFamily: SANS }}>
+                        открыть в картах ↗
+                      </a>
+                    </div>
+                    <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 11 }}>
+                      {siteInfo.from === "catalog"
+                        ? "Эти координаты введены вручную при добавлении станции — это не телеметрия, и ошибиться в них можно как в любом рукописном поле. На карте они подписаны так же."
+                        : "Координаты приходят с самой станции: это константы из secrets.h, и геолокация браузера для метки на карте не нужна вовсе. На экране они округлены до трёх знаков — около ста метров; полная точность здесь и есть домашний адрес."}
+                    </div>
+                  </>
+                )}
+              </Panel>
+            )}
+
+            {/* ---- Связь и время ---- */}
+            {/* Всё из кадра, поэтому панель работает ПО ОБОИМ КАНАЛАМ. staIp —
+                единственный способ узнать адрес платы в домашней сети, не
+                открывая роутер, и жил он до сих пор в блоке /api/wifi, то есть
+                был недоступен ровно тогда, когда нужен. */}
+            {isStation && frameSeen && (
+              <Panel title="Связь и время" g={g} delay={180}
+                     meta={viaCloud ? "ИЗ КАДРА · ОБЛАКО" : "ИЗ КАДРА"}>
+                <RowMaybe k="Домашняя сеть" src={data} f="staSsid" g={g} />
+                <RowMaybe k="Подключена" src={data} f="staConnected" g={g} mono={false}
+                          fmt={(v) => (v ? "да" : "нет")} />
+                <RowMaybe k="IP в домашней сети" src={data} f="staIp" g={g} />
+                <RowMaybe k="Имя" src={data} f="hostname" g={g} />
+                <RowMaybe k="Часы станции" src={data} f="timeValid" g={g} mono={false}
+                          fmt={(v) => (v && data.epoch
+                            ? new Date(data.epoch * 1000).toLocaleString("uk-UA")
+                            : "не синхронизированы")} />
+                <RowMaybe k="Аплинк PPP" src={data} f="pppState" g={g} mono={false} />
+                <RowMaybe k="IP через модем" src={data} f="pppIp" g={g} />
+                <div style={{ marginTop: 11, paddingTop: 10, borderTop: `1px solid ${LINE}` }}>
+                  <Label g={g}>Самочувствие loop()</Label>
+                  <div style={{ marginTop: 7 }}>
+                    <RowMaybe k="loopMax" src={data} f="loopMax" g={g} fmt={(v) => `${v} мс`} />
+                    <RowMaybe k="Строка телеметрии" src={data} f="logMs" g={g} fmt={(v) => `${v} мс`} />
+                    <RowMaybe k="Потеряно кадров SSE" src={data} f="sseDrop" g={g} />
+                  </div>
+                </div>
+                {viaCloud && cloudSession && (
+                  <div style={{ marginTop: 11, paddingTop: 10, borderTop: `1px solid ${LINE}` }}>
+                    <Row k="Нонс загрузки" v={String(cloudSession)} g={g} />
+                    <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 7 }}>
+                      Через облако это единственный способ заметить, что плата перезагрузилась:
+                      нонс перевыпускается на каждую загрузку. Аптайм на такой вопрос не отвечает —
+                      кадр может быть и часовой давности.
+                    </div>
+                  </div>
+                )}
+                <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 11 }}>
+                  loopMax — самый долгий проход основного цикла с прошлой строки телеметрии;
+                  больше нескольких миллисекунд означает, что что-то голодает опрос датчика.
+                  Стоимость самой строки телеметрии (12–13 мс на 115200) из него вычтена и
+                  показана отдельно: пока их не разделили, loopMax показывал длину собственной
+                  диагностики. Строки нет вовсе, если поля нет в кадре — старая прошивка их
+                  не отдаёт.
+                </div>
+              </Panel>
+            )}
+
+            {/* ---- Модем и облако ---- */}
+            {/* При direct — то, что видит сама плата. При viaCloud панель не
+                исчезает, а показывает КЛИЕНТСКИЕ метрики с явной пометкой.
+                ⛔ Смешивать их со счётчиками прошивки (pubDrop, errors) нельзя:
+                это разные величины, померенные с разных концов канала. */}
+            {viaCloud ? (
+              <Panel title="Модем и облако" g={g} delay={210} meta="ПО ДАННЫМ ЗРИТЕЛЯ">
+                <Row k="Станция на связи" g={g} mono={false}
+                     v={cloudOnline == null ? "ещё не знаю" : cloudOnline ? "да" : "нет"} />
+                <Row k="Состояние канала" g={g} mono={false} v={CLOUD_PHASE_VIEW[cloudPhase] || cloudPhase} />
+                <Row k="Кадр состояния" g={g} mono={false}
+                     v={!cloudStateAt ? "не приходил"
+                       : cloudStateAt.retained
+                         ? (cloudStateAt.timeValid && cloudStateAt.epoch
+                           ? `слепок брокера, снят ${new Date(cloudStateAt.epoch * 1000).toLocaleString("uk-UA")}`
+                           : "слепок брокера, когда снят — неизвестно")
+                         : `живой, ${Math.round((time - cloudStateAt.at) / 1000)} с назад`} />
+                <Row k="Живых кадров показано" v={String(cloudSeen.frames)} g={g} />
+                <RowMaybe k="Пакетов потеряно" f="lost" src={cloudStats} g={g} />
+                <RowMaybe k="Отброшено переполнением" f="dropped" src={cloudStats} g={g} />
+                <RowMaybe k="В буфере сейчас" f="buffered" src={cloudStats} g={g} />
+                <RowMaybe k="Запас буфера" f="budgetMs" src={cloudStats} g={g}
+                          fmt={(v) => `${Math.round(v)} мс`} />
+                <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 11 }}>
+                  Это счётчики ЭТОЙ страницы, а не прошивки. Свои у станции тоже есть
+                  (<span style={{ ...NUM, fontSize: 10 }}>pubDrop</span>,{" "}
+                  <span style={{ ...NUM, fontSize: 10 }}>errors</span> в{" "}
+                  <span style={{ ...NUM, fontSize: 10 }}>/api/cloud</span>), но складывать их с
+                  этими нельзя: измеряются разные концы одного канала. Потери считаются по
+                  разрывам в счётчике пакетов — живые кадры идут без ретрансмиссий намеренно,
+                  опоздавший отсчёт хуже непришедшего.
+                </div>
+              </Panel>
+            ) : direct && (modem || cloudApi) ? (
+              <Panel title="Модем и облако" g={g} delay={210}
+                     meta={sysBusy ? "СПРАШИВАЮ…" : modem && cloudApi ? "ПЛАТА ОТВЕТИЛА" : modem ? "ТОЛЬКО МОДЕМ" : "ТОЛЬКО ОБЛАКО"}>
+                {modem && (
+                  <>
+                    <Label g={g}>4G-аплинк</Label>
+                    <div style={{ marginTop: 7 }}>
+                      <RowMaybe k="Состояние" src={modem} f="state" g={g} mono={false} />
+                      <RowMaybe k="IP" src={modem} f="ip" g={g} />
+                      <RowMaybe k="Шлюз" src={modem} f="gw" g={g} />
+                      <RowMaybe k="Приоритет маршрута" src={modem} f="routePrio" g={g} />
+                      <RowMaybe k="Маршрут по умолчанию" src={modem} f="isDefault" g={g} mono={false}
+                                fmt={(v) => (v ? "да" : "нет")} />
+                      <RowMaybe k="Попыток" src={modem} f="tries" g={g} />
+                      <RowMaybe k="Блокировка loop()" src={modem} f="busyMaxMs" g={g} fmt={(v) => `${v} мс`} />
+                      <RowMaybe k="Последняя ошибка" src={modem} f="lastError" g={g} mono={false} />
+                      <RowMaybe k="Оператор" src={modem} f="operator" g={g} mono={false} />
+                      <RowMaybe k="Сигнал" src={modem} f="rssi" g={g} fmt={(v) => `${v} dBm`} />
+                      <RowMaybe k="Режим сети" src={modem} f="mode" g={g} mono={false} />
+                      <RowMaybe k="Проба TCP" src={modem} f="probe" g={g} mono={false} />
+                      <RowMaybe k="Время по NTP" src={modem} f="ntp" g={g} mono={false} />
+                      <RowMaybe k="Резолвер" src={modem} f="dns" g={g} mono={false} />
+                    </div>
+                  </>
+                )}
+                {cloudApi && (
+                  <div style={{ marginTop: modem ? 12 : 0, paddingTop: modem ? 11 : 0,
+                                borderTop: modem ? `1px solid ${LINE}` : "none" }}>
+                    <Label g={g}>Облачный канал</Label>
+                    <div style={{ marginTop: 7 }}>
+                      <RowMaybe k="Включён" src={cloudApi} f="enabled" g={g} mono={false} fmt={(v) => (v ? "да" : "нет")} />
+                      <RowMaybe k="Подключён" src={cloudApi} f="connected" g={g} mono={false} fmt={(v) => (v ? "да" : "нет")} />
+                      <RowMaybe k="Брокер" src={cloudApi} f="host" g={g} />
+                      <RowMaybe k="Идентификатор" src={cloudApi} f="stationId" g={g} />
+                      <RowMaybe k="Идёт через" src={cloudApi} f="via" g={g} mono={false} />
+                      <RowMaybe k="Пришпилен к" src={cloudApi} f="boundIf" g={g} />
+                      <RowMaybe k="Подключений" src={cloudApi} f="connects" g={g} />
+                      <RowMaybe k="Ошибок" src={cloudApi} f="errors" g={g} />
+                      <RowMaybe k="Кадров отдано" src={cloudApi} f="pubLive" g={g} />
+                      <RowMaybe k="Кадров потеряно" src={cloudApi} f="pubDrop" g={g} />
+                      <RowMaybe k="Команд принято" src={cloudApi} f="cmdOk" g={g} />
+                      <RowMaybe k="Команд отвергнуто" src={cloudApi} f="cmdBad" g={g} />
+                      <RowMaybe k="Агрегатов в очереди" src={cloudApi} f="aggPending" g={g} />
+                      <RowMaybe k="Свободно памяти" src={cloudApi} f="heapFree" g={g} fmt={(v) => `${v} Б`} />
+                      <RowMaybe k="Минимум памяти" src={cloudApi} f="heapMin" g={g} fmt={(v) => `${v} Б`} />
+                      <RowMaybe k="Последняя ошибка" src={cloudApi} f="lastError" g={g} mono={false} />
+                    </div>
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                  <Btn g={g} disabled={!!sysBusy} onClick={() => { askModem(null); askCloudApi(); }}>ОБНОВИТЬ</Btn>
+                  <Btn g={g} disabled={!!sysBusy || !modem} onClick={() => askModem("radio")}>РАДИО</Btn>
+                  <Btn g={g} disabled={!!sysBusy || !modem} onClick={() => askModem("probe")}>ПРОБА TCP</Btn>
+                  <Btn g={g} disabled={!!sysBusy || !modem} onClick={() => askModem("ntp")}>ВРЕМЯ NTP</Btn>
+                </div>
+                <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 10 }}>
+                  «Обновить» — дёшево: только факты уровня сетевого интерфейса, модему при этом
+                  не говорят ни слова. «Радио» — четыре запроса к модему по AT; плата на это
+                  время притормозит опрос датчика, и цифра loopMax выше как раз это и покажет.
+                  «Проба TCP» и «время NTP» открывают соединение с сокета, привязанного к
+                  модему: без привязки дома всё ушло бы через WiFi и отрапортовало успех за
+                  чужой интерфейс. Именно поэтому эти запросы тут кнопками, а не таймером —
+                  регулярный опрос испортил бы ту самую метрику, ради которой сюда смотрят.
+                </div>
+              </Panel>
+            ) : null}
+
+            {/* Условие тут про ДОСТУП, а не про источник: /api/wifi живёт на
+                плате и не отдаёт даже CORS, поэтому через облако он недостижим
+                принципиально. Третья ветка нужна именно для этого — сказать,
+                почему пусто, а не показать «нет ответа». */}
             <Panel title="Точка доступа" g={g} delay={120}
-                   meta={source !== "station" ? "НЕДОСТУПНО" : ap ? "ОТВЕТ ПОЛУЧЕН" : "НЕТ ОТВЕТА"}>
-              {source !== "station" ? (
-                <div style={{ color: DIM, fontSize: 11 }}>
-                  {demoMode ? "Недоступно в демо-режиме." : "Недоступно в режиме «район»: сеть есть у платы, а плата сейчас не опрашивается."}
+                   meta={!direct ? "НЕДОСТУПНО" : ap ? "ОТВЕТ ПОЛУЧЕН" : "НЕТ ОТВЕТА"}>
+              {!direct ? (
+                <div style={{ color: DIM, fontSize: 11, lineHeight: 1.6 }}>
+                  {viaCloud
+                    ? "Недоступно через облако: свою сеть плата описывает только по HTTP у себя же, и наружу этого не публикует. То, что станция рассказывает о домашней сети, есть выше — оно приходит в обычном кадре."
+                    : demoMode ? "Недоступно в демо-режиме."
+                    : "Недоступно в режиме «район»: сеть есть у платы, а плата сейчас не опрашивается."}
                 </div>
               ) : ap ? (
                 <>
@@ -2698,10 +3536,10 @@ export default function WindDashboard() {
                   {ap.uplinkSsid !== undefined && (
                     <div style={{ marginTop: 12, paddingTop: 11, borderTop: `1px solid ${LINE}` }}>
                       <Label g={g}>Домашняя сеть</Label>
+                      {/* Сама сеть, её IP и факт подключения переехали в «Связь
+                          и время»: они есть в кадре, а значит доступны обоими
+                          каналами. Здесь осталось то, чего в кадре нет вовсе. */}
                       <div style={{ marginTop: 7 }}>
-                        <Row k="Подключена" v={ap.uplinkConnected ? "да" : "нет"} g={g} mono={false} />
-                        <Row k="Сеть" v={ap.uplinkSsid || "—"} g={g} />
-                        <Row k="IP в ней" v={ap.uplinkIp || "—"} g={g} />
                         <Row k="Сигнал" v={ap.uplinkRssi ? `${ap.uplinkRssi} dBm` : "—"} g={g} />
                         <Row k="Сетей в памяти" v={String((ap.uplinkKnown || []).length || "—")} g={g} />
                       </div>
@@ -2751,7 +3589,10 @@ export default function WindDashboard() {
                       </div>
                     )}
                     {stations.map((st) => {
-                      const active = st.host === esp32Host;
+                      // По id, а не по адресу: DEFAULT_HOST одинаков у любой
+                      // станции в режиме точки доступа, и две разные мачты
+                      // подсвечивались бы обе.
+                      const active = activeStation ? st.id === activeStation.id : st.host === esp32Host;
                       return (
                         <div key={st.id} className="rowin" style={{
                           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
@@ -2762,7 +3603,8 @@ export default function WindDashboard() {
                           <div style={{ minWidth: 0 }}>
                             <div style={{ fontSize: 12, textShadow: active ? glow(g, 0.6) : "none" }}>{st.name}</div>
                             <div style={{ ...NUM, color: DIM, fontSize: 10, wordBreak: "break-all" }}>
-                              {st.host} · {st.lat != null ? "с координатами" : "без координат"}
+                              {st.host} · {st.cloudId ? `облако: ${st.cloudId}` : "только своя сеть"}
+                              {" · "}{st.lat != null ? "с координатами" : "без координат"}
                             </div>
                           </div>
                           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
@@ -2785,7 +3627,8 @@ export default function WindDashboard() {
                     <div style={{ color: DIM, fontSize: 10.5, marginTop: 8, lineHeight: 1.6 }}>
                       Поиск ближайшей недоступен: координаты браузер отдаёт только защищённым страницам,
                       а эта копия открыта по HTTP. Своё место при этом можно поставить вручную —
-                      на карте мира есть кнопка.
+                      на карте мира есть кнопка. А где стоит сама станция, дашборд знает и так:
+                      это её собственные координаты, а не геолокация браузера.
                     </div>
                   )}
                 </div>
@@ -2884,10 +3727,28 @@ export default function WindDashboard() {
                     { value: "demo", label: "демо" },
                   ]}
                   onChange={(v) => setSource(v)}
-                  hint={PUBLIC_COPY
-                    ? "На публичной копии «станция» всегда даст OFFLINE: с HTTPS-страницы браузер не пустит запрос на http:// к плате, и снаружи она всё равно не адресуема. «Район» работает везде, где есть интернет."
-                    : "«Район» — погода вокруг дома из интернета: она знает давление, осадки и воздух, которых на плате нет. «Демо» рисует правдоподобный ветер без железа."}
+                  hint={!PUBLIC_COPY
+                    ? "«Район» — погода вокруг дома из интернета: она знает давление, осадки и воздух, которых на плате нет. «Демо» рисует правдоподобный ветер без железа."
+                    : cloudId
+                      ? "«Станция» здесь работает: у выбранной станции заполнен идентификатор в облаке, и она сама отдаёт показания наружу через брокер. «Район» — погода вокруг указанной точки из интернета, «демо» — модель без железа."
+                      : cloudAvail
+                        ? "У выбранной станции не заполнен идентификатор в облаке, поэтому «станция» отсюда молчит: напрямую к плате с HTTPS-страницы браузер не пустит, а наружу она ничего не отдаёт. Впишите идентификатор в её карточке — или смотрите «район» и «демо»."
+                        : "На публичной копии «станция» всегда даст OFFLINE: с HTTPS-страницы браузер не пустит запрос на http:// к плате, и снаружи она всё равно не адресуема. «Район» работает везде, где есть интернет."}
                 />
+                {/* Канал — не четвёртый источник, а ортогональный выбор внутри
+                    «станции»: цифры те же, с той же мачты и того же датчика,
+                    меняется только провод. */}
+                {isStation && cloudAvail && (
+                  <Switch
+                    label="Канал до станции" g={g} value={link} accent={accent}
+                    off={{ value: "direct", label: "напрямую" }}
+                    on={{ value: "cloud", label: "через облако" }}
+                    onChange={(v) => setLink(v)}
+                    hint={cloudId
+                      ? "Напрямую — запрос к плате по HTTP: быстро (поток 20 Гц), только из её сети. Через облако — станция сама шлёт показания на брокер: работает откуда угодно, но с постоянной задержкой около секунды, и это очередь на плате, а не сеть. Управление есть только напрямую."
+                      : "У выбранной станции не заполнен идентификатор в облаке, поэтому «через облако» ей некуда подключаться. Впишите его в карточке станции."}
+                  />
+                )}
               </div>
             )}
 
@@ -3019,6 +3880,7 @@ export default function WindDashboard() {
       {showAdd && (
         <AddStationModal
           g={g} locating={geoBusy} coords={newCoords} testResult={testResult} busy={testBusy}
+          cloudBuilt={cloudAvail}
           onLocate={locateForNew} onTest={testStation} onSave={saveStation}
           onClose={() => { setShowAdd(false); setNewCoords(null); setTestResult(""); }}
         />

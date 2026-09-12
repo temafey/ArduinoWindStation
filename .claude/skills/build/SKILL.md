@@ -33,12 +33,14 @@ python C:\Users\temaf\OneDrive\Documents\Projects\TymurWindStation\esp32_wind_st
 ## 2. Компиляция
 
 ```powershell
-& "C:\Program Files\Arduino CLI\arduino-cli.exe" compile --fqbn esp32:esp32:esp32 `
+& "C:\Program Files\Arduino CLI\arduino-cli.exe" compile --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs `
   --output-dir C:\Users\temaf\OneDrive\Documents\Projects\TymurWindStation\build C:\Users\temaf\OneDrive\Documents\Projects\TymurWindStation\esp32_wind_station
 ```
 
-FQBN не менять. `PartitionScheme=min_spiffs` — только по явной просьбе, и тогда предупреди,
-что OTA после этого не сработает и заливать придётся по USB.
+**Суффикс `:PartitionScheme=min_spiffs` обязателен и его нельзя убирать.** Схема разделов
+сменена 2026-09-11 (задача 10): `app0` вырос с 1 310 720 до 1 966 080 байт. Без суффикса
+компилятор сверяется со старым лимитом и врёт про переполнение, а собранный образ окажется
+под другой таблицей разделов. FQBN в остальном не менять.
 
 Сборка занимает заметное время — ставь таймаут не меньше 300000 мс.
 
@@ -46,12 +48,14 @@ FQBN не менять. `PartitionScheme=min_spiffs` — только по яв�
 
 Из вывода вытащи строку вида «Скетч использует N байт (P%)» и сообщи:
 
-- процент занятого `app0` (потолок 1310720 байт, сейчас ~86%; arduino-cli печатает 85 —
-  он усекает дробную часть);
+- процент занятого `app0` (потолок **1966080** байт, на 2026-09-12 — **76%**, свободно ~454 КБ);
 - сколько байт осталось;
-- если больше 97% — предупреди явно, запас почти исчерпан;
-- если появилось «text section exceeds available space» — сборка не влезла, нужен
-  `min_spiffs` и USB-прошивка.
+- если стало больше 85% — предупреди явно: запас тает, и резать надо дашборд
+  (`web_content.h` — 13 ресурсов, 656 КБ исходно и 227 КБ в сжатом виде; во флеше лежит
+  сжатый), а не код прошивки. Расти дальше уже некуда: `min_spiffs` и был запасным ходом,
+  он израсходован;
+- если процент считается от **1310720** — суффикс `PartitionScheme=min_spiffs` потерялся
+  из команды, пересобрать с ним.
 
 Готовый бинарник: `C:\Users\temaf\OneDrive\Documents\Projects\TymurWindStation\build\esp32_wind_station.ino.bin`.
 Дальше заливка — `/flash`.
