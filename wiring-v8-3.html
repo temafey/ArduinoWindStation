@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v8 · что делать дальше</title>
+<style>
+  :root {
+    --paper:#f6f3ec; --card:#fffdf8; --ink:#1b1d21; --ink-2:#4d5158; --ink-3:#7d8189;
+    --line:#e2ddd1; --copper:#a35f33; --copper-soft:#f0e2d6;
+    --plus:#c9372c; --gnd:#1f2126; --sig:#2a6fd1; --ok:#2e7d4f; --warn:#b3541e;
+    --shadow:0 1px 2px rgba(30,24,16,.06), 0 8px 24px rgba(30,24,16,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:#15171b; --card:#1d2026; --ink:#eceae5; --ink-2:#b3b1ab; --ink-3:#84837e;
+      --line:#2e323a; --copper:#d99460; --copper-soft:#33261c;
+      --plus:#ef6d5f; --gnd:#c9cbd0; --sig:#6aa9f0; --ok:#5fbf87; --warn:#e2a06a;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#15171b; --card:#1d2026; --ink:#eceae5; --ink-2:#b3b1ab; --ink-3:#84837e;
+    --line:#2e323a; --copper:#d99460; --copper-soft:#33261c;
+    --plus:#ef6d5f; --gnd:#c9cbd0; --sig:#6aa9f0; --ok:#5fbf87; --warn:#e2a06a;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"] {
+    --paper:#f6f3ec; --card:#fffdf8; --ink:#1b1d21; --ink-2:#4d5158; --ink-3:#7d8189;
+    --line:#e2ddd1; --copper:#a35f33; --copper-soft:#f0e2d6;
+    --plus:#c9372c; --gnd:#1f2126; --sig:#2a6fd1; --ok:#2e7d4f; --warn:#b3541e;
+    --shadow:0 1px 2px rgba(30,24,16,.06), 0 8px 24px rgba(30,24,16,.07);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Segoe UI", system-ui, -apple-system, sans-serif; line-height:1.55; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1180px; margin:0 auto; padding:40px 22px 80px; display:flex; flex-direction:column; gap:34px; }
+  .eyebrow { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--copper); font-weight:700; }
+  h1 { font-size:clamp(26px,4vw,38px); line-height:1.15; margin:8px 0 10px; text-wrap:balance; letter-spacing:-.01em; }
+  .lede { color:var(--ink-2); font-size:16.5px; max-width:66ch; margin:0; }
+  .mono { font-family:ui-monospace,"Cascadia Code",Consolas,monospace; }
+  .board { background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:14px; overflow-x:auto; }
+  .board svg { width:100%; min-width:980px; height:auto; display:block; border-radius:6px; }
+  .hint { font-size:13.5px; color:var(--ink-3); margin:10px 2px 0; }
+  .hot { fill:transparent; stroke:transparent; stroke-width:2.5; cursor:pointer; transition:.14s; }
+  .hot:hover, .hot:focus-visible { fill:rgba(163,95,51,.13); stroke:var(--copper); outline:none; }
+  h2 { font-size:20px; margin:0 0 4px; letter-spacing:-.005em; }
+  .sub { color:var(--ink-3); font-size:14px; margin:0 0 16px; }
+  .strip { display:grid; grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); gap:10px; }
+  .chip { display:flex; flex-direction:column; gap:7px; align-items:flex-start; text-align:left;
+    background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px;
+    cursor:pointer; color:var(--ink); font:inherit; font-size:12.5px; transition:.14s; }
+  .chip:hover, .chip:focus-visible { border-color:var(--copper); transform:translateY(-2px); outline:none; box-shadow:var(--shadow); }
+  .chip img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:6px; background:var(--copper-soft); }
+  .chip span { line-height:1.3; font-weight:600; }
+  ol.steps { margin:0; padding:0; list-style:none; counter-reset:s; display:flex; flex-direction:column; gap:9px; }
+  ol.steps li { counter-increment:s; display:grid; grid-template-columns:30px 1fr; gap:12px; align-items:baseline;
+    background:var(--card); border:1px solid var(--line); border-radius:9px; padding:11px 13px; font-size:14.5px; }
+  ol.steps li::before { content:counter(s); font-family:ui-monospace,Consolas,monospace; font-weight:700; color:var(--copper); font-size:13px; text-align:right; }
+  b.col { font-family:ui-monospace,Consolas,monospace; color:var(--sig); }
+  b.ref { font-family:ui-monospace,Consolas,monospace; color:var(--copper); }
+  .notes { display:flex; flex-direction:column; gap:8px; }
+  .note { display:grid; grid-template-columns:22px 1fr; gap:10px; align-items:baseline;
+    border-left:3px solid var(--line); border-radius:0 8px 8px 0; background:var(--card); padding:11px 14px; font-size:14.5px; }
+  .note.warn { border-left-color:var(--plus); }
+  .note.ok { border-left-color:var(--ok); }
+  .note.info { border-left-color:var(--sig); }
+  .note i { font-style:normal; }
+  .veil { position:fixed; inset:0; background:rgba(12,10,8,.72); backdrop-filter:blur(3px);
+    display:none; align-items:center; justify-content:center; padding:22px; z-index:50; }
+  .veil.on { display:flex; }
+  .modal { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    max-width:640px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:var(--shadow); }
+  .modal .pics { display:flex; gap:2px; background:var(--line); border-radius:14px 14px 0 0; overflow:hidden; }
+  .modal .pics img { width:100%; flex:1; object-fit:cover; max-height:330px; display:block; background:var(--copper-soft); }
+  .modal .body { padding:18px 20px 22px; }
+  .modal h3 { margin:0 0 3px; font-size:20px; }
+  .modal .msub { color:var(--ink-3); font-size:13.5px; margin:0 0 14px; }
+  .modal .mnote { font-size:14.5px; margin:0; padding:11px 13px; border-radius:8px; border-left:3px solid var(--sig); background:var(--paper); }
+  .modal .mnote.warn { border-left-color:var(--plus); }
+  .modal .mnote.ok { border-left-color:var(--ok); }
+  .x { margin-top:16px; width:100%; padding:10px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--line); background:transparent; color:var(--ink-2); font:inherit; font-size:14px; }
+  .x:hover { border-color:var(--copper); color:var(--ink); }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+
+.wrap{max-width:1560px}
+table.m{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+table.m th,table.m td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.m th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);font-weight:700}
+table.m td.n{color:var(--ink-3);font-weight:700;white-space:nowrap}
+table.m td.pt{font-family:ui-monospace,Consolas,monospace;font-weight:700;color:var(--copper);white-space:nowrap}
+table.m td.no{font-weight:700;color:var(--plus);white-space:nowrap}
+table.m td.ok{font-weight:700;color:var(--ok);white-space:nowrap}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:980px){.two{grid-template-columns:1fr}}
+pre.cmd{margin:0;padding:16px 18px;overflow-x:auto;font-family:ui-monospace,Consolas,monospace;
+  font-size:12.5px;line-height:1.62;color:var(--ink-2);white-space:pre;
+  background:var(--card);border:1px solid var(--line);border-radius:12px}
+pre.cmd b{color:var(--plus)}
+pre.cmd i{font-style:normal;color:var(--ink-3)}
+pre.cmd u{text-decoration:none;color:var(--ok);font-weight:700}
+.stage{display:flex;align-items:baseline;gap:12px;margin:0 0 4px}
+.stage .num{font-family:ui-monospace,Consolas,monospace;font-weight:700;font-size:13px;
+  color:#fff;background:var(--copper);border-radius:6px;padding:2px 9px}
+.stage h2{margin:0}
+.verdict{display:inline-block;font-weight:700;font-size:12px;border-radius:6px;padding:2px 9px;
+  color:#fff;background:var(--ok);margin-left:8px}
+.verdict.no{background:var(--plus)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Метеостанция ветра · схема v8 · 10 сентября 2026</div>
+    <h1>Что делать дальше</h1>
+    <p class="lede">Поиск неисправности закончен, и закончен доказательством, а не догадкой:
+      плата, вынутая из макетки и воткнутая в USB-C, работает без единой паники. Значит
+      искать больше нечего — осталось вернуть её в макетку так, чтобы она работала и там.
+      Пять шагов, по одному за раз.</p>
+    <div class="note ok" style="margin-top:14px"><i>✓</i><span><b>Ни плата, ни модем
+      не виноваты, и менять их не надо.</b> ESP32 вне макетки: ноль паник, аптайм растёт,
+      mDNS и OTA поднялись, аплинк вошёл в домашнюю сеть. Модем проверен отдельно, через
+      свой USB: <b class="mono">CPIN: READY</b>, <b class="mono">CSQ 26</b>, регистрация
+      в LTE, оператор ответил, адрес выдан. Обе железки исправны.</span></div>
+    <div class="note warn" style="margin-top:10px"><i>⚠</i><span><b>Виновата была медь
+      на макетке.</b> У 38-pin платы шесть ног кристалла SPI-флеша выведены на пины —
+      и попадают в первые четыре колонки. Достаточно чего-то лишнего в одном отверстии,
+      чтобы ёмкость линии выросла и быстрое чтение на 80&nbsp;МГц перестало
+      попадать в такт. Медленная проверка через esptool при этом проходит: она читает
+      совсем на другой скорости.</span></div>
+  </header>
+
+  <section>
+    <div class="board"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 1150" font-family="Segoe UI, Arial, sans-serif">
+  <rect x="0" y="0" width="1900" height="1150" fill="#ffffff"/>
+  <text x="30" y="40" font-size="13" font-weight="700" fill="#a35f33" letter-spacing="1.6">МЕТЕОСТАНЦИЯ ВЕТРА · СХЕМА v8 · 2026-09-10</text>
+  <text x="30" y="74" font-size="26" font-weight="700" fill="#1a1a1a">Что делать дальше: вернуть ESP32 в макетку — и не убить её снова</text>
+  <g font-size="13.5" fill="#333"><rect x="30" y="91" width="18" height="14" fill="#c0392b"/><text x="54" y="104">нельзя ничего · нога SPI-флеша</text><rect x="296.0" y="91" width="18" height="14" fill="#2e7d4f"/><text x="320.0" y="104">занято делом — так и надо</text><line x1="526.0" y1="99" x2="558.0" y2="99" stroke="#d23b2e" stroke-width="4"/><text x="566.0" y="104">«5V» → «+» рельс</text><line x1="707.2" y1="99" x2="739.2" y2="99" stroke="#1a1a1a" stroke-width="4"/><text x="747.2" y="104">GND · общая земля</text><line x1="895.6" y1="99" x2="927.6" y2="99" stroke="#e0218a" stroke-width="4"/><text x="935.6" y="104">GPIO27 → «R» модема</text><line x1="1098.4" y1="99" x2="1130.4" y2="99" stroke="#3949ab" stroke-width="4"/><text x="1138.4" y="104">GPIO25 ← «T» модема</text></g>
+  <!-- BREADBOARD (стандарт) -->
+  <rect x="74" y="232" width="1089" height="298" rx="12" fill="#f4f0e6" stroke="#d8d2c0" stroke-width="2"/>
+  <rect x="112" y="242" width="1009" height="2" fill="#d23b2e"/>
+  <rect x="112" y="270" width="1009" height="2" fill="#2a5bd7"/>
+  <rect x="112" y="498" width="1009" height="2" fill="#d23b2e"/>
+  <rect x="112" y="526" width="1009" height="2" fill="#2a5bd7"/>
+  <text x="60" y="254" font-size="13" fill="#d23b2e" font-weight="700">+</text>
+  <text x="60" y="266" font-size="13" fill="#2a5bd7" font-weight="700">−</text>
+  <text x="60" y="510" font-size="13" fill="#d23b2e" font-weight="700">+</text>
+  <text x="60" y="524" font-size="13" fill="#2a5bd7" font-weight="700">−</text>
+  <rect x="114" y="246" width="1003" height="8" fill="url(#r1)"/>
+  <rect x="114" y="258" width="1003" height="8" fill="url(#r2)"/>
+  <rect x="80" y="290" width="1071" height="88" fill="url(#hA)"/>
+  <rect x="80" y="398" width="1071" height="88" fill="url(#hB)"/>
+  <rect x="114" y="502" width="1003" height="8" fill="url(#r3)"/>
+  <rect x="114" y="514" width="1003" height="8" fill="url(#r4)"/>
+  <rect x="74" y="380" width="1089" height="16" fill="#e9e3d3"/>
+  <g font-size="11" fill="#999">
+    <text x="66" y="302">a</text><text x="66" y="320">b</text><text x="66" y="338">c</text><text x="66" y="356">d</text><text x="66" y="374">e</text>
+    <text x="66" y="410">f</text><text x="66" y="428">g</text><text x="66" y="446">h</text><text x="66" y="464">i</text><text x="66" y="482">j</text>
+  </g>
+  <g font-size="10" fill="#aaa" text-anchor="middle">
+    <text x="411" y="286">20</text><text x="496" y="286">25</text><text x="581" y="286">30</text><text x="666" y="286">35</text><text x="751" y="286">40</text><text x="836" y="286">45</text><text x="921" y="286">50</text><text x="1006" y="286">55</text><text x="1091" y="286">60</text>
+  </g>
+  <defs>
+    <pattern id="hA" patternUnits="userSpaceOnUse" width="17" height="18" x="88" y="298"><circle cx="0" cy="0" r="2.1" fill="#b9b09a"/></pattern>
+    <pattern id="hB" patternUnits="userSpaceOnUse" width="17" height="18" x="88" y="406"><circle cx="0" cy="0" r="2.1" fill="#b9b09a"/></pattern>
+    <pattern id="r1" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="246"><circle cx="0" cy="4" r="2.1" fill="#c9a9a0"/></pattern>
+    <pattern id="r2" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="258"><circle cx="0" cy="4" r="2.1" fill="#a0aac9"/></pattern>
+    <pattern id="r3" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="502"><circle cx="0" cy="4" r="2.1" fill="#c9a9a0"/></pattern>
+    <pattern id="r4" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="514"><circle cx="0" cy="4" r="2.1" fill="#a0aac9"/></pattern>
+  </defs>
+  <!-- ESP32 DevKitC 38-pin (ESP-32U, CP2102, USB-C) -->
+  <rect x="54" y="388" width="26" height="18" rx="3" fill="#b8b8b8" stroke="#888"/>
+  <text x="34" y="382" font-size="10" fill="#666">USB-C</text>
+  <rect x="80" y="316" width="340" height="160" rx="8" fill="#1f1f22" stroke="#000"/>
+  <text x="150" y="356" font-size="15" fill="#f2f2f2" font-weight="700">ESP32 DevKitC · 38 pin</text>
+  <text x="150" y="374" font-size="11" fill="#9fd">сейчас ВНЕ макетки, на USB-C — и работает</text>
+  <text x="150" y="452" font-size="10" fill="#9aa">CP2102 · USB-C · модуль ESP-32U (WROOM-32U)</text>
+  <g stroke="#444"><rect x="82" y="311" width="12" height="10" rx="2" fill="#d23b2e"/><rect x="99" y="311" width="12" height="10" rx="2" fill="#c0392b"/><rect x="116" y="311" width="12" height="10" rx="2" fill="#c0392b"/><rect x="133" y="311" width="12" height="10" rx="2" fill="#c0392b"/><rect x="150" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="167" y="311" width="12" height="10" rx="2" fill="#999"/><rect x="184" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="201" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="218" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="235" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="252" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="269" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="286" y="311" width="12" height="10" rx="2" fill="#6aa9e0"/><rect x="303" y="311" width="12" height="10" rx="2" fill="#6aa9e0"/><rect x="320" y="311" width="12" height="10" rx="2" fill="#6aa9e0"/><rect x="337" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="354" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="371" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="388" y="311" width="12" height="10" rx="2" fill="#e8c14a"/></g>
+  <g font-size="7.5" fill="#333" text-anchor="middle"><text x="88" y="308">5V</text><text x="105" y="308">CMD</text><text x="122" y="308">D3</text><text x="139" y="308">D2</text><text x="156" y="308">13</text><text x="173" y="308">GND</text><text x="190" y="308">12</text><text x="207" y="308">14</text><text x="224" y="308">27</text><text x="241" y="308">26</text><text x="258" y="308">25</text><text x="275" y="308">33</text><text x="292" y="308">32</text><text x="309" y="308">35</text><text x="326" y="308">34</text><text x="343" y="308">VN</text><text x="360" y="308">VP</text><text x="377" y="308">EN</text><text x="394" y="308">3V3</text></g>
+  <g stroke="#444"><rect x="82" y="471" width="12" height="10" rx="2" fill="#c0392b"/><rect x="99" y="471" width="12" height="10" rx="2" fill="#c0392b"/><rect x="116" y="471" width="12" height="10" rx="2" fill="#c0392b"/><rect x="133" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="150" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="167" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="184" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="201" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="218" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="235" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="252" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="269" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="286" y="471" width="12" height="10" rx="2" fill="#999"/><rect x="303" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="320" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="337" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="354" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="371" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="388" y="471" width="12" height="10" rx="2" fill="#999"/></g>
+  <g font-size="7.5" fill="#b9bcc4" text-anchor="middle"><text x="88" y="466">CLK</text><text x="105" y="466">D0</text><text x="122" y="466">D1</text><text x="139" y="466">15</text><text x="156" y="466">2</text><text x="173" y="466">0</text><text x="190" y="466">4</text><text x="207" y="466">16</text><text x="224" y="466">17</text><text x="241" y="466">5</text><text x="258" y="466">18</text><text x="275" y="466">19</text><text x="292" y="466">GND</text><text x="309" y="466">21</text><text x="326" y="466">RX</text><text x="343" y="466">TX</text><text x="360" y="466">22</text><text x="377" y="466">23</text><text x="394" y="466">GND</text></g>
+  <circle cx="394" cy="396" r="7" fill="#2b2c31" stroke="#c9a63a" stroke-width="1.6"/><circle cx="394" cy="396" r="2.6" fill="#c9a63a"/><path d="M394 396 C 428 396, 424 430, 450 430" fill="none" stroke="#6b6f78" stroke-width="3" stroke-linecap="round"/><text x="454" y="425" font-size="9" font-weight="700" fill="#8a6d3b">u.FL &#8594; антенна 2.4 ГГц</text><text x="454" y="437" font-size="8" fill="#c0392b">без неё плата почти не передаёт</text><rect x="80" y="309" width="16" height="14" rx="3" fill="none" stroke="#e58f2a" stroke-width="2.4"/><rect x="165" y="309" width="16" height="14" rx="3" fill="none" stroke="#e58f2a" stroke-width="2.4"/><rect x="216" y="309" width="16" height="14" rx="3" fill="none" stroke="#e58f2a" stroke-width="2.4"/><rect x="250" y="309" width="16" height="14" rx="3" fill="none" stroke="#e58f2a" stroke-width="2.4"/>
+  <rect x="96" y="309" width="52" height="14" rx="3" fill="#c0392b" fill-opacity="0.16" stroke="#c0392b" stroke-width="1.6" stroke-dasharray="4 3"/><text x="122" y="291" font-size="8" font-weight="700" fill="#c0392b" text-anchor="middle">SPI-флеш</text><rect x="79" y="469" width="52" height="14" rx="3" fill="#c0392b" fill-opacity="0.16" stroke="#c0392b" stroke-width="1.6" stroke-dasharray="4 3"/><text x="105" y="495" font-size="8" font-weight="700" fill="#c0392b" text-anchor="middle">SPI-флеш</text>
+  <path d="M88 298 L88 286 L122 250" fill="none" stroke="#d23b2e" stroke-width="3" stroke-linecap="round"/><circle cx="88" cy="298" r="3.4" fill="#d23b2e"/><circle cx="122" cy="250" r="3.4" fill="#d23b2e"/><path d="M173 298 L173 262" fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/><circle cx="173" cy="298" r="3.4" fill="#1a1a1a"/><circle cx="173" cy="262" r="3.4" fill="#1a1a1a"/>
+  <path d="M224 311 L224 192 L1164 192" fill="none" stroke="#e0218a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="224" cy="311" r="3.4" fill="#e0218a"/><text x="1156" y="187" font-size="10.5" font-weight="700" fill="#e0218a" text-anchor="end">GPIO27 →</text><path d="M258 311 L258 208 L1164 208" fill="none" stroke="#3949ab" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="258" cy="311" r="3.4" fill="#3949ab"/><text x="1156" y="203" font-size="10.5" font-weight="700" fill="#3949ab" text-anchor="end">GPIO25 →</text><path d="M819 262 L819 224 L1164 224" fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="819" cy="262" r="3.4" fill="#1a1a1a"/><text x="1156" y="219" font-size="10.5" font-weight="700" fill="#1a1a1a" text-anchor="end">GND (кол.44, ПРАВАЯ половина) →</text><path d="M241 311 L241 288 L470 288" fill="none" stroke="#e58f2a" stroke-width="1.4" stroke-dasharray="4 3"/><rect x="470" y="278" width="128" height="20" rx="5" fill="#ffffff" fill-opacity="0.92" stroke="#e58f2a" stroke-width="1.4"/><text x="534" y="292" font-size="9.5" font-weight="700" fill="#e58f2a" text-anchor="middle">GPIO26 — НЕ занимать</text>
+  <rect x="78" y="112" width="486" height="86" rx="10" fill="#fdeeec" stroke="#c0392b" stroke-width="2"/><text x="94" y="138" font-size="15" font-weight="700" fill="#c0392b">⛔ Запретная зона — из-за неё плата и не грузилась</text><text x="94" y="159" font-size="12" fill="#7a2a22">СВЕРХУ пусто в кол. 2 · 3 · 4 &#8212; это CMD · D3 · D2</text><text x="94" y="176" font-size="12" fill="#7a2a22">СНИЗУ пусто в кол. 1 · 2 · 3 &#8212; это CLK · D0 · D1</text><text x="94" y="190" font-size="10.5" fill="#8a6a20">а 1a («5V») и 6a («GND») занимать НАДО: это питание самой платы</text><path d="M138 198 L138 276 L122 276 L122 292" fill="none" stroke="#c0392b" stroke-width="2" stroke-dasharray="5 4"/><path d="M117 286 L122 294 L127 286 Z" fill="#c0392b"/>
+  <rect x="1200" y="122" width="660" height="224" rx="12" fill="#f2f8f3" stroke="#9fb8a4" stroke-width="2"/><text x="1218" y="148" font-size="15" font-weight="700" fill="#1a1a1a">Что уже известно точно — это не переделывать</text><text x="1218" y="172" font-size="11" font-weight="700" fill="#2e7d4f">✓</text><text x="1236" y="172" font-size="11.5" fill="#2e7d4f">Плата ЖИВА. Вне макетки, на USB-C: ноль паник, аптайм растёт,</text><text x="1218" y="191" font-size="11" font-weight="700" fill="#8a8f97"></text><text x="1236" y="191" font-size="11.5" fill="#8a8f97">mDNS и OTA поднялись, аплинк вошёл в домашнюю сеть</text><text x="1218" y="210" font-size="11" font-weight="700" fill="#2e7d4f">✓</text><text x="1236" y="210" font-size="11.5" fill="#2e7d4f">Модем ИСПРАВЕН. Проверен отдельно, через свой USB: сеть LTE,</text><text x="1218" y="229" font-size="11" font-weight="700" fill="#8a8f97"></text><text x="1236" y="229" font-size="11.5" fill="#8a8f97">CPIN READY, CSQ 26, оператор ответил, адрес выдан</text><text x="1218" y="248" font-size="11" font-weight="700" fill="#2e7d4f">✓</text><text x="1236" y="248" font-size="11.5" fill="#2e7d4f">Флеш на 40 МГц — это ОСОЗНАННЫЙ ЗАПАС, не откат и не диагностика.</text><text x="1218" y="267" font-size="11" font-weight="700" fill="#8a8f97"></text><text x="1236" y="267" font-size="11.5" fill="#8a8f97">Частота лежит в загрузчике (0x1000) и переживает любую OTA,</text><text x="1218" y="286" font-size="11" font-weight="700" fill="#8a8f97"></text><text x="1236" y="286" font-size="11.5" fill="#8a8f97">но каждая заливка по USB обязана нести --flash-freq 40m.</text>
+  <rect x="1200" y="366" width="660" height="228" rx="12" fill="#fbf7ec" stroke="#c9a63a" stroke-width="2"/><text x="1218" y="392" font-size="15" font-weight="700" fill="#1a1a1a">Порядок действий</text><text x="1218" y="416" font-size="11" font-weight="700" fill="#4d5158">·</text><text x="1236" y="416" font-size="11.5" fill="#4d5158">1 · Пока плата в руках — перезалить по USB на min_spiffs</text><text x="1218" y="435" font-size="11" font-weight="700" fill="#8a8f97"></text><text x="1236" y="435" font-size="11.5" fill="#8a8f97">     app0 1310720 -> 1966080; таблица 0x8000, OTA её не трогает</text><text x="1218" y="454" font-size="11" font-weight="700" fill="#4d5158">·</text><text x="1236" y="454" font-size="11.5" fill="#4d5158">2 · Осмотреть шесть запретных отверстий (крупно — слева внизу)</text><text x="1218" y="473" font-size="11" font-weight="700" fill="#4d5158">·</text><text x="1236" y="473" font-size="11.5" fill="#4d5158">3 · Вставить плату: «5V» в кол.1 ряд a, USB-разъёмом ВЛЕВО</text><text x="1218" y="492" font-size="11" font-weight="700" fill="#4d5158">·</text><text x="1236" y="492" font-size="11.5" fill="#4d5158">4 · Включить БЕЗ модема и дать поработать пять минут</text><text x="1218" y="511" font-size="11" font-weight="700" fill="#8a8f97"></text><text x="1236" y="511" font-size="11.5" fill="#8a8f97">     смотреть uptime и resetReason в /api/data</text><text x="1218" y="530" font-size="11" font-weight="700" fill="#4d5158">·</text><text x="1236" y="530" font-size="11.5" fill="#4d5158">5 · Только потом модем: СНАЧАЛА общая земля, потом UART</text><text x="1218" y="549" font-size="11" font-weight="700" fill="#c0392b">⚠</text><text x="1236" y="549" font-size="11.5" fill="#c0392b">По одному шагу за раз — пачкой виноватого снова не найти</text>
+  <rect x="80" y="620" width="368" height="505" rx="12" fill="#f4f0e6" stroke="#d8d2c0" stroke-width="2"/><text x="98" y="646" font-size="14" font-weight="700" fill="#1a1a1a">Первые шесть колонок — крупно</text><text x="98" y="663" font-size="9.5" fill="#777">капсула = пять отверстий одной колонки = ОДНА точка</text><text x="110" y="682" font-size="9" fill="#999" text-anchor="middle">кол.</text><text x="142" y="682" font-size="11" font-weight="700" fill="#666" text-anchor="middle">1</text><text x="188" y="682" font-size="11" font-weight="700" fill="#666" text-anchor="middle">2</text><text x="234" y="682" font-size="11" font-weight="700" fill="#666" text-anchor="middle">3</text><text x="280" y="682" font-size="11" font-weight="700" fill="#666" text-anchor="middle">4</text><text x="326" y="682" font-size="11" font-weight="700" fill="#666" text-anchor="middle">5</text><text x="372" y="682" font-size="11" font-weight="700" fill="#666" text-anchor="middle">6</text><text x="142" y="702" font-size="10.5" font-weight="700" fill="#2e7d4f" text-anchor="middle">5V</text><rect x="127" y="712" width="30" height="122" rx="13" fill="#2e7d4f" fill-opacity="0.11" stroke="#2e7d4f" stroke-width="2" stroke-dasharray="none"/><circle cx="142" cy="724" r="4.4" fill="#b9b09a"/><circle cx="142" cy="746" r="4.4" fill="#b9b09a"/><circle cx="142" cy="768" r="4.4" fill="#b9b09a"/><circle cx="142" cy="790" r="4.4" fill="#b9b09a"/><circle cx="142" cy="812" r="4.4" fill="#b9b09a"/><text x="188" y="702" font-size="10.5" font-weight="700" fill="#c0392b" text-anchor="middle">CMD</text><rect x="173" y="712" width="30" height="122" rx="13" fill="#c0392b" fill-opacity="0.2" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3"/><circle cx="188" cy="724" r="4.4" fill="#b9b09a"/><circle cx="188" cy="746" r="4.4" fill="#b9b09a"/><circle cx="188" cy="768" r="4.4" fill="#b9b09a"/><circle cx="188" cy="790" r="4.4" fill="#b9b09a"/><circle cx="188" cy="812" r="4.4" fill="#b9b09a"/><path d="M179 737 L197 755 M197 737 L179 755" stroke="#c0392b" stroke-width="2.6" stroke-linecap="round"/><path d="M179 781 L197 799 M197 781 L179 799" stroke="#c0392b" stroke-width="2.6" stroke-linecap="round"/><text x="234" y="702" font-size="10.5" font-weight="700" fill="#c0392b" text-anchor="middle">D3</text><rect x="219" y="712" width="30" height="122" rx="13" fill="#c0392b" fill-opacity="0.2" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3"/><circle cx="234" cy="724" r="4.4" fill="#b9b09a"/><circle cx="234" cy="746" r="4.4" fill="#b9b09a"/><circle cx="234" cy="768" r="4.4" fill="#b9b09a"/><circle cx="234" cy="790" r="4.4" fill="#b9b09a"/><circle cx="234" cy="812" r="4.4" fill="#b9b09a"/><path d="M225 737 L243 755 M243 737 L225 755" stroke="#c0392b" stroke-width="2.6" stroke-linecap="round"/><path d="M225 781 L243 799 M243 781 L225 799" stroke="#c0392b" stroke-width="2.6" stroke-linecap="round"/><text x="280" y="702" font-size="10.5" font-weight="700" fill="#c0392b" text-anchor="middle">D2</text><rect x="265" y="712" width="30" height="122" rx="13" fill="#c0392b" fill-opacity="0.2" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3"/><circle cx="280" cy="724" r="4.4" fill="#b9b09a"/><circle cx="280" cy="746" r="4.4" fill="#b9b09a"/><circle cx="280" cy="768" r="4.4" fill="#b9b09a"/><circle cx="280" cy="790" r="4.4" fill="#b9b09a"/><circle cx="280" cy="812" r="4.4" fill="#b9b09a"/><path d="M271 737 L289 755 M289 737 L271 755" stroke="#c0392b" stroke-width="2.6" stroke-linecap="round"/><path d="M271 781 L289 799 M289 781 L271 799" stroke="#c0392b" stroke-width="2.6" stroke-linecap="round"/><text x="326" y="702" font-size="10.5" font-weight="700" fill="#2e7d4f" text-anchor="middle">13</text><rect x="311" y="712" width="30" height="122" rx="13" fill="#2e7d4f" fill-opacity="0.11" stroke="#2e7d4f" stroke-width="2" stroke-dasharray="none"/><circle cx="326" cy="724" r="4.4" fill="#b9b09a"/><circle cx="326" cy="746" r="4.4" fill="#b9b09a"/><circle cx="326" cy="768" r="4.4" fill="#b9b09a"/><circle cx="326" cy="790" r="4.4" fill="#b9b09a"/><circle cx="326" cy="812" r="4.4" fill="#b9b09a"/><text x="372" y="702" font-size="10.5" font-weight="700" fill="#2e7d4f" text-anchor="middle">GND</text><rect x="357" y="712" width="30" height="122" rx="13" fill="#2e7d4f" fill-opacity="0.11" stroke="#2e7d4f" stroke-width="2" stroke-dasharray="none"/><circle cx="372" cy="724" r="4.4" fill="#b9b09a"/><circle cx="372" cy="746" r="4.4" fill="#b9b09a"/><circle cx="372" cy="768" r="4.4" fill="#b9b09a"/><circle cx="372" cy="790" r="4.4" fill="#b9b09a"/><circle cx="372" cy="812" r="4.4" fill="#b9b09a"/><rect x="127" y="864" width="30" height="122" rx="13" fill="#c0392b" fill-opacity="0.2" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3"/><circle cx="142" cy="876" r="4.4" fill="#b9b09a"/><circle cx="142" cy="898" r="4.4" fill="#b9b09a"/><circle cx="142" cy="920" r="4.4" fill="#b9b09a"/><circle cx="142" cy="942" r="4.4" fill="#b9b09a"/><circle cx="142" cy="964" r="4.4" fill="#b9b09a"/><path d="M133 889 L151 907 M151 889 L133 907" stroke="#c0392b" stroke-width="2.6" stroke-linecap="round"/><path d="M133 933 L151 951 M151 933 L133 951" stroke="#c0392b" stroke-width="2.6" stroke-linecap="round"/><text x="142" y="1002" font-size="10.5" font-weight="700" fill="#c0392b" text-anchor="middle">CLK</text><rect x="173" y="864" width="30" height="122" rx="13" fill="#c0392b" fill-opacity="0.2" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3"/><circle cx="188" cy="876" r="4.4" fill="#b9b09a"/><circle cx="188" cy="898" r="4.4" fill="#b9b09a"/><circle cx="188" cy="920" r="4.4" fill="#b9b09a"/><circle cx="188" cy="942" r="4.4" fill="#b9b09a"/><circle cx="188" cy="964" r="4.4" fill="#b9b09a"/><path d="M179 889 L197 907 M197 889 L179 907" stroke="#c0392b" stroke-width="2.6" stroke-linecap="round"/><path d="M179 933 L197 951 M197 933 L179 951" stroke="#c0392b" stroke-width="2.6" stroke-linecap="round"/><text x="188" y="1002" font-size="10.5" font-weight="700" fill="#c0392b" text-anchor="middle">D0</text><rect x="219" y="864" width="30" height="122" rx="13" fill="#c0392b" fill-opacity="0.2" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3"/><circle cx="234" cy="876" r="4.4" fill="#b9b09a"/><circle cx="234" cy="898" r="4.4" fill="#b9b09a"/><circle cx="234" cy="920" r="4.4" fill="#b9b09a"/><circle cx="234" cy="942" r="4.4" fill="#b9b09a"/><circle cx="234" cy="964" r="4.4" fill="#b9b09a"/><path d="M225 889 L243 907 M243 889 L225 907" stroke="#c0392b" stroke-width="2.6" stroke-linecap="round"/><path d="M225 933 L243 951 M243 933 L225 951" stroke="#c0392b" stroke-width="2.6" stroke-linecap="round"/><text x="234" y="1002" font-size="10.5" font-weight="700" fill="#c0392b" text-anchor="middle">D1</text><rect x="265" y="864" width="30" height="122" rx="13" fill="#9aa0a8" fill-opacity="0.11" stroke="#9aa0a8" stroke-width="2" stroke-dasharray="none"/><circle cx="280" cy="876" r="4.4" fill="#b9b09a"/><circle cx="280" cy="898" r="4.4" fill="#b9b09a"/><circle cx="280" cy="920" r="4.4" fill="#b9b09a"/><circle cx="280" cy="942" r="4.4" fill="#b9b09a"/><circle cx="280" cy="964" r="4.4" fill="#b9b09a"/><text x="280" y="1002" font-size="10.5" font-weight="700" fill="#9aa0a8" text-anchor="middle">15</text><rect x="311" y="864" width="30" height="122" rx="13" fill="#9aa0a8" fill-opacity="0.11" stroke="#9aa0a8" stroke-width="2" stroke-dasharray="none"/><circle cx="326" cy="876" r="4.4" fill="#b9b09a"/><circle cx="326" cy="898" r="4.4" fill="#b9b09a"/><circle cx="326" cy="920" r="4.4" fill="#b9b09a"/><circle cx="326" cy="942" r="4.4" fill="#b9b09a"/><circle cx="326" cy="964" r="4.4" fill="#b9b09a"/><text x="326" y="1002" font-size="10.5" font-weight="700" fill="#9aa0a8" text-anchor="middle">2</text><rect x="357" y="864" width="30" height="122" rx="13" fill="#9aa0a8" fill-opacity="0.11" stroke="#9aa0a8" stroke-width="2" stroke-dasharray="none"/><circle cx="372" cy="876" r="4.4" fill="#b9b09a"/><circle cx="372" cy="898" r="4.4" fill="#b9b09a"/><circle cx="372" cy="920" r="4.4" fill="#b9b09a"/><circle cx="372" cy="942" r="4.4" fill="#b9b09a"/><circle cx="372" cy="964" r="4.4" fill="#b9b09a"/><text x="372" y="1002" font-size="10.5" font-weight="700" fill="#9aa0a8" text-anchor="middle">0</text><rect x="94" y="842" width="340" height="14" rx="3" fill="#e9e3d3"/><text x="264" y="853" font-size="8" fill="#a09a88" text-anchor="middle">канавка — верх и низ НЕ соединены</text><text x="110" y="773" font-size="10" font-weight="700" fill="#999" text-anchor="middle">a…e</text><text x="110" y="925" font-size="10" font-weight="700" fill="#999" text-anchor="middle">f…j</text><text x="98" y="1032" font-size="9.5" fill="#2e7d4f"><tspan font-weight="700">5V</tspan> · → «+» рельс, кол.3 (диагональ)</text><text x="98" y="1047" font-size="9.5" fill="#2e7d4f"><tspan font-weight="700">13</tspan> · ← CHRG TP4056</text><text x="98" y="1062" font-size="9.5" fill="#2e7d4f"><tspan font-weight="700">GND</tspan> · → «−» рельс верх</text><text x="98" y="1083" font-size="9.5" font-weight="700" fill="#c0392b">⛔ шесть красных — ноги кристалла SPI-флеша</text><text x="98" y="1098" font-size="9" fill="#777">перемычка, обломок ножки или капля припоя в любой —</text><text x="98" y="1111" font-size="9" fill="#777">и плата не грузится вообще, без единого признака</text>
+  <rect x="500" y="620" width="660" height="214" rx="12" fill="#fdf4f1" stroke="#e0a08a" stroke-width="2"/><text x="518" y="646" font-size="15" font-weight="700" fill="#1a1a1a">Что именно искать в этих шести отверстиях</text><text x="518" y="670" font-size="11" font-weight="700" fill="#c0392b">⚠</text><text x="536" y="670" font-size="11.5" fill="#c0392b">обломок ножки резистора или диода — самый частый гость</text><text x="518" y="689" font-size="11" font-weight="700" fill="#c0392b">⚠</text><text x="536" y="689" font-size="11.5" fill="#c0392b">хвост перемычки, ушедший в соседнюю дырку мимо своей</text><text x="518" y="708" font-size="11" font-weight="700" fill="#c0392b">⚠</text><text x="536" y="708" font-size="11.5" fill="#c0392b">капля припоя или волосок медной жилы поперёк колонок</text><text x="518" y="727" font-size="11" font-weight="700" fill="#c0392b">⚠</text><text x="536" y="727" font-size="11.5" fill="#c0392b">перемычка, оставшаяся от раскладки под старую 30-pin плату</text><text x="518" y="746" font-size="11" font-weight="700" fill="#4d5158">·</text><text x="536" y="746" font-size="11.5" fill="#4d5158">Светить сбоку, вдоль платы: сверху дырка выглядит пустой</text><text x="518" y="765" font-size="11" font-weight="700" fill="#4d5158">·</text><text x="536" y="765" font-size="11.5" fill="#4d5158">Доставать пинцетом, не проводом — провод протолкнёт глубже</text><text x="518" y="784" font-size="11" font-weight="700" fill="#c0392b">⚠</text><text x="536" y="784" font-size="11.5" fill="#c0392b">Разношенная пружина тоже считается: у этой макетки такое было</text><text x="518" y="803" font-size="11" font-weight="700" fill="#8a8f97"></text><text x="536" y="803" font-size="11.5" fill="#8a8f97">     (июль, F1: деталь стояла, а контакта не было)</text>
+  <rect x="500" y="854" width="660" height="206" rx="12" fill="#f2f8f3" stroke="#9fb8a4" stroke-width="2"/><text x="518" y="880" font-size="15" font-weight="700" fill="#1a1a1a">Как понять, что получилось</text><text x="518" y="904" font-size="11" font-weight="700" fill="#2e7d4f">✓</text><text x="536" y="904" font-size="11.5" fill="#2e7d4f">Serial: load:0x40078000 → load:0x40080400 → entry 0x400805b4</text><text x="518" y="923" font-size="11" font-weight="700" fill="#c0392b">⚠</text><text x="536" y="923" font-size="11.5" fill="#c0392b">мусор вида load:0xd0012000 или len:2113507310 = зона занята</text><text x="518" y="942" font-size="11" font-weight="700" fill="#2e7d4f">✓</text><text x="536" y="942" font-size="11.5" fill="#2e7d4f">/api/data: uptime растёт, resetReason = poweron</text><text x="518" y="961" font-size="11" font-weight="700" fill="#c0392b">⚠</text><text x="536" y="961" font-size="11.5" fill="#c0392b">resetReason = panic или watchdog = флеш читается с ошибками</text><text x="518" y="980" font-size="11" font-weight="700" fill="#c0392b">⚠</text><text x="536" y="980" font-size="11.5" fill="#c0392b">resetReason = brownout = это питание, а не макетка</text><text x="518" y="999" font-size="11" font-weight="700" fill="#2e7d4f">✓</text><text x="536" y="999" font-size="11.5" fill="#2e7d4f">Serial: loopMax единицы мс, sseDrop не растёт</text><text x="518" y="1018" font-size="11" font-weight="700" fill="#4d5158">·</text><text x="536" y="1018" font-size="11.5" fill="#4d5158">Пять минут без паник — можно ставить модем</text>
+  <rect x="1200" y="620" width="660" height="476" rx="12" fill="#fbf7ec" stroke="#e0c98a" stroke-width="2"/><text x="1218" y="646" font-size="15" font-weight="700" fill="#1a1a1a">Модем теперь ВНЕШНИЙ модуль — в макетку не садится</text><text x="1218" y="665" font-size="10.5" fill="#8a6a20">питается от своего micro-USB · к макетке идут ровно три провода</text><rect x="1300" y="676" width="330" height="216" rx="9" fill="#17181c" stroke="#33343b" stroke-width="1.6"/><rect x="1304" y="680" width="322" height="208" rx="7" fill="none" stroke="#000" stroke-opacity="0.45"/><circle cx="1617" cy="689" r="4" fill="#0b0b0d" stroke="#c9a63a" stroke-width="1.4"/><circle cx="1617" cy="879" r="4" fill="#0b0b0d" stroke="#c9a63a" stroke-width="1.4"/><rect x="1309" y="729" width="16" height="124" rx="3" fill="#1c1d21" stroke="#000"/><text x="1308" y="723" font-size="7.5" font-weight="700" fill="#9aa0a8">CN101 · штыри СО СТОРОНЫ НАКЛЕЙКИ</text><rect x="1420" y="726" width="130" height="86" rx="4" fill="#26272c" stroke="#3f4149"/><rect x="1425" y="731" width="120" height="76" rx="3" fill="none" stroke="#3f4149"/><text x="1485" y="764" font-size="12" font-weight="700" fill="#d9dbe0" text-anchor="middle">A7670E</text><text x="1485" y="780" font-size="7.5" fill="#9aa0a8" text-anchor="middle">SIMCom · LTE Cat-1</text><circle cx="1590" cy="728" r="10" fill="#c2c7cf" stroke="#7d828a" stroke-width="1.4"/><circle cx="1590" cy="728" r="4" fill="#2a2b30"/><text x="1590" y="751" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">J1 · LTE</text><circle cx="1590" cy="768" r="10" fill="#c2c7cf" stroke="#7d828a" stroke-width="1.4"/><circle cx="1590" cy="768" r="4" fill="#2a2b30"/><text x="1590" y="791" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">J2 · GPS</text><rect x="1581" y="801" width="18" height="14" rx="2" fill="#3a3d43" stroke="#5a5d65" stroke-dasharray="2 2"/><text x="1590" y="831" font-size="7.5" font-weight="700" fill="#9aa0a8" text-anchor="middle">J3 · BT</text><rect x="1505" y="828" width="38" height="26" rx="2.5" fill="#0e0e11" stroke="#000"/><rect x="1509" y="823" width="30" height="6" rx="1.5" fill="#b8b8b8"/><text x="1524" y="845" font-size="8" font-weight="700" fill="#cfd2d8" text-anchor="middle">1084</text><circle cx="1552" cy="841" r="5.5" fill="#c9a63a" stroke="#8a6d1a"/><text x="1486" y="872" font-size="7.5" font-weight="700" fill="#e8a33a" text-anchor="middle">U2 · линейный 1084 (~0.8 Вт) → TP1 = 4.0 В</text><rect x="1420" y="824" width="70" height="30" rx="3" fill="#2a2b30" stroke="#4a4d55"/><text x="1455" y="843" font-size="8" fill="#9aa0a8" text-anchor="middle">SIM · nano</text><rect x="1448" y="881" width="34" height="16" rx="4" fill="#c2c7cf" stroke="#7d828a"/><text x="1465" y="910" font-size="7.5" fill="#666" text-anchor="middle">micro-USB · AT-консоль</text><text x="1312" y="700" font-size="13" font-weight="700" fill="#d9dbe0">BK-A7670 V1</text><text x="1312" y="714" font-size="8" fill="#9aa0a8">SIMCom A7670E-MASA · проверен 2026-09-10</text><text x="1618" y="700" font-size="7.5" font-weight="700" fill="#e8a33a" text-anchor="end">R104: PWRKEY на GND — стартует сам</text><circle cx="1317" cy="740" r="6" fill="#4a4d55" stroke="#6a6d75" stroke-width="1.5"/><circle cx="1317" cy="740" r="2.3" fill="#0b0b0d"/><text x="1328" y="743" font-size="8" font-weight="700" fill="#9aa0a8">1 · SLEEP</text><circle cx="1317" cy="757" r="6" fill="#1a1a1a" stroke="#c9a63a" stroke-width="1.5"/><circle cx="1317" cy="757" r="2.3" fill="#0b0b0d"/><text x="1328" y="760" font-size="8" font-weight="700" fill="#d9dbe0">2 · GND</text><circle cx="1317" cy="774" r="6" fill="#4a4d55" stroke="#6a6d75" stroke-width="1.5"/><circle cx="1317" cy="774" r="2.3" fill="#0b0b0d"/><text x="1328" y="777" font-size="8" font-weight="700" fill="#9aa0a8">3 · VCC</text><circle cx="1317" cy="791" r="6" fill="#4a4d55" stroke="#6a6d75" stroke-width="1.5"/><circle cx="1317" cy="791" r="2.3" fill="#0b0b0d"/><text x="1328" y="794" font-size="8" font-weight="700" fill="#9aa0a8">4 · PWRKEY</text><circle cx="1317" cy="808" r="6" fill="#3949ab" stroke="#c9a63a" stroke-width="1.5"/><circle cx="1317" cy="808" r="2.3" fill="#0b0b0d"/><text x="1328" y="811" font-size="8" font-weight="700" fill="#d9dbe0">5 · TXD</text><circle cx="1317" cy="825" r="6" fill="#e0218a" stroke="#c9a63a" stroke-width="1.5"/><circle cx="1317" cy="825" r="2.3" fill="#0b0b0d"/><text x="1328" y="828" font-size="8" font-weight="700" fill="#d9dbe0">6 · RXD</text><circle cx="1317" cy="842" r="6" fill="#4a4d55" stroke="#6a6d75" stroke-width="1.5"/><circle cx="1317" cy="842" r="2.3" fill="#0b0b0d"/><text x="1328" y="845" font-size="8" font-weight="700" fill="#9aa0a8">7 · GND</text>
+  <path d="M1164 224 L1170 224 L1170 757 L1317 757" fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="1317" cy="757" r="3.4" fill="#1a1a1a"/><path d="M1164 208 L1177 208 L1177 808 L1317 808" fill="none" stroke="#3949ab" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="1317" cy="808" r="3.4" fill="#3949ab"/><path d="M1164 192 L1184 192 L1184 825 L1317 825" fill="none" stroke="#e0218a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="1317" cy="825" r="3.4" fill="#e0218a"/>
+  <rect x="1218" y="936" width="14" height="4" rx="2" fill="#1a1a1a"/><text x="1238" y="941" font-size="11" font-weight="700" fill="#1a1a1a">«2 · GND» модема  ↔  «−» рельс верх, ПРАВАЯ половина (кол.44)</text><rect x="1218" y="956" width="14" height="4" rx="2" fill="#3949ab"/><text x="1238" y="961" font-size="11" font-weight="700" fill="#3949ab">«5 · T» (TXD модема)  →  GPIO25</text><rect x="1218" y="976" width="14" height="4" rx="2" fill="#e0218a"/><text x="1238" y="981" font-size="11" font-weight="700" fill="#e0218a">«6 · R» (RXD модема)  ←  GPIO27</text><text x="1218" y="998" font-size="9.5" fill="#8a8f97">буквы на плате и имена пинов намеренно НЕ совпадают: TX платы идёт в RXD модема</text><text x="1218" y="1012" font-size="9.5" fill="#8a8f97">левая половина верхнего «−» (до разреза 31↔32) — опора АЦП, токи модема через неё не гнать</text>
+  <text x="1218" y="1040" font-size="11" font-weight="700" fill="#c0392b">⛔ «Плюс» модема НЕ брать с пина «5V» платы</text><text x="1218" y="1057" font-size="10.5" fill="#7a2a22">в передаче он просит до 2 А импульсом — плата уйдёт в brownout</text><text x="1218" y="1080" font-size="11" font-weight="700" fill="#c0392b">⚠ Без провода общей земли UART молчит при полностью живом модеме</text>
+</svg>
+</div>
+    <p class="hint">На картинке только то, что нужно для возврата платы: запретная зона,
+      два провода питания, которые в ней стоять ДОЛЖНЫ, и три провода к модему, ставшему
+      внешним модулем. Остальные 50 с лишним проводов схемы — в
+      <b class="mono">wiring-v8.html</b>, они не менялись.</p>
+  </section>
+
+  <section>
+    <h2>Почему это была макетка, а не прошивка</h2>
+    <p class="sub">Цепочка улик — чтобы, если симптом вернётся, не начинать с нуля.</p>
+    <div class="card"><table class="m">
+      <tr><th>Улика</th><th>Что она означает</th></tr>
+      <tr><td class="pt">verify-flash проходит,<br>а прошивка читает нули</td>
+          <td>Байты на флеше <b>целы</b>. esptool читает их на своей медленной скорости
+              и получает совпадение; работающий чип читает те же адреса на 80&nbsp;МГц
+              (<b class="mono">clock div:1</b>) и получает мусор. Это целостность сигнала,
+              а не битый кристалл.</td></tr>
+      <tr><td class="pt">на 40&nbsp;МГц грузится,<br>на 80&nbsp;МГц нет</td>
+          <td>Ровно то же самое, сказанное вторым способом: вдвое медленнее — и такт
+              снова попадает.</td></tr>
+      <tr><td class="pt">паники в НЕсвязанных<br>подсистемах</td>
+          <td><b class="mono">trc_set_per_pkt_rate</b> в драйвере WiFi,
+              <b class="mono">MDNS.addService</b> в mDNS — и обе с крошечным
+              <b class="mono">EXCVADDR</b> (0x1, 0x3). Так выглядит исполнение битой
+              страницы кода, а не ошибка в коде.</td></tr>
+      <tr><td class="pt">erase-flash «за 0.0 с»</td>
+          <td>Стереть 4&nbsp;МБ за ноль секунд нельзя. Чип не выполнял команду.</td></tr>
+      <tr><td class="pt">вынули из макетки —<br>всё прошло</td>
+          <td>Единственное изменение — плата перестала касаться макетки.
+              Это и есть доказательство.</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <div class="stage"><span class="num">1</span><h2>Перезалить по USB — новая таблица
+      разделов; <b class="mono">40m</b> остаётся</h2></div>
+    <p class="sub">Флеш на <b class="mono">40m</b> — это <b>осознанный запас, а не откат
+      и не диагностический режим</b>. Повод, по которому частоту снизили, оказался ложным:
+      виноват был бракованный модуль, а не медь макетки (разбор — в блоке «что уже известно»).
+      Но возвращать 80&nbsp;МГц всё равно незачем: асимметрия последствий. У «40 оказалось
+      мало» симптомов не бывает вовсе, а у «80 оказалось мало» они выглядят как
+      <b class="mono">partition invalid magic</b> и паники в случайных местах — сутки отладки
+      на ровном месте. Полоса шины падает вдвое, и на этой станции это незаметно: вся нагрузка
+      упирается в радио и lwIP, а не во флеш.</p>
+    <div class="note warn"><i>⚠</i><span><b>Тогда зачем вообще USB.</b> 2026-09-11 схема
+      разделов сменена с <b class="mono">default</b> на <b class="mono">min_spiffs</b>:
+      <b class="mono">app0</b> вырос с 1&nbsp;310&nbsp;720 до 1&nbsp;966&nbsp;080 байт, потому
+      что PPP&nbsp;+&nbsp;TLS&nbsp;+&nbsp;MQTT из задачи 10 в остаток от 96&nbsp;% не влезали.
+      Таблица разделов лежит по <b class="mono">0x8000</b>, и <b>OTA её не переписывает</b> —
+      сменить можно только кабелем и ровно один раз.</span></div>
+    <div class="note warn" style="margin-top:10px"><i>⚠</i><span><b>И ровно поэтому в команде
+      обязан стоять <b class="mono">40m</b>.</b> Частота шины флеша лежит в заголовке образа
+      загрузчика по адресу <b class="mono">0x1000</b> — в том самом блоке, который эта заливка
+      пишет. OTA заголовок не трогает, так что настройка живёт вечно, но <b>любая запись
+      0x1000 молча ставит то, что написано в этой строке</b>. До 2026-09-11 здесь стояло
+      <b class="mono">80m</b>, и выполнение команды буквально откатывало плату назад.</span></div>
+    <p class="sub" style="margin-top:14px">Автосброс на этой плате не работает — мешает
+      электролит в цепи питания. Поэтому: <b>зажать BOOT и держать всё время</b>, EN даётся
+      импульсом из скрипта, и импульс с записью идут <b>одним вызовом</b> — каждый отдельный
+      запуск esptool закрывает порт, и плата выпадает из download mode.</p>
+    <pre class="cmd"><i># одним вызовом: импульс EN, сразу за ним запись. BOOT держать ВСЁ время.</i>
+$p = New-Object System.IO.Ports.SerialPort <b>COM12</b>,115200
+$p.Open(); $p.DtrEnable = $false
+$p.RtsEnable = $true; Start-Sleep -Milliseconds 120; $p.RtsEnable = $false
+Start-Sleep -Milliseconds 150; $p.Close()
+
+&amp; "$env:LOCALAPPDATA\Arduino15\packages\esp32\tools\esptool_py\5.3.0\esptool.exe" `
+  --chip esp32 --port <b>COM12</b> --baud 115200 --before no-reset --after hard-reset `
+  write-flash --flash-mode dio <u>--flash-freq 40m</u> --flash-size 4MB `
+  0x1000  build\esp32_wind_station.ino.bootloader.bin `
+  0x8000  build\esp32_wind_station.ino.partitions.bin `
+  0xe000  "$env:LOCALAPPDATA\Arduino15\packages\esp32\hardware\esp32\3.3.10\tools\partitions\boot_app0.bin" `
+  0x10000 build\esp32_wind_station.ino.bin</pre>
+    <div class="note info" style="margin-top:12px"><i>●</i><span>Порт <b class="mono">COM12</b>
+      — тот, что был у CP2102 в прошлый раз; проверить актуальный:
+      <b class="mono">Get-CimInstance Win32_PnPEntity | ? Name -match 'CP210'</b>.
+      Большой образ (1.26&nbsp;МБ) пишется <b>только со стабом</b> —
+      <b class="mono">--no-stub</b> на нём срывается. Успех выглядит как
+      <b class="mono">Hash of data verified</b> на каждом из четырёх адресов.</span></div>
+    <div class="note warn" style="margin-top:10px"><i>⚠</i><span>Записывать
+      <b class="mono">merged.bin</b> по <b class="mono">0x0</b> нельзя — он затирает
+      <b class="mono">nvs</b>. Только по-адресно, как в команде выше.</span></div>
+    <div class="note ok" style="margin-top:10px"><i>✓</i><span>Если после этого плата
+      <b>вне макетки</b> нормально грузится на 80&nbsp;МГц — модуль здоров на полной
+      скорости, и последнее сомнение в самой плате снято.</span></div>
+  </section>
+
+  <section>
+    <div class="stage"><span class="num">2</span><h2>Осмотреть шесть отверстий</h2></div>
+    <p class="sub">Плата ещё вынута — другого такого удобного момента не будет.</p>
+    <div class="note warn"><i>⛔</i><span><b>«Колонки 1–4 держать пустыми» — так говорить
+      нельзя.</b> В <b class="col">1a</b> стоит «5V» самой платы, и опустошить эту колонку
+      значит обесточить станцию. Запрещены <b>разные колонки в разных банках</b>, и вот
+      они поимённо.</span></div>
+    <div class="card" style="margin-top:14px"><table class="m">
+      <tr><th>Банк</th><th>Колонка</th><th>Что там</th><th>Почему нельзя</th></tr><tr><td class="n">верх</td><td class="pt">кол.2</td><td class="no">CMD</td><td>нога кристалла SPI-флеша</td></tr><tr><td class="n">верх</td><td class="pt">кол.3</td><td class="no">D3</td><td>нога кристалла SPI-флеша</td></tr><tr><td class="n">верх</td><td class="pt">кол.4</td><td class="no">D2</td><td>нога кристалла SPI-флеша</td></tr><tr><td class="n">низ</td><td class="pt">кол.1</td><td class="no">CLK</td><td>нога кристалла SPI-флеша — тактовая, самая чувствительная</td></tr><tr><td class="n">низ</td><td class="pt">кол.2</td><td class="no">D0</td><td>нога кристалла SPI-флеша</td></tr><tr><td class="n">низ</td><td class="pt">кол.3</td><td class="no">D1</td><td>нога кристалла SPI-флеша</td></tr>
+    </table></div>
+    <h3 style="margin:22px 0 0;font-size:15px">А это в той же зоне стоять ДОЛЖНО</h3>
+    <div class="card" style="margin-top:8px"><table class="m">
+      <tr><th>Банк</th><th>Колонка</th><th>Что там</th><th>Куда идёт</th></tr><tr><td class="n">верх</td><td class="pt">кол.1</td><td class="ok">5V</td><td>питание платы: перемычка на «+» верхний рельс, <b>по диагонали в кол.3</b> — рельс начинается только там</td></tr><tr><td class="n">верх</td><td class="pt">кол.5</td><td class="ok">GPIO13</td><td>CHRG TP4056 (открытый сток, INPUT_PULLUP)</td></tr><tr><td class="n">верх</td><td class="pt">кол.6</td><td class="ok">GND</td><td>земля платы: на «−» верхний рельс, ЛЕВАЯ половина</td></tr><tr><td class="n">низ</td><td class="pt">кол.4–6</td><td class="ok">15 · 2 · 0</td><td>свободны и разрешены — но занимать их сейчас нечем</td></tr>
+    </table></div>
+    <h3 style="margin:22px 0 0;font-size:15px">Что искать</h3>
+    <div class="two" style="margin-top:10px">
+      <div class="card">
+        <p style="margin:0;font-size:14px;line-height:1.55;color:var(--ink-2)">
+          Обломок ножки резистора или диода. Хвост перемычки, ушедший в соседнюю дырку
+          мимо своей. Капля припоя или волосок медной жилы поперёк колонок. Перемычка,
+          оставшаяся от раскладки под старую 30-pin плату — на ней этих контактов
+          не было вовсе, и место считалось свободным.</p>
+      </div>
+      <div class="card">
+        <p style="margin:0;font-size:14px;line-height:1.55;color:var(--ink-2)">
+          <b>Светить сбоку и вдоль платы</b>: сверху занятая дырка выглядит пустой.
+          <b>Доставать пинцетом, не проводом</b> — провод протолкнёт мусор глубже.
+          Разношенная пружина считается тоже: у этой макетки такое уже было причиной
+          отказа (июль, F1 — деталь стояла, контакта не было).</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="stage"><span class="num">3</span><h2>Вставить плату</h2></div>
+    <ol class="steps">
+      <li><span><b>USB-разъёмом влево</b>, как на картинке. «5V» — первый контакт от
+        разъёма, он идёт в <b class="col">кол.1, ряд a</b>.</span></li>
+      <li><span>Давить <b>равномерно за оба края</b>, не за середину модуля: у ESP-32U
+        сверху экран, а не текстолит.</span></li>
+      <li><span>Проверить, что плата села <b>от самой первой колонки</b>, а не со сдвигом
+        на одну. Сдвиг на колонку — это ровно тот случай, когда «5V» уезжает на CMD.</span></li>
+      <li><span>Перемычка «5V» идёт <b>по диагонали</b> в <b class="col">кол.3</b> рельса
+        «+»: рельсы этой макетки короче банка на две колонки с каждой стороны, и отверстия
+        прямо над «5V» просто нет.</span></li>
+      <li><span>Антенна на <b class="mono">u.FL</b> — на месте. У ESP-32U печатной антенны
+        нет, без пигтейла плата почти не передаёт.</span></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="stage"><span class="num">4</span><h2>Включить БЕЗ модема и посмотреть
+      пять минут</h2></div>
+    <p class="sub">Модем на этом шаге не подключать вообще. Один шаг — одно изменение,
+      иначе виноватого снова придётся искать вычитанием.</p>
+    <div class="card"><table class="m">
+      <tr><th></th><th>Строка</th><th>Что означает</th><th>Подробность</th></tr><tr><td class="ok">✓</td><td class="pt">load:0x40078000,len:16560</td><td>второй загрузчик прочитан целиком</td><td>дальше пойдёт load:0x40080400 и entry 0x400805b4</td></tr><tr><td class="no">⚠</td><td class="pt">load:0xd0012000,len:4140</td><td>с флеша читается мусор</td><td>адрес не из карты памяти вообще; следом обычно len со значением в два миллиарда и rst:0x7 (TG0WDT_SYS_RESET)</td></tr><tr><td class="no">⚠</td><td class="pt">flash_parts: partition 0 invalid magic number 0x0</td><td>таблица разделов прочиталась нулями</td><td>0x8000 при этом на флеше цел — проверяется чтением обратно</td></tr><tr><td class="no">⚠</td><td class="pt">Failed to set QIE bit</td><td>чип флеша не отвечает на команду статуса</td><td>в паре с предыдущим — это уже не «прошивка кривая»</td></tr><tr><td class="no">⚠</td><td class="pt">Guru Meditation в trc_set_per_pkt_rate / MDNS.addService</td><td>паника в НЕсвязанных подсистемах</td><td>с крошечным EXCVADDR (0x1, 0x3) — признак битых страниц кода, а не бага в коде</td></tr><tr><td class="ok">✓</td><td class="pt">resetReason: poweron, uptime растёт</td><td>обычное включение</td><td>плитка «Аптайм» в дашборде ничего не дописывает к заголовку</td></tr><tr><td class="no">⚠</td><td class="pt">resetReason: brownout</td><td>просадка питания</td><td>это НЕ макетка: смотреть банку, буст и провод 37f → 50b</td></tr>
+    </table></div>
+    <div class="note info" style="margin-top:12px"><i>●</i><span>Serial на
+      <b class="mono">115200</b>; в рабочей строке телеметрии смотреть
+      <b class="mono">loopMax</b> (единицы мс — норма, десятки означают, что что-то блокирует)
+      и <b class="mono">sseDrop</b>. По сети то же самое видно в
+      <b class="mono">/api/data</b> без кабеля.</span></div>
+    <div class="note ok" style="margin-top:10px"><i>✓</i><span><b>Пять минут без паник —
+      шаг пройден.</b> Тогда причина действительно была в запретной зоне, и её больше
+      нет.</span></div>
+  </section>
+
+  <section>
+    <div class="stage"><span class="num">5</span><h2>Только теперь — модем</h2></div>
+    <p class="sub">Он стал внешним модулем: питается от своего micro-USB и в макетку
+      не садится. Это меняет две вещи, которых не было, пока он сидел штырями в ряду a.</p>
+    <div class="note warn"><i>⛔</i><span><b>«Плюс» модема не брать с пина «5V» платы.</b>
+      Там питание самой ESP32, а модем в передаче просит до 2&nbsp;А импульсом —
+      плата уйдёт в brownout, и это будет выглядеть как «опять не грузится».</span></div>
+    <div class="note warn" style="margin-top:10px"><i>⚠</i><span><b>Провод общей земли —
+      обязательная деталь, а не «на всякий случай».</b> Два источника без общего минуса
+      не имеют общего нуля, и UART молчит при совершенно живом модеме: в этой сессии
+      <b class="mono">/api/at</b> честно показывал <b class="mono">total=0</b> на любой паре
+      пинов, пока D5 модема весело мигал. <b>Ставить землю первой, снимать последней.</b></span></div>
+    <div class="card" style="margin-top:14px"><table class="m">
+      <tr><th>Провод</th><th>Со стороны модема</th><th>Со стороны макетки</th><th>Замечание</th></tr>
+      <tr><td class="ok">земля</td><td class="pt">«2 · G» CN101</td>
+          <td class="pt">«−» верхний рельс, ПРАВАЯ половина (кол.44)</td>
+          <td>Правая — намеренно: левая половина (до разреза 31↔32) держит опору АЦП,
+              и токи модема через неё гнать нельзя. Там же берёт землю
+              <b class="mono">gnd_bond</b> в схеме v8.</td></tr>
+      <tr><td class="ok">данные</td><td class="pt">«5 · T» (TXD модема)</td>
+          <td class="pt">GPIO25</td>
+          <td>Это <b>вход</b> платы. В прошивке — <b class="mono">Serial2.begin(115200,
+              SERIAL_8N1, 25, 27)</b>, порядок аргументов <b class="mono">(rx, tx)</b>.</td></tr>
+      <tr><td class="ok">данные</td><td class="pt">«6 · R» (RXD модема)</td>
+          <td class="pt">GPIO27</td>
+          <td>Буквы на плате и имена пинов намеренно НЕ совпадают: TX платы идёт
+              в RXD модема.</td></tr>
+    </table></div>
+    <div class="note warn" style="margin-top:12px"><i>⚠</i><span><b>GPIO26 не занимать
+      ничем.</b> Он лежит ровно между двумя проводами UART. Это уже третий расклад для
+      одной и той же пары: v6 рисовалась под 27/26, на 30-pin косичка легла на 26/25,
+      на 38-pin — на 27/25. Каждый раз выигрывала медь, а не рисунок; воткнутое в 26
+      разведёт пару снова.</span></div>
+    <div class="note info" style="margin-top:10px"><i>●</i><span>Проверка связи —
+      <b class="mono">/api/at?cmd=AT%2BCSQ</b> (<b class="mono">+</b> обязан быть
+      <b class="mono">%2B</b>). В трейлере смотреть <b class="mono">total</b>: ноль при
+      живом модеме — это провода или скорость, а не прошивка. Прибавка ровно
+      <b>+1</b> после <b class="mono">?pins=</b> не считается — это ложный фронт при
+      переоткрытии UART, а не принятый байт.</span></div>
+  </section>
+
+  <section>
+    <h2>Проверить, что на чипе действительно 40&nbsp;МГц</h2>
+    <p class="sub">Единственный способ узнать это наверняка — прочитать заголовок с самого
+      чипа. Догадаться по поведению нельзя: на 80&nbsp;МГц исправная плата тоже грузится.</p>
+    <pre class="cmd"><i># что РЕАЛЬНО лежит на чипе: байт 3 заголовка, младший полубайт</i>
+<i># 0 = 40 МГц, f = 80 МГц. Порт открыт без сброса — плата остаётся как есть.</i>
+python -m esptool --chip esp32 --port <b>COM12</b> `
+  --before no-reset read-flash <b>0x1000 4</b> header.bin
+Format-Hex header.bin</pre>
+    <div class="note info" style="margin-top:12px"><i>●</i><span>В выводе смотреть
+      <b>четвёртый байт</b>. Младший полубайт <b class="mono">0</b> — 40&nbsp;МГц,
+      <b class="mono">f</b> — 80&nbsp;МГц. Если там <b class="mono">f</b>, значит какая-то
+      заливка прошла со старой строкой <b class="mono">80m</b> — перезалить командой
+      из шага&nbsp;1.</span></div>
+    <div class="note warn" style="margin-top:10px"><i>⚠</i><span><b>Если плата не грузится
+      вовсе</b> — вопрос не в частоте. Сначала сравнить её с заведомо исправным модулем
+      <b>в тех же отверстиях</b>: именно этот шаг 2026-09-10 закрыл версию «медь макетки»
+      и указал на бракованный модуль. Дальше — питание
+      (<b class="mono">resetReason: brownout</b>), вставка платы со сдвигом на колонку,
+      контакт в кол.1.</span></div>
+  </section>
+
+  <section>
+    <h2>Что осталось не сделанным</h2>
+    <p class="sub">Честный список — чтобы не считать это законченным.</p>
+    <div class="card"><table class="m">
+      <tr><th>Что</th><th>Состояние</th></tr>
+      <tr><td>Провод <b class="col">37f → 50b</b> (адаптер → IN+ TP4056)</td>
+          <td>не припаян; поэтому <b class="mono">powerSource</b> показывает
+              <b class="mono">battery</b> при живом адаптере, и банка не заряжается</td></tr>
+      <tr><td>Банка 18650</td><td>высажена в ноль в августе; под нагрузкой такая читается
+          как «напряжение есть», а плата всё равно падает</td></tr>
+      <tr><td>F1 (PPTC)</td><td>вместо него с июля стоит перемычка — цепь сейчас
+          <b>без защиты по току</b></td></tr>
+      <tr><td>Питание модема</td><td>решено, что от своего micro-USB; постоянного
+          источника для мачты пока нет — это задача
+          <b class="mono">tasks/10</b> и <b class="mono">tasks/11</b></td></tr>
+    </table></div>
+  </section>
+</div>
+</body>
+</html>

@@ -47,14 +47,23 @@ def colx(n):  return 88 + (n-1)*17
 ROWY = {"a":298,"b":316,"c":334,"d":352,"e":370,"f":406,"g":424,"h":442,"i":460,"j":478}
 
 # ============================================================= BREADBOARD
-def breadboard(bottom="+-", ncols=58):
+def breadboard(bottom="+-", ncols=58, rail_inset=0):
     """bottom='+-' → нижняя пара +@498/−@526 (step04/05); '-+' → −@490/+@524 (эталон).
     ncols — число колонок платы. default 58 = байт-в-байт как раньше (right=1078).
-    Реальная MB-102 = 63 колонки; v4 передаёт ncols=63."""
+    Реальная MB-102 = 63 колонки; v4 передаёт ncols=63.
+
+    rail_inset — на сколько колонок рельсы КОРОЧЕ банка с каждой стороны. У макетки
+    пользователя это 2: полосы «+»/«−» начинаются только над третьей колонкой и так же
+    обрываются за две до конца. Практическое следствие ровно одно, зато неприятное —
+    у крайних колонок отверстия рельса прямо над ними НЕТ, и перемычка туда идёт
+    по диагонали. Умолчание 0 оставлено ради байт-в-байт совместимости гайдов v2–v7."""
     right = colx(ncols) + 21              # правый край платы (58 → 1078, как было)
     bw = right - 74                        # ширина корпуса платы
     rw = right - 86                        # ширина цветных полос рельсов (x78 → right-8)
     hw = right - 92                        # ширина зон отверстий (x80 → right-12)
+    ri = rail_inset * 17                   # сдвиг рельсов внутрь, в пикселях
+    rx, rw = 78 + ri, rw - 2*ri            # цветные полосы «+»/«−»
+    hx, hw = 80 + ri, hw - 2*ri            # зоны отверстий рельсов
     if bottom == "+-":
         b_top_y, b_top_c, b_bot_y, b_bot_c = 498, PLUS, 526, RAIL_BLUE
         r3c, r4c = WARM, COOL
@@ -67,20 +76,20 @@ def breadboard(bottom="+-", ncols=58):
                        for c in range(20, ncols + 1, 5))
     s = f'''<!-- BREADBOARD (стандарт) -->
   <rect x="74" y="232" width="{bw}" height="298" rx="12" fill="{BOARD_FILL}" stroke="{BOARD_STK}" stroke-width="2"/>
-  <rect x="78" y="242" width="{rw}" height="2" fill="{PLUS}"/>
-  <rect x="78" y="270" width="{rw}" height="2" fill="{RAIL_BLUE}"/>
-  <rect x="78" y="{b_top_y}" width="{rw}" height="2" fill="{b_top_c}"/>
-  <rect x="78" y="{b_bot_y}" width="{rw}" height="2" fill="{b_bot_c}"/>
+  <rect x="{rx}" y="242" width="{rw}" height="2" fill="{PLUS}"/>
+  <rect x="{rx}" y="270" width="{rw}" height="2" fill="{RAIL_BLUE}"/>
+  <rect x="{rx}" y="{b_top_y}" width="{rw}" height="2" fill="{b_top_c}"/>
+  <rect x="{rx}" y="{b_bot_y}" width="{rw}" height="2" fill="{b_bot_c}"/>
   <text x="60" y="254" font-size="13" fill="{PLUS}" font-weight="700">+</text>
   <text x="60" y="266" font-size="13" fill="{RAIL_BLUE}" font-weight="700">−</text>
   <text x="60" y="{b_top_y+12}" font-size="13" fill="{lbl_top[1]}" font-weight="700">{lbl_top[0]}</text>
   <text x="60" y="{b_bot_y-2}" font-size="13" fill="{lbl_bot[1]}" font-weight="700">{lbl_bot[0]}</text>
-  <rect x="80" y="246" width="{hw}" height="8" fill="url(#r1)"/>
-  <rect x="80" y="258" width="{hw}" height="8" fill="url(#r2)"/>
-  <rect x="80" y="290" width="{hw}" height="88" fill="url(#hA)"/>
-  <rect x="80" y="398" width="{hw}" height="88" fill="url(#hB)"/>
-  <rect x="80" y="502" width="{hw}" height="8" fill="url(#r3)"/>
-  <rect x="80" y="514" width="{hw}" height="8" fill="url(#r4)"/>
+  <rect x="{hx}" y="246" width="{hw}" height="8" fill="url(#r1)"/>
+  <rect x="{hx}" y="258" width="{hw}" height="8" fill="url(#r2)"/>
+  <rect x="80" y="290" width="{right - 92}" height="88" fill="url(#hA)"/>
+  <rect x="80" y="398" width="{right - 92}" height="88" fill="url(#hB)"/>
+  <rect x="{hx}" y="502" width="{hw}" height="8" fill="url(#r3)"/>
+  <rect x="{hx}" y="514" width="{hw}" height="8" fill="url(#r4)"/>
   <rect x="74" y="380" width="{bw}" height="16" fill="{TRENCH}"/>
   <g font-size="11" fill="#999">
     <text x="66" y="302">a</text><text x="66" y="320">b</text><text x="66" y="338">c</text><text x="66" y="356">d</text><text x="66" y="374">e</text>
@@ -147,6 +156,231 @@ def esp32(subtitle="задачи 01–03 ✓ · питание по USB", highli
   <g stroke="#444">{''.join(bot_pads)}</g>
   <g font-size="7.5" fill="#555" text-anchor="middle">{''.join(bot_lbls)}</g>
   {rings}{callout}'''
+
+# ============================================================= ESP32 (38-pin, DevKitC / ESP-32U)
+# Плата с 2026-09-06: 19+19 контактов, мост CP2102, USB-C, модуль ESP-32U — БЕЗ печатной
+# антенны, с разъёмом u.FL. Порядок пинов заводской, отсчёт колонок от торца USB — как
+# и у 30-pin. Отличий от 30-pin три, и все три ломают старую разводку:
+#   1. плата длиннее на 4 колонки (19 вместо 15) — всё правее неё едет;
+#   2. выведены шесть контактов SPI-флеша (CLK/D0/D1 снизу, CMD/D3/D2 сверху) —
+#      перемычка в любой из них = плата не грузится, поэтому они красные;
+#   3. 3V3 переехал на ДРУГУЮ сторону: был первым в нижнем ряду, стал последним в верхнем.
+PAD_FLASH  = "#c0392b"   # контакт SPI-флеша: не трогать
+PAD_ANT    = "#c9a63a"
+
+ESP_TOP38 = [("5V",PLUS),("CMD",PAD_FLASH),("D3",PAD_FLASH),("D2",PAD_FLASH),
+             ("13",PAD_UNUSED),("GND",PAD_GND),("12",PAD_UNUSED),("14",PAD_UNUSED),
+             ("27",PAD_UNUSED),("26",PAD_UNUSED),("25",PAD_UNUSED),("33",PAD_UNUSED),
+             ("32",PAD_ADC),("35",PAD_ADC),("34",PAD_ADC),("VN",PAD_UNUSED),
+             ("VP",PAD_UNUSED),("EN",PAD_UNUSED),("3V3",PAD_UNUSED)]
+ESP_BOT38 = [("CLK",PAD_FLASH),("D0",PAD_FLASH),("D1",PAD_FLASH),("15",PAD_UNUSED),
+             ("2",PAD_UNUSED),("0",PAD_UNUSED),("4",PAD_UNUSED),("16",PAD_UNUSED),
+             ("17",PAD_UNUSED),("5",PAD_UNUSED),("18",PAD_UNUSED),("19",PAD_UNUSED),
+             ("GND",PAD_GND),("21",PAD_UNUSED),("RX",PAD_UNUSED),("TX",PAD_UNUSED),
+             ("22",PAD_UNUSED),("23",PAD_UNUSED),("GND.",PAD_GND)]
+
+# Имена -> x центра пина. Второй GND нижнего ряда назван «GND.» только чтобы не затирать
+# первый в словаре; на картинке у обоих подпись GND.
+PIN_TOP38 = {name: 88+17*k for k,(name,_) in enumerate(ESP_TOP38)}
+PIN_BOT38 = {name: 88+17*k for k,(name,_) in enumerate(ESP_BOT38)}
+
+ESP38_COLS = len(ESP_TOP38)                       # 19 колонок макетки
+
+
+def esp32_38(subtitle="38-pin · ESP-32U · антенна ВНЕШНЯЯ", highlight=None,
+             adc_callout=None, usb_label="USB-C", title="ESP32 DevKitC · 38 pin",
+             antenna=True):
+    # 38-контактная плата. Занимает колонки 1..19 ОБОИХ банков.
+    # highlight: имена ВЕРХНИХ пинов - обвести кольцом активные.
+    highlight = highlight or []
+    body_w = 17*(ESP38_COLS-1) + 12 + 22          # 82..(последний пад+12), плюс поля
+    top_pads, top_lbls = [], []
+    for k, (name, col) in enumerate(ESP_TOP38):
+        x = 82+17*k
+        top_pads.append('<rect x="%d" y="311" width="12" height="10" rx="2" fill="%s"/>' % (x, col))
+        top_lbls.append('<text x="%d" y="308">%s</text>' % (x+6, name))
+    bot_pads, bot_lbls = [], []
+    for k, (name, col) in enumerate(ESP_BOT38):
+        x = 82+17*k
+        bot_pads.append('<rect x="%d" y="471" width="12" height="10" rx="2" fill="%s"/>' % (x, col))
+        # Подпись НАД падом, на самой плате: полосу под нижним рядом (y 483..495)
+        # занимают пять проводов GPIO -> резисторы LED, и подписи в ней были не видны.
+        bot_lbls.append('<text x="%d" y="466">%s</text>' % (x+6, name.rstrip(".")))
+    rings = ""
+    for name in highlight:
+        cx = PIN_TOP38[name]
+        rings += ('<rect x="%d" y="309" width="16" height="14" rx="3" fill="none" '
+                  'stroke="%s" stroke-width="2.4"/>' % (cx-8, SIG))
+    callout = ""
+    if adc_callout:
+        x0, x1 = PIN_TOP38["32"], PIN_TOP38["34"]
+        callout = ('<rect x="%d" y="323" width="%d" height="1.6" fill="%s"/>'
+                   '<text x="%d" y="510" font-size="9.5" fill="#3a7bbf" text-anchor="middle">%s</text>'
+                   % (x0-8, x1-x0+16, PAD_ADC, (x0+x1)//2, adc_callout))
+    # u.FL с косичкой на дальнем от USB торце: у -32U печатной антенны нет вовсе
+    ant = ""
+    if antenna:
+        ax = 80 + body_w - 26
+        ant = ('<circle cx="%d" cy="396" r="7" fill="#2b2c31" stroke="%s" stroke-width="1.6"/>'
+               '<circle cx="%d" cy="396" r="2.6" fill="%s"/>'
+               '<path d="M%d 396 C %d 396, %d 430, %d 430" fill="none" stroke="#6b6f78" '
+               'stroke-width="3" stroke-linecap="round"/>'
+               '<text x="%d" y="425" font-size="9" font-weight="700" fill="%s">u.FL &#8594; антенна 2.4 ГГц</text>'
+               '<text x="%d" y="437" font-size="8" fill="#c0392b">без неё плата почти не передаёт</text>'
+               % (ax, PAD_ANT, ax, PAD_ANT, ax, ax+34, ax+30, ax+56, ax+60, COPPER, ax+60))
+    return ('<!-- ESP32 DevKitC 38-pin (ESP-32U, CP2102, USB-C) -->\n'
+            '  <rect x="54" y="388" width="26" height="18" rx="3" fill="#b8b8b8" stroke="#888"/>\n'
+            '  <text x="34" y="382" font-size="10" fill="#666">%s</text>\n'
+            '  <rect x="80" y="316" width="%d" height="160" rx="8" fill="%s" stroke="#000"/>\n'
+            '  <text x="150" y="356" font-size="15" fill="#f2f2f2" font-weight="700">%s</text>\n'
+            '  <text x="150" y="374" font-size="11" fill="#9fd">%s</text>\n'
+            '  <text x="150" y="452" font-size="10" fill="#9aa">CP2102 · USB-C · модуль ESP-32U (WROOM-32U)</text>\n'
+            '  <g stroke="#444">%s</g>\n'
+            '  <g font-size="7.5" fill="#333" text-anchor="middle">%s</g>\n'
+            '  <g stroke="#444">%s</g>\n'
+            '  <g font-size="7.5" fill="#b9bcc4" text-anchor="middle">%s</g>\n'
+            '  %s%s%s'
+            % (usb_label, body_w, ESP_BODY, title, subtitle,
+               "".join(top_pads), "".join(top_lbls),
+               "".join(bot_pads), "".join(bot_lbls), ant, rings, callout))
+
+
+def flash_warn(cols_top=(2, 4), cols_bot=(1, 3), label="SPI-флеш"):
+    # Обводит пады SPI-флеша 38-pin платы: единственное на ней, чего нельзя касаться
+    # вообще - перемычка в любой из шести контактов, и плата не грузится.
+    # Пады верхнего ряда лежат на y=311..321, нижнего - на y=471..481 (см. esp32_38).
+    def frame(cl, cr, y0, h):
+        x0, x1 = colx(cl)-9, colx(cr)+9
+        return ('<rect x="%d" y="%d" width="%d" height="%d" rx="3" fill="%s" fill-opacity="0.16" '
+                'stroke="%s" stroke-width="1.6" stroke-dasharray="4 3"/>'
+                % (x0, y0, x1-x0, h, PAD_FLASH, PAD_FLASH))
+
+    def cap(cl, cr, y):
+        return ('<text x="%d" y="%d" font-size="8" font-weight="700" fill="%s" '
+                'text-anchor="middle">%s</text>'
+                % ((colx(cl)+colx(cr))//2, y, PAD_FLASH, label))
+    # Рамка обнимает ровно пады (311..321 и 471..481) и не залезает на их подписи:
+    # верхние подписи стоят на y=308, и рамка выше 309 перечёркивала бы буквы.
+    return (frame(cols_top[0], cols_top[1], 309, 14) + cap(cols_top[0], cols_top[1], 291)
+            + frame(cols_bot[0], cols_bot[1], 469, 14) + cap(cols_bot[0], cols_bot[1], 495))
+
+
+
+# Статус отверстия в крупном виде: запрет / занято делом / свободно.
+ZOOM_NO   = PAD_FLASH     # нога SPI-флеша — сюда нельзя вообще ничего
+ZOOM_OK   = "#2e7d4f"     # занято проводом схемы v8 — так и должно быть
+ZOOM_FREE = "#9aa0a8"     # свободно и разрешено
+
+# Первые шесть колонок 38-pin платы: имя пина + статус + чем занято.
+ZOOM_TOP = [("5V", "ok", "→ «+» рельс, кол.3 (диагональ)"),
+            ("CMD", "no", ""), ("D3", "no", ""), ("D2", "no", ""),
+            ("13", "ok", "← CHRG TP4056"), ("GND", "ok", "→ «−» рельс верх")]
+ZOOM_BOT = [("CLK", "no", ""), ("D0", "no", ""), ("D1", "no", ""),
+            ("15", "free", ""), ("2", "free", ""), ("0", "free", "")]
+
+
+def flash_zoom(x, y, cell=46, hole=22,
+               title="Первые шесть колонок — крупно",
+               sub="капсула = пять отверстий одной колонки = ОДНА точка"):
+    """Увеличенный фрагмент макетки: колонки 1–6 обоих банков под 38-pin платой.
+
+    Нужен потому, что ходовая формулировка «колонки 1–4 держать пустыми» буквально
+    неверна и этим опасна: в 1a стоит «5V» платы, а запрещены РАЗНЫЕ колонки в разных
+    банках — сверху 2·3·4 (CMD·D3·D2), снизу 1·2·3 (CLK·D0·D1). В масштабе общей схемы
+    это неразличимо, а цена ошибки — плата не грузится вовсе и молча.
+
+    Ряды по одному не рисуются намеренно: пять отверстий колонки внутри банка — это одна
+    точка, и капсула говорит это честнее, чем пять кружков в столбик."""
+    col = {"no": ZOOM_NO, "ok": ZOOM_OK, "free": ZOOM_FREE}
+    w = 6 * cell + 92
+    h = 505
+    out = [f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="12" fill="{BOARD_FILL}" '
+           f'stroke="{BOARD_STK}" stroke-width="2"/>',
+           f'<text x="{x+18}" y="{y+26}" font-size="14" font-weight="700" fill="#1a1a1a">{title}</text>',
+           f'<text x="{x+18}" y="{y+43}" font-size="9.5" fill="#777">{sub}</text>']
+
+    def cx(c): return x + 62 + (c - 1) * cell
+
+    cap_h = 5 * hole + 12
+    y_top = y + 92
+    y_bot = y_top + cap_h + 30
+
+    out.append(f'<text x="{x+30}" y="{y_top-30}" font-size="9" fill="#999" text-anchor="middle">кол.</text>')
+    for c in range(1, 7):
+        out.append(f'<text x="{cx(c)}" y="{y_top-30}" font-size="11" font-weight="700" '
+                   f'fill="#666" text-anchor="middle">{c}</text>')
+
+    def capsule(c, y0, kind):
+        k = col[kind]
+        body = (f'<rect x="{cx(c)-15}" y="{y0}" width="30" height="{cap_h}" rx="13" '
+                f'fill="{k}" fill-opacity="{0.20 if kind == "no" else 0.11}" stroke="{k}" '
+                f'stroke-width="2" stroke-dasharray="{"4 3" if kind == "no" else "none"}"/>')
+        holes = "".join(f'<circle cx="{cx(c)}" cy="{y0+12+i*hole}" r="4.4" fill="{HOLE}"/>'
+                        for i in range(5))
+        mark = ""
+        if kind == "no":
+            for i in (1, 3):
+                yy = y0 + 12 + i * hole
+                mark += (f'<path d="M{cx(c)-9} {yy-9} L{cx(c)+9} {yy+9} M{cx(c)+9} {yy-9} '
+                         f'L{cx(c)-9} {yy+9}" stroke="{k}" stroke-width="2.6" '
+                         f'stroke-linecap="round"/>')
+        return body + holes + mark
+
+    for c, (name, kind, note) in enumerate(ZOOM_TOP, 1):
+        out.append(f'<text x="{cx(c)}" y="{y_top-10}" font-size="10.5" font-weight="700" '
+                   f'fill="{col[kind]}" text-anchor="middle">{name}</text>')
+        out.append(capsule(c, y_top, kind))
+    for c, (name, kind, note) in enumerate(ZOOM_BOT, 1):
+        out.append(capsule(c, y_bot, kind))
+        out.append(f'<text x="{cx(c)}" y="{y_bot+cap_h+16}" font-size="10.5" font-weight="700" '
+                   f'fill="{col[kind]}" text-anchor="middle">{name}</text>')
+
+    # канавка между банками — та самая, что делает верх и низ разными точками
+    out.append(f'<rect x="{x+14}" y="{y_top+cap_h+8}" width="{w-28}" height="14" rx="3" fill="{TRENCH}"/>')
+    out.append(f'<text x="{x+w//2}" y="{y_top+cap_h+19}" font-size="8" fill="#a09a88" '
+               f'text-anchor="middle">канавка — верх и низ НЕ соединены</text>')
+    out.append(f'<text x="{x+30}" y="{y_top+cap_h//2}" font-size="10" font-weight="700" '
+               f'fill="#999" text-anchor="middle">a…e</text>')
+    out.append(f'<text x="{x+30}" y="{y_bot+cap_h//2}" font-size="10" font-weight="700" '
+               f'fill="#999" text-anchor="middle">f…j</text>')
+
+    # подписи-пояснения к занятым колонкам
+    ly = y_bot + cap_h + 46
+    for name, kind, note in ZOOM_TOP:
+        if note:
+            out.append(f'<text x="{x+18}" y="{ly}" font-size="9.5" fill="{ZOOM_OK}">'
+                       f'<tspan font-weight="700">{name}</tspan> · {note}</text>')
+            ly += 15
+    out.append(f'<text x="{x+18}" y="{ly+6}" font-size="9.5" font-weight="700" fill="{ZOOM_NO}">'
+               f'⛔ шесть красных — ноги кристалла SPI-флеша</text>')
+    out.append(f'<text x="{x+18}" y="{ly+21}" font-size="9" fill="#777">'
+               f'перемычка, обломок ножки или капля припоя в любой —</text>')
+    out.append(f'<text x="{x+18}" y="{ly+34}" font-size="9" fill="#777">'
+               f'и плата не грузится вообще, без единого признака</text>')
+    return "".join(out)
+
+
+def cap_rail(col_p, col_m, y_p, y_m, label="C 100нФ"):
+    # Керамика, воткнутая ПРЯМО В РЕЛЬСЫ, а не в банк: «+» в колонку col_p рельса y_p,
+    # «−» в col_m рельса y_m. Занимает ноль колонок банка - после переезда на 38-pin
+    # плату свободных колонок в верхнем банке больше нет.
+    x1, x2 = colx(col_p), colx(col_m)
+    cx = (x1+x2)/2.0
+    cy = (y_p+y_m)/2.0 - 18
+    return ('<line x1="%d" y1="%d" x2="%.0f" y2="%.0f" stroke="%s" stroke-width="2.2"/>'
+            '<line x1="%d" y1="%d" x2="%.0f" y2="%.0f" stroke="%s" stroke-width="2.2"/>'
+            '<path d="M%.0f %.0f Q %.0f %.0f %.0f %.0f Z" fill="#e8b84b" stroke="#a8862c"/>'
+            '<text x="%.0f" y="%.0f" font-size="7" fill="#4a3a10" text-anchor="middle">104</text>'
+            '<circle cx="%d" cy="%d" r="3.2" fill="#333"/><circle cx="%d" cy="%d" r="3.2" fill="#333"/>'
+            '<text x="%.0f" y="%.0f" font-size="9" font-weight="700" fill="%s" '
+            'text-anchor="middle">%s</text>'
+            % (x1, y_p, cx-6, cy+5, RES_LEG,
+               x2, y_m, cx+6, cy+5, RES_LEG,
+               cx-13, cy+4, cx, cy-14, cx+13, cy+4,
+               cx, cy+1,
+               x1, y_p, x2, y_m,
+               cx, cy-15, COPPER, label))
+
 
 # ============================================================= РЕЗИСТОР (эталонный формат)
 def resistor(col_l, col_r, row, bands, label="", label_dy=-8, label_fill=COPPER):
@@ -539,7 +773,7 @@ def overlay_outline(x, y, w, h, title, sub="", cut_top=True):
 
 # ============================================================= КЛЮЧ ПИТАНИЯ (P-MOSFET)
 def mod_pmos_switch(x, y, w, h, title="Ключ питания модема", planned=True,
-                    subtitle="P-MOSFET high-side · затвор ← GPIO25"):
+                    subtitle="P-MOSFET high-side · затвор ← GPIO33"):
     """Верхний ключ на входе буста. planned=True рисует пунктиром — деталь ещё не куплена.
        Клеммы: вход (x, y+h/2), выход (x+w, y+h/2), затвор (x+w/2, y+h)."""
     dash = ' stroke-dasharray="6 4"' if planned else ""

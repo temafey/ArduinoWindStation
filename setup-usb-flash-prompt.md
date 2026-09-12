@@ -87,7 +87,7 @@ ESPmDNS, ArduinoOTA, Ticker входят в ядро. WiFiManager нам не н
 1. Найди порт: `arduino-cli board list`
 2. Скомпилируй прошивку проекта:
    ```powershell
-   arduino-cli compile --fqbn esp32:esp32:esp32 --output-dir <тмп> <папка скетча esp32_wind_station>
+   arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs --output-dir <тмп> <папка скетча esp32_wind_station>
    ```
 3. Залей по USB. **Важно: ESP32 DevKit V1 не входит в режим прошивки автоматически** —
    на нашей плате стоит электролит по питанию, который ломает автосброс, а esptool дёргает

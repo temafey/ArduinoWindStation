@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v8 · куда тыкать щупом</title>
+<style>
+  :root {
+    --paper:#f6f3ec; --card:#fffdf8; --ink:#1b1d21; --ink-2:#4d5158; --ink-3:#7d8189;
+    --line:#e2ddd1; --copper:#a35f33; --copper-soft:#f0e2d6;
+    --plus:#c9372c; --gnd:#1f2126; --sig:#2a6fd1; --ok:#2e7d4f; --warn:#b3541e;
+    --shadow:0 1px 2px rgba(30,24,16,.06), 0 8px 24px rgba(30,24,16,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:#15171b; --card:#1d2026; --ink:#eceae5; --ink-2:#b3b1ab; --ink-3:#84837e;
+      --line:#2e323a; --copper:#d99460; --copper-soft:#33261c;
+      --plus:#ef6d5f; --gnd:#c9cbd0; --sig:#6aa9f0; --ok:#5fbf87; --warn:#e2a06a;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#15171b; --card:#1d2026; --ink:#eceae5; --ink-2:#b3b1ab; --ink-3:#84837e;
+    --line:#2e323a; --copper:#d99460; --copper-soft:#33261c;
+    --plus:#ef6d5f; --gnd:#c9cbd0; --sig:#6aa9f0; --ok:#5fbf87; --warn:#e2a06a;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"] {
+    --paper:#f6f3ec; --card:#fffdf8; --ink:#1b1d21; --ink-2:#4d5158; --ink-3:#7d8189;
+    --line:#e2ddd1; --copper:#a35f33; --copper-soft:#f0e2d6;
+    --plus:#c9372c; --gnd:#1f2126; --sig:#2a6fd1; --ok:#2e7d4f; --warn:#b3541e;
+    --shadow:0 1px 2px rgba(30,24,16,.06), 0 8px 24px rgba(30,24,16,.07);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Segoe UI", system-ui, -apple-system, sans-serif; line-height:1.55; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1180px; margin:0 auto; padding:40px 22px 80px; display:flex; flex-direction:column; gap:34px; }
+  .eyebrow { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--copper); font-weight:700; }
+  h1 { font-size:clamp(26px,4vw,38px); line-height:1.15; margin:8px 0 10px; text-wrap:balance; letter-spacing:-.01em; }
+  .lede { color:var(--ink-2); font-size:16.5px; max-width:66ch; margin:0; }
+  .mono { font-family:ui-monospace,"Cascadia Code",Consolas,monospace; }
+  .board { background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:14px; overflow-x:auto; }
+  .board svg { width:100%; min-width:980px; height:auto; display:block; border-radius:6px; }
+  .hint { font-size:13.5px; color:var(--ink-3); margin:10px 2px 0; }
+  .hot { fill:transparent; stroke:transparent; stroke-width:2.5; cursor:pointer; transition:.14s; }
+  .hot:hover, .hot:focus-visible { fill:rgba(163,95,51,.13); stroke:var(--copper); outline:none; }
+  h2 { font-size:20px; margin:0 0 4px; letter-spacing:-.005em; }
+  .sub { color:var(--ink-3); font-size:14px; margin:0 0 16px; }
+  .strip { display:grid; grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); gap:10px; }
+  .chip { display:flex; flex-direction:column; gap:7px; align-items:flex-start; text-align:left;
+    background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px;
+    cursor:pointer; color:var(--ink); font:inherit; font-size:12.5px; transition:.14s; }
+  .chip:hover, .chip:focus-visible { border-color:var(--copper); transform:translateY(-2px); outline:none; box-shadow:var(--shadow); }
+  .chip img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:6px; background:var(--copper-soft); }
+  .chip span { line-height:1.3; font-weight:600; }
+  ol.steps { margin:0; padding:0; list-style:none; counter-reset:s; display:flex; flex-direction:column; gap:9px; }
+  ol.steps li { counter-increment:s; display:grid; grid-template-columns:30px 1fr; gap:12px; align-items:baseline;
+    background:var(--card); border:1px solid var(--line); border-radius:9px; padding:11px 13px; font-size:14.5px; }
+  ol.steps li::before { content:counter(s); font-family:ui-monospace,Consolas,monospace; font-weight:700; color:var(--copper); font-size:13px; text-align:right; }
+  b.col { font-family:ui-monospace,Consolas,monospace; color:var(--sig); }
+  b.ref { font-family:ui-monospace,Consolas,monospace; color:var(--copper); }
+  .notes { display:flex; flex-direction:column; gap:8px; }
+  .note { display:grid; grid-template-columns:22px 1fr; gap:10px; align-items:baseline;
+    border-left:3px solid var(--line); border-radius:0 8px 8px 0; background:var(--card); padding:11px 14px; font-size:14.5px; }
+  .note.warn { border-left-color:var(--plus); }
+  .note.ok { border-left-color:var(--ok); }
+  .note.info { border-left-color:var(--sig); }
+  .note i { font-style:normal; }
+  .veil { position:fixed; inset:0; background:rgba(12,10,8,.72); backdrop-filter:blur(3px);
+    display:none; align-items:center; justify-content:center; padding:22px; z-index:50; }
+  .veil.on { display:flex; }
+  .modal { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    max-width:640px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:var(--shadow); }
+  .modal .pics { display:flex; gap:2px; background:var(--line); border-radius:14px 14px 0 0; overflow:hidden; }
+  .modal .pics img { width:100%; flex:1; object-fit:cover; max-height:330px; display:block; background:var(--copper-soft); }
+  .modal .body { padding:18px 20px 22px; }
+  .modal h3 { margin:0 0 3px; font-size:20px; }
+  .modal .msub { color:var(--ink-3); font-size:13.5px; margin:0 0 14px; }
+  .modal .mnote { font-size:14.5px; margin:0; padding:11px 13px; border-radius:8px; border-left:3px solid var(--sig); background:var(--paper); }
+  .modal .mnote.warn { border-left-color:var(--plus); }
+  .modal .mnote.ok { border-left-color:var(--ok); }
+  .x { margin-top:16px; width:100%; padding:10px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--line); background:transparent; color:var(--ink-2); font:inherit; font-size:14px; }
+  .x:hover { border-color:var(--copper); color:var(--ink); }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+
+.wrap{max-width:1560px}
+table.m{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+table.m th,table.m td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.m th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);font-weight:700}
+table.m td.n{color:var(--ink-3);font-weight:700;white-space:nowrap}
+table.m td.pt{font-family:ui-monospace,Consolas,monospace;font-weight:700;color:var(--copper);white-space:nowrap}
+table.m td.bk{font-weight:700;white-space:nowrap}
+table.m td.exp{font-weight:700;color:var(--ok);white-space:nowrap}
+table.m td.no{font-weight:700;color:var(--ink-3);white-space:nowrap}
+table.m tr.dead td{background:rgba(125,129,137,.09)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:980px){.two{grid-template-columns:1fr}}
+.key{display:inline-block;min-width:26px;text-align:center;font-weight:700;font-size:12px;
+     color:#fff;background:var(--gnd);border-radius:5px;padding:1px 6px;margin-right:4px}
+.key.r{background:var(--plus)}
+pre.chain{margin:0;padding:16px 18px;overflow-x:auto;font-family:ui-monospace,Consolas,monospace;
+  font-size:12.5px;line-height:1.62;color:var(--ink-2);white-space:pre}
+pre.chain b{color:var(--plus)}
+pre.chain i{font-style:normal;color:var(--ink-3)}
+pre.chain u{text-decoration:none;color:var(--sig);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Метеостанция ветра · схема v8 · поиск неисправности</div>
+    <h1>Куда тыкать щупом</h1>
+    <p class="lede">Спутник к <b class="mono">wiring-v8.html</b>, а не замена ему. Там —
+      как собрать, здесь — что мерить, когда собрано и не работает. На картинке — только
+      <b>путь питания</b>: шесть стадий от розетки и от банки до пина «5V», и ни одного
+      лишнего провода. Точек замера на ней нет намеренно — они разобраны таблицами ниже,
+      и их номера совпадают с чек-листом «Проверка питания» в схеме сборки (парные
+      помечены штрихом: 3 и 3', 6 и 6').</p>
+    <div class="note warn" style="margin-top:14px"><i>⚠</i><span><b>«Поставь чёрный щуп
+      на землю» — недостаточная команда на этой макетке.</b> Верхний «−» рельс
+      <b>разрезан между кол.31 и 32, и мостом не закрыт</b>: так сделано намеренно, чтобы
+      опора АЦП не гуляла от токов модема. Значит верхняя левая половина и всё остальное —
+      разные цепи, и чёрный щуп, поставленный не туда, даёт ноль вольт на совершенно
+      исправной схеме. Отсюда две опоры вместо одной: <b>Ч1</b> для платы,
+      <b>Ч2</b> для модулей.</span></div>
+    <div class="note info" style="margin-top:10px"><i>●</i><span><b>Мерить строго по одной
+      точке за раз.</b> В июле перемычки накидали пачкой, и виноватый PPTC нашёлся только
+      когда их сняли и стали ставить обратно поштучно. Правило стоило нескольких дней,
+      и оно того же возраста, что и эта макетка.</span></div>
+  </header>
+
+  <section>
+    <div class="board"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 800" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <pattern id="hA" patternUnits="userSpaceOnUse" width="17" height="18" x="88" y="298"><circle cx="0" cy="0" r="2.1" fill="#b9b09a"/></pattern>
+    <pattern id="hB" patternUnits="userSpaceOnUse" width="17" height="18" x="88" y="406"><circle cx="0" cy="0" r="2.1" fill="#b9b09a"/></pattern>
+    <pattern id="r1" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="246"><circle cx="0" cy="4" r="2.1" fill="#c9a9a0"/></pattern>
+    <pattern id="r2" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="258"><circle cx="0" cy="4" r="2.1" fill="#a0aac9"/></pattern>
+    <pattern id="r3" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="502"><circle cx="0" cy="4" r="2.1" fill="#c9a9a0"/></pattern>
+    <pattern id="r4" patternUnits="userSpaceOnUse" width="17" height="8" x="88" y="514"><circle cx="0" cy="4" r="2.1" fill="#a0aac9"/></pattern>
+  </defs>
+  <rect x="0" y="0" width="1560" height="800" fill="#ffffff"/>
+  <text x="30" y="40" font-size="20" font-weight="700" fill="#1a1a1a">Как питается «+» шина · схема v8</text><text x="30" y="62" font-size="12.5" fill="#4a453c">Только путь питания: шесть стадий от розетки и от банки до пина «5V». Земли, светодиодов, делителей и электролитов здесь нет намеренно.</text><text x="30" y="84" font-size="12.5" font-weight="700" fill="#d23b2e">Стадия 4 — ОДИН провод. Выпал он: на модулях напряжение есть везде, а ESP32 мертва. Ровно та картина, с которой начинался поиск.</text><text x="30" y="104" font-size="12.5" font-weight="700" fill="#c0392b">&#9940; Колонки 1–4 обведены пунктиром — контакты SPI-флеша. В них не должно стоять ничего, иначе плата не грузится, молча.</text>
+  <!-- BREADBOARD (стандарт) -->
+  <rect x="74" y="232" width="1089" height="298" rx="12" fill="#f4f0e6" stroke="#d8d2c0" stroke-width="2"/>
+  <rect x="112" y="242" width="1009" height="2" fill="#d23b2e"/>
+  <rect x="112" y="270" width="1009" height="2" fill="#2a5bd7"/>
+  <rect x="112" y="498" width="1009" height="2" fill="#d23b2e"/>
+  <rect x="112" y="526" width="1009" height="2" fill="#2a5bd7"/>
+  <text x="60" y="254" font-size="13" fill="#d23b2e" font-weight="700">+</text>
+  <text x="60" y="266" font-size="13" fill="#2a5bd7" font-weight="700">−</text>
+  <text x="60" y="510" font-size="13" fill="#d23b2e" font-weight="700">+</text>
+  <text x="60" y="524" font-size="13" fill="#2a5bd7" font-weight="700">−</text>
+  <rect x="114" y="246" width="1003" height="8" fill="url(#r1)"/>
+  <rect x="114" y="258" width="1003" height="8" fill="url(#r2)"/>
+  <rect x="80" y="290" width="1071" height="88" fill="url(#hA)"/>
+  <rect x="80" y="398" width="1071" height="88" fill="url(#hB)"/>
+  <rect x="114" y="502" width="1003" height="8" fill="url(#r3)"/>
+  <rect x="114" y="514" width="1003" height="8" fill="url(#r4)"/>
+  <rect x="74" y="380" width="1089" height="16" fill="#e9e3d3"/>
+  <g font-size="11" fill="#999">
+    <text x="66" y="302">a</text><text x="66" y="320">b</text><text x="66" y="338">c</text><text x="66" y="356">d</text><text x="66" y="374">e</text>
+    <text x="66" y="410">f</text><text x="66" y="428">g</text><text x="66" y="446">h</text><text x="66" y="464">i</text><text x="66" y="482">j</text>
+  </g>
+  <g font-size="10" fill="#aaa" text-anchor="middle">
+    <text x="411" y="286">20</text><text x="496" y="286">25</text><text x="581" y="286">30</text><text x="666" y="286">35</text><text x="751" y="286">40</text><text x="836" y="286">45</text><text x="921" y="286">50</text><text x="1006" y="286">55</text><text x="1091" y="286">60</text>
+  </g>
+  <g font-size="10" fill="#aaa" text-anchor="middle"><text x="88" y="286">1</text><text x="122" y="286">3</text><text x="156" y="286">5</text><text x="241" y="286">10</text><text x="326" y="286">15</text><text x="343" y="286">16</text></g>
+  <rect x="113" y="243" width="1004" height="14" rx="4" fill="#d23b2e" fill-opacity="0.16"/><rect x="113" y="499" width="1004" height="14" rx="4" fill="#d23b2e" fill-opacity="0.1"/><text x="1117" y="222" font-size="10.5" font-weight="700" fill="#d23b2e" text-anchor="end">«+» LOAD — все четыре полурельса ОДНА цепь</text>
+  <line x1="606.5" y1="238" x2="606.5" y2="276" stroke="#c0392b" stroke-width="1.6" stroke-dasharray="3 3"/><line x1="606.5" y1="494" x2="606.5" y2="530" stroke="#c0392b" stroke-width="1.6" stroke-dasharray="3 3"/><text x="600" y="546" font-size="9" font-weight="700" fill="#c0392b" text-anchor="end">разрез рельсов</text>
+  <!-- ESP32 DevKitC 38-pin (ESP-32U, CP2102, USB-C) -->
+  <rect x="54" y="388" width="26" height="18" rx="3" fill="#b8b8b8" stroke="#888"/>
+  <text x="34" y="382" font-size="10" fill="#666">USB-C</text>
+  <rect x="80" y="316" width="340" height="160" rx="8" fill="#1f1f22" stroke="#000"/>
+  <text x="150" y="356" font-size="15" fill="#f2f2f2" font-weight="700">ESP32 DevKitC · 38 pin</text>
+  <text x="150" y="374" font-size="11" fill="#9fd">38-pin · ESP-32U</text>
+  <text x="150" y="452" font-size="10" fill="#9aa">CP2102 · USB-C · модуль ESP-32U (WROOM-32U)</text>
+  <g stroke="#444"><rect x="82" y="311" width="12" height="10" rx="2" fill="#d23b2e"/><rect x="99" y="311" width="12" height="10" rx="2" fill="#c0392b"/><rect x="116" y="311" width="12" height="10" rx="2" fill="#c0392b"/><rect x="133" y="311" width="12" height="10" rx="2" fill="#c0392b"/><rect x="150" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="167" y="311" width="12" height="10" rx="2" fill="#999"/><rect x="184" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="201" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="218" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="235" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="252" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="269" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="286" y="311" width="12" height="10" rx="2" fill="#6aa9e0"/><rect x="303" y="311" width="12" height="10" rx="2" fill="#6aa9e0"/><rect x="320" y="311" width="12" height="10" rx="2" fill="#6aa9e0"/><rect x="337" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="354" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="371" y="311" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="388" y="311" width="12" height="10" rx="2" fill="#e8c14a"/></g>
+  <g font-size="7.5" fill="#333" text-anchor="middle"><text x="88" y="308">5V</text><text x="105" y="308">CMD</text><text x="122" y="308">D3</text><text x="139" y="308">D2</text><text x="156" y="308">13</text><text x="173" y="308">GND</text><text x="190" y="308">12</text><text x="207" y="308">14</text><text x="224" y="308">27</text><text x="241" y="308">26</text><text x="258" y="308">25</text><text x="275" y="308">33</text><text x="292" y="308">32</text><text x="309" y="308">35</text><text x="326" y="308">34</text><text x="343" y="308">VN</text><text x="360" y="308">VP</text><text x="377" y="308">EN</text><text x="394" y="308">3V3</text></g>
+  <g stroke="#444"><rect x="82" y="471" width="12" height="10" rx="2" fill="#c0392b"/><rect x="99" y="471" width="12" height="10" rx="2" fill="#c0392b"/><rect x="116" y="471" width="12" height="10" rx="2" fill="#c0392b"/><rect x="133" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="150" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="167" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="184" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="201" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="218" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="235" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="252" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="269" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="286" y="471" width="12" height="10" rx="2" fill="#999"/><rect x="303" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="320" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="337" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="354" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="371" y="471" width="12" height="10" rx="2" fill="#e8c14a"/><rect x="388" y="471" width="12" height="10" rx="2" fill="#999"/></g>
+  <g font-size="7.5" fill="#b9bcc4" text-anchor="middle"><text x="88" y="466">CLK</text><text x="105" y="466">D0</text><text x="122" y="466">D1</text><text x="139" y="466">15</text><text x="156" y="466">2</text><text x="173" y="466">0</text><text x="190" y="466">4</text><text x="207" y="466">16</text><text x="224" y="466">17</text><text x="241" y="466">5</text><text x="258" y="466">18</text><text x="275" y="466">19</text><text x="292" y="466">GND</text><text x="309" y="466">21</text><text x="326" y="466">RX</text><text x="343" y="466">TX</text><text x="360" y="466">22</text><text x="377" y="466">23</text><text x="394" y="466">GND</text></g>
+  <rect x="80" y="309" width="16" height="14" rx="3" fill="none" stroke="#e58f2a" stroke-width="2.4"/>
+  <rect x="96" y="309" width="52" height="14" rx="3" fill="#c0392b" fill-opacity="0.16" stroke="#c0392b" stroke-width="1.6" stroke-dasharray="4 3"/><text x="122" y="291" font-size="8" font-weight="700" fill="#c0392b" text-anchor="middle"></text><rect x="79" y="469" width="52" height="14" rx="3" fill="#c0392b" fill-opacity="0.16" stroke="#c0392b" stroke-width="1.6" stroke-dasharray="4 3"/><text x="105" y="495" font-size="8" font-weight="700" fill="#c0392b" text-anchor="middle"></text>
+  <rect x="822" y="278" width="113" height="166" rx="7" fill="#17181c" fill-opacity="0.93" stroke="#33343b" stroke-width="1.6"/><rect x="826" y="282" width="106" height="159" rx="5" fill="none" stroke="#000" stroke-opacity="0.45"/><rect x="824" y="373" width="110" height="26" rx="4" fill="#17181c" fill-opacity="0.95"/><text x="878" y="384" font-size="11" font-weight="700" fill="#d9dbe0" text-anchor="middle">TP4056 · Type-C</text><text x="878" y="395" font-size="7.5" fill="#9aa0a8" text-anchor="middle">заряд + защита DW01</text><circle cx="836" cy="316" r="6.6" fill="#1a1a1a" stroke="#c9a63a" stroke-width="1.6"/><circle cx="836" cy="316" r="2.4" fill="#0b0b0d"/><rect x="818.2" y="298" width="36" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="836" y="306" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">IN−&#160;<tspan fill="#e8c14a">45</tspan></text><circle cx="921" cy="316" r="6.6" fill="#d23b2e" stroke="#c9a63a" stroke-width="1.6"/><circle cx="921" cy="316" r="2.4" fill="#0b0b0d"/><rect x="903.2" y="298" width="36" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="921" y="306" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">IN+&#160;<tspan fill="#e8c14a">50</tspan></text><circle cx="836" cy="406" r="6.6" fill="#1a1a1a" stroke="#c9a63a" stroke-width="1.6"/><circle cx="836" cy="406" r="2.4" fill="#0b0b0d"/><rect x="815.9" y="412" width="40" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="836" y="420" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">OUT−&#160;<tspan fill="#e8c14a">45</tspan></text><circle cx="853" cy="406" r="6.6" fill="#8e44ad" stroke="#c9a63a" stroke-width="1.6"/><circle cx="853" cy="406" r="2.4" fill="#0b0b0d"/><rect x="837.5" y="424" width="31" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="853" y="432" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">B−&#160;<tspan fill="#e8c14a">46</tspan></text><circle cx="904" cy="406" r="6.6" fill="#d23b2e" stroke="#c9a63a" stroke-width="1.6"/><circle cx="904" cy="406" r="2.4" fill="#0b0b0d"/><rect x="883.9" y="412" width="40" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="904" y="420" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">OUT+&#160;<tspan fill="#e8c14a">49</tspan></text><circle cx="921" cy="406" r="6.6" fill="#d23b2e" stroke="#c9a63a" stroke-width="1.6"/><circle cx="921" cy="406" r="2.4" fill="#0b0b0d"/><rect x="905.5" y="424" width="31" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="921" y="432" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">B+&#160;<tspan fill="#e8c14a">50</tspan></text>
+  <rect x="968" y="317" width="76" height="142" rx="7" fill="#17181c" fill-opacity="0.93" stroke="#33343b" stroke-width="1.6"/><rect x="972" y="320" width="69" height="135" rx="5" fill="none" stroke="#000" stroke-opacity="0.45"/><rect x="965" y="373" width="83" height="26" rx="4" fill="#17181c" fill-opacity="0.95"/><text x="1006" y="384" font-size="11" font-weight="700" fill="#d9dbe0" text-anchor="middle">Boost#2</text><text x="1006" y="395" font-size="7.5" fill="#9aa0a8" text-anchor="middle">5.2 В от батареи</text><circle cx="1006" cy="334" r="6.6" fill="#d23b2e" stroke="#c9a63a" stroke-width="1.6"/><circle cx="1006" cy="334" r="2.4" fill="#0b0b0d"/><rect x="988.2" y="337" width="36" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="1006" y="345" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">IN+&#160;<tspan fill="#e8c14a">55</tspan></text><circle cx="1023" cy="334" r="6.6" fill="#1a1a1a" stroke="#c9a63a" stroke-width="1.6"/><circle cx="1023" cy="334" r="2.4" fill="#0b0b0d"/><rect x="1005.2" y="350" width="36" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="1023" y="358" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">IN−&#160;<tspan fill="#e8c14a">56</tspan></text><circle cx="972" cy="442" r="6.6" fill="#1a1a1a" stroke="#c9a63a" stroke-width="1.6"/><circle cx="972" cy="442" r="2.4" fill="#0b0b0d"/><rect x="951.9" y="423" width="40" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="972" y="431" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">OUT−&#160;<tspan fill="#e8c14a">53</tspan></text><circle cx="1040" cy="442" r="6.6" fill="#d23b2e" stroke="#c9a63a" stroke-width="1.6"/><circle cx="1040" cy="442" r="2.4" fill="#0b0b0d"/><rect x="1019.9" y="423" width="40" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="1040" y="431" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">OUT+&#160;<tspan fill="#e8c14a">57</tspan></text>
+  <rect x="1070" y="317" width="76" height="142" rx="7" fill="#17181c" fill-opacity="0.93" stroke="#33343b" stroke-width="1.6"/><rect x="1074" y="320" width="69" height="135" rx="5" fill="none" stroke="#000" stroke-opacity="0.45"/><rect x="1067" y="373" width="83" height="26" rx="4" fill="#17181c" fill-opacity="0.95"/><text x="1108" y="384" font-size="11" font-weight="700" fill="#d9dbe0" text-anchor="middle">Boost#1</text><text x="1108" y="395" font-size="7.5" fill="#9aa0a8" text-anchor="middle">12 В для датчика</text><circle cx="1108" cy="334" r="6.6" fill="#d23b2e" stroke="#c9a63a" stroke-width="1.6"/><circle cx="1108" cy="334" r="2.4" fill="#0b0b0d"/><rect x="1090.2" y="337" width="36" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="1108" y="345" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">IN+&#160;<tspan fill="#e8c14a">61</tspan></text><circle cx="1125" cy="334" r="6.6" fill="#1a1a1a" stroke="#c9a63a" stroke-width="1.6"/><circle cx="1125" cy="334" r="2.4" fill="#0b0b0d"/><rect x="1107.2" y="350" width="36" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="1125" y="358" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">IN−&#160;<tspan fill="#e8c14a">62</tspan></text><circle cx="1074" cy="442" r="6.6" fill="#1a1a1a" stroke="#c9a63a" stroke-width="1.6"/><circle cx="1074" cy="442" r="2.4" fill="#0b0b0d"/><rect x="1053.9" y="423" width="40" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="1074" y="431" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">OUT−&#160;<tspan fill="#e8c14a">59</tspan></text><circle cx="1142" cy="442" r="6.6" fill="#d23b2e" stroke="#c9a63a" stroke-width="1.6"/><circle cx="1142" cy="442" r="2.4" fill="#0b0b0d"/><rect x="1121.9" y="423" width="40" height="11" rx="3" fill="#17181c" fill-opacity="0.95"/><text x="1142" y="431" font-size="7.5" font-weight="700" fill="#d9dbe0" text-anchor="middle">OUT+&#160;<tspan fill="#e8c14a">63</tspan></text>
+  <rect x="790" y="610" width="210" height="96" rx="9" fill="#17181c" stroke="#3a3d43" stroke-width="1.6"/><rect x="794" y="614" width="202" height="88" rx="7" fill="none" stroke="#000" stroke-opacity="0.4"/><rect x="832" y="624" width="152" height="68" rx="6" fill="#c62f24" stroke="#7a1a12"/><rect x="832" y="624" width="152" height="34" rx="6" fill="#e0443a"/><circle cx="878" cy="658.0" r="5.5" fill="none" stroke="#fff" stroke-width="1.8"/><rect x="929" y="652" width="2.6" height="12" fill="#fff"/><rect x="852" y="612" width="12" height="10" rx="2" fill="#c2c7cf" stroke="#7d828a"/><circle cx="860" cy="617" r="2.4" fill="#0b0b0d"/><text x="869" y="620" font-size="8" fill="#9aa0a8">вход · 49j</text><rect x="952" y="612" width="12" height="10" rx="2" fill="#c2c7cf" stroke="#7d828a"/><circle cx="960" cy="617" r="2.4" fill="#0b0b0d"/><text x="969" y="620" font-size="8" fill="#9aa0a8">выход · 51j</text><text x="895.0" y="602" font-size="13" font-weight="700" fill="#1a1a1a" text-anchor="middle">SW1 · в разрыве OUT+</text><text x="895.0" y="722" font-size="10" fill="#666" text-anchor="middle">за ним оба буста</text>
+  <line x1="700" y1="442" x2="716" y2="442" stroke="#8d8d8d" stroke-width="2.4"/><line x1="738" y1="442" x2="734" y2="442" stroke="#8d8d8d" stroke-width="2.4"/><rect x="716" y="432" width="22" height="20" rx="3" fill="#2b2b2b" stroke="#111"/><rect x="733" y="432" width="5" height="20" fill="#eaeaea"/><circle cx="700" cy="442" r="3.4" fill="#333"/><circle cx="734" cy="442" r="3.4" fill="#333"/><text x="727" y="428" font-size="10.5" font-weight="700" fill="#8a6d3b" text-anchor="middle">D1</text><line x1="734" y1="442" x2="750" y2="442" stroke="#8d8d8d" stroke-width="2.4"/><line x1="772" y1="442" x2="768" y2="442" stroke="#8d8d8d" stroke-width="2.4"/><rect x="750" y="432" width="22" height="20" rx="3" fill="#2b2b2b" stroke="#111"/><rect x="750" y="432" width="5" height="20" fill="#eaeaea"/><circle cx="734" cy="442" r="3.4" fill="#333"/><circle cx="768" cy="442" r="3.4" fill="#333"/><text x="761" y="428" font-size="10.5" font-weight="700" fill="#8a6d3b" text-anchor="middle">D2</text><g><line x1="785" y1="478" x2="790" y2="468" stroke="#8d8d8d" stroke-width="2.4"/><line x1="819" y1="478" x2="814" y2="468" stroke="#8d8d8d" stroke-width="2.4"/><rect x="786" y="440" width="34" height="28" rx="12" fill="#e3c74a" stroke="#a8862c"/><text x="802" y="458" font-size="8" fill="#4a3a10" text-anchor="middle">PTC</text><circle cx="785" cy="478" r="3.4" fill="#333"/><circle cx="819" cy="478" r="3.4" fill="#333"/><text x="802" y="432" font-size="10" font-weight="700" fill="#8a6d3b" text-anchor="middle"></text></g>
+  <path d="M411.0 250.0 L420.0 268.0 L420.0 488.0 L411.0 506.0" fill="none" stroke="#d23b2e" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="0.45"/><text x="427" y="378" font-size="8.5" fill="#9a8f80">связка кол.20 — вниз, потребителей там нет</text>
+  <rect x="20" y="540" width="118" height="38" rx="8" fill="#fff5f3" stroke="#d23b2e" stroke-width="2"/><text x="79" y="557" font-size="11.5" font-weight="700" fill="#d23b2e" text-anchor="middle">АДАПТЕР 5 В</text><text x="79" y="571" font-size="9" fill="#7a6f62" text-anchor="middle">панельный, 2 А</text><path d="M138.0 556.0 L700.0 556.0 L700.0 442.0" fill="none" stroke="#d23b2e" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1.0"/><circle cx="700.0" cy="442.0" r="4.8" fill="#d23b2e"/><rect x="20" y="574" width="118" height="38" rx="8" fill="#fff5f3" stroke="#d23b2e" stroke-width="2"/><text x="79" y="591" font-size="11.5" font-weight="700" fill="#d23b2e" text-anchor="middle">«+» БАНКИ</text><text x="79" y="605" font-size="9" fill="#7a6f62" text-anchor="middle">18650, через F1</text><path d="M138.0 590.0 L785.0 590.0 L785.0 478.0" fill="none" stroke="#d23b2e" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1.0"/><circle cx="785.0" cy="478.0" r="4.8" fill="#d23b2e"/><path d="M819.0 478.0 L819.0 490.0 L921.0 490.0 L921.0 478.0" fill="none" stroke="#d23b2e" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1.0"/><circle cx="819.0" cy="478.0" r="4.8" fill="#d23b2e"/><circle cx="921.0" cy="478.0" r="4.8" fill="#d23b2e"/><path d="M904.0 478.0 L904.0 560.0 L860.0 560.0 L860.0 617.0" fill="none" stroke="#d23b2e" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1.0"/><circle cx="904.0" cy="478.0" r="4.8" fill="#d23b2e"/><path d="M960.0 617.0 L960.0 570.0 L938.0 570.0 L938.0 478.0" fill="none" stroke="#d23b2e" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1.0"/><circle cx="938.0" cy="478.0" r="4.8" fill="#d23b2e"/><path d="M938.0 460.0 L938.0 470.0 L946.5 470.0 L946.5 290.0 L1006.0 290.0 L1006.0 334.0" fill="none" stroke="#d23b2e" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1.0"/><circle cx="938.0" cy="460.0" r="4.8" fill="#d23b2e"/><circle cx="1006.0" cy="334.0" r="4.8" fill="#d23b2e"/><path d="M1040.0 442.0 L1040.0 498.0 L768.0 498.0 L768.0 442.0" fill="none" stroke="#d23b2e" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1.0"/><circle cx="1040.0" cy="442.0" r="4.8" fill="#d23b2e"/><circle cx="768.0" cy="442.0" r="4.8" fill="#d23b2e"/><path d="M122.0 250.0 L88.0 298.0" fill="none" stroke="#d23b2e" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1.0"/><circle cx="122.0" cy="250.0" r="4.8" fill="#d23b2e"/><circle cx="88.0" cy="298.0" r="4.8" fill="#d23b2e"/><path d="M598.0 250.0 L598.0 228.0 L615.0 228.0 L615.0 250.0" fill="none" stroke="#d23b2e" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1.0"/><path d="M1108.0 250.0 L1108.0 298.0" fill="none" stroke="#d23b2e" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1.0"/><circle cx="1108.0" cy="298.0" r="4.8" fill="#d23b2e"/>
+  <path d="M734.0 442.0 L734.0 424.0" fill="none" stroke="#d23b2e" stroke-width="5.4" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1.0"/><path d="M734.0 424.0 L734.0 552.0 L660.0 552.0 L660.0 178.0 L343.0 178.0 L343.0 250.0" fill="none" stroke="#ffd2cb" stroke-width="11" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="0.9"/><path d="M734.0 424.0 L734.0 552.0 L660.0 552.0 L660.0 178.0 L343.0 178.0 L343.0 250.0" fill="none" stroke="#d23b2e" stroke-width="5.4" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1.0"/><circle cx="734.0" cy="424.0" r="6.2" fill="#d23b2e"/><circle cx="343.0" cy="250.0" r="6.2" fill="#d23b2e"/>
+  <text x="734" y="392" font-size="10" font-weight="700" fill="#d23b2e" text-anchor="middle">УЗЕЛ ШИНА</text>
+  <circle cx="300" cy="556" r="11.5" fill="#d23b2e" stroke="#fff" stroke-width="2.2"/><text x="300" y="560" font-size="12.5" font-weight="700" fill="#fff" text-anchor="middle">1</text><text x="300" y="538" font-size="10" font-weight="700" fill="#d23b2e" text-anchor="middle">адаптер → D1</text><circle cx="660" cy="590" r="11.5" fill="#d23b2e" stroke="#fff" stroke-width="2.2"/><text x="660" y="594" font-size="12.5" font-weight="700" fill="#fff" text-anchor="middle">2</text><text x="660" y="616" font-size="10" font-weight="700" fill="#d23b2e" text-anchor="middle">банка → F1 → TP4056 → SW1 → Boost#2</text><circle cx="853" cy="498" r="11.5" fill="#d23b2e" stroke="#fff" stroke-width="2.2"/><text x="853" y="502" font-size="12.5" font-weight="700" fill="#fff" text-anchor="middle">3</text><text x="853" y="546" font-size="10" font-weight="700" fill="#d23b2e" text-anchor="middle">5.2 В → D2</text><circle cx="660" cy="330" r="11.5" fill="#d23b2e" stroke="#fff" stroke-width="2.2"/><text x="660" y="334" font-size="12.5" font-weight="700" fill="#fff" text-anchor="middle">4</text><text x="680" y="334" font-size="12" font-weight="700" fill="#d23b2e" text-anchor="start">ОДИН провод: 39g → «+» верх, кол.16</text><circle cx="100" cy="276" r="11.5" fill="#d23b2e" stroke="#fff" stroke-width="2.2"/><text x="100" y="280" font-size="12.5" font-weight="700" fill="#fff" text-anchor="middle">5</text><text x="122" y="242" font-size="10" font-weight="700" fill="#d23b2e" text-anchor="start">→ «5V» платы</text><circle cx="606" cy="228" r="11.5" fill="#d23b2e" stroke="#fff" stroke-width="2.2"/><text x="606" y="232" font-size="12.5" font-weight="700" fill="#fff" text-anchor="middle">6</text><text x="586" y="214" font-size="10" font-weight="700" fill="#d23b2e" text-anchor="end">мост → правая половина</text>
+  <rect x="1182" y="236" width="360" height="372" rx="10" fill="#fbf7ec" stroke="#e6d9b0"/><text x="1196" y="262" font-size="13.5" font-weight="700" fill="#1a1a1a">Шесть стадий переноса «+»</text><circle cx="1208" cy="284" r="10" fill="#d23b2e"/><text x="1208" y="288" font-size="11.5" font-weight="700" fill="#fff" text-anchor="middle">1</text><text x="1228" y="288" font-size="11" fill="#4a453c">Адаптер 5 В &#8594; кол.37 &#8594; D1 &#8594;</text><text x="1228" y="304" font-size="11" fill="#4a453c">кол.39</text><circle cx="1208" cy="330" r="10" fill="#d23b2e"/><text x="1208" y="334" font-size="11.5" font-weight="700" fill="#fff" text-anchor="middle">2</text><text x="1228" y="334" font-size="11" fill="#4a453c">Банка &#8594; F1 &#8594; B+ &#183; TP4056 &#183;</text><text x="1228" y="350" font-size="11" fill="#4a453c">OUT+ &#8594; SW1 &#8594; вход Boost#2</text><circle cx="1208" cy="376" r="10" fill="#d23b2e"/><text x="1208" y="380" font-size="11.5" font-weight="700" fill="#fff" text-anchor="middle">3</text><text x="1228" y="380" font-size="11" fill="#4a453c">Boost#2 5.2 В &#8594; кол.41 &#8594; D2 &#8594;</text><text x="1228" y="396" font-size="11" fill="#4a453c">кол.39</text><circle cx="1208" cy="422" r="10" fill="#d23b2e"/><text x="1208" y="426" font-size="11.5" font-weight="700" fill="#fff" text-anchor="middle">4</text><text x="1228" y="426" font-size="11" font-weight="700" fill="#d23b2e">УЗЕЛ ШИНА (кол.39) &#8594;</text><text x="1228" y="442" font-size="11" font-weight="700" fill="#d23b2e">&#171;+&#187; верх, кол.16</text><text x="1228" y="458" font-size="11" fill="#4a453c">&#8212; единственный провод</text><circle cx="1208" cy="484" r="10" fill="#d23b2e"/><text x="1208" y="488" font-size="11.5" font-weight="700" fill="#fff" text-anchor="middle">5</text><text x="1228" y="488" font-size="11" fill="#4a453c">Рельс &#8594; кол.3 &#8594; диагональ в 1a</text><text x="1228" y="504" font-size="11" fill="#4a453c">&#8594; пин &#171;5V&#187; ESP32</text><circle cx="1208" cy="530" r="10" fill="#d23b2e"/><text x="1208" y="534" font-size="11.5" font-weight="700" fill="#fff" text-anchor="middle">6</text><text x="1228" y="534" font-size="11" fill="#4a453c">Мост &#171;+&#187; 31&#8596;32 &#8594; кол.61 &#8594;</text><text x="1228" y="550" font-size="11" fill="#4a453c">Boost#1 &#8594; 12 В датчику</text><text x="1196" y="562" font-size="10.5" fill="#7a6f62">Земля на картинке не показана — она</text><text x="1196" y="576" font-size="10.5" fill="#7a6f62">разобрана отдельно: верхний «−» разрезан</text><text x="1196" y="590" font-size="10.5" fill="#7a6f62">и мостом НЕ закрыт, это две разные цепи.</text>
+</svg>
+</div>
+    <p class="hint">Красным идёт только «+». Земли, светодиодов, делителей и электролитов
+      здесь нет намеренно: земля разобрана отдельно (у неё две разные опоры, см. выше),
+      а банки и холдер к переносу питания отношения не имеют и съедали бы половину
+      картинки. Батарея и адаптер обозначены бирками. Полная разводка со всеми 57
+      проводами — в <b class="mono">wiring-v8.html</b>.</p>
+  </section>
+
+  <section>
+    <h2>Чёрный щуп: две разные опоры</h2>
+    <p class="sub">Красный щуп ходит по точкам, чёрный стоит на месте — но на каком именно
+      месте, зависит от того, что меряешь.</p>
+    <div class="card"><table class="m">
+      <tr><th></th><th>Куда</th><th>Колонка</th><th>Для чего</th></tr><tr><td class="bk"><span class="key">Ч1</span></td><td class="pt">«−» ВЕРХНИЙ рельс, ЛЕВАЯ половина</td><td class="pt">кол.3…31, удобно к.14</td><td>Опора для всего, что относится к ESP32. Плата меряет свои АЦП относительно собственного вывода GND, а он сидит именно на этой половине (6a).</td></tr><tr><td class="bk"><span class="key">Ч2</span></td><td class="pt">«−» НИЖНИЙ рельс</td><td class="pt">любая свободная, удобно к.43</td><td>Опора для модулей: TP4056, оба буста, диоды, F1. Сюда же приходит «−» адаптера (к.48) и чёрный провод датчика (к.52).</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Как питается «+» шина</h2>
+    <p class="sub">Отвечает на «где вообще брать питание» до того, как щуп куда-то поехал.
+      Цепочка прочитана из генератора разводки, а не срисована с платы.</p>
+    <div class="card"><pre class="chain">       адаптер 5 В  <b>──&#8594;</b>  кол.37  <b>──[ D1 ]──&#9488;</b>   <i>катод (полоска) смотрит ВПРАВО, в кол.39</i>
+                                    <b>&#9474;</b>
+ банка &#8594; F1 &#8594; TP4056 OUT+ &#8594; SW1 &#8594; кол.51   <b>&#9474;</b>
+              &#8594; Boost#2 (5.2 В) &#8594; кол.57   <b>&#9474;</b>
+                     &#8594; кол.41  <b>──[ D2 ]──&#9508;</b>   <i>катод смотрит ВЛЕВО, в ту же кол.39</i>
+                                    <b>&#9660;</b>
+              <u>УЗЕЛ «ШИНА» &#183; колонка 39, нижний банк</u>   <i>сюда же «+» банки C1 (кол.43)</i>
+                                    <b>&#9474;</b>
+        <u>ЕДИНСТВЕННЫЙ ПРОВОД ВВОДА:</u>  39g <b>&#8594;</b> «+» верх, кол.16
+                                    <b>&#9660;</b>
+                 <u>ВЕРХНИЙ «+» РЕЛЬС</u> &#8212; красная полоса над платой
+                                    <b>&#9474;</b>
+    <b>&#9500;&#8594;</b> влево до кол.3 &#8594; диагональ в 1a &#8594; «5V» ESP32
+    <b>&#9500;&#8594;</b> мост «+» 31&#8596;32 &#8594; кол.61 &#8594; Boost#1 &#8594; датчик 12 В
+    <b>&#9492;&#8594;</b> связка кол.20 &#8594; нижние «+» полурельсы <i>(потребителей там нет)</i></pre></div>
+    <div class="note info" style="margin-top:12px"><i>●</i><span><b>Верхний «+» рельс через
+      разрез 31/32 замостован</b> — в отличие от «−». Значит все четыре «+»-полурельса это
+      <b>одна цепь</b>, и «+» верх к.8 с «+» верх к.16 — физически одна и та же точка. Отсюда
+      следствие для замера: точка&nbsp;8 проверяет разом и провод-ввод, и весь рельс.</span></div>
+    <h3 style="margin:22px 0 0;font-size:15px">Что это за провод</h3>
+    <p class="sub">Тот единственный, которым питается вся шина &#8212; чтобы искать глазами
+      конкретную перемычку, а не &#171;где-то там&#187;.</p>
+    <div class="card"><table class="m">
+      <tr><th>Признак</th><th>Значение</th></tr>
+      <tr><td>Как называется в схеме</td>
+          <td><b class="mono">узел ШИНА (39g) &#8594; &#171;+&#187; LOAD верх (кол.16)</b>,
+              группа <b class="mono">SW1</b> в списке проводов
+              <b class="mono">wiring-v8.html</b></td></tr>
+      <tr><td>Откуда</td>
+          <td><b class="col">39g</b> &#8212; колонка 39, <b>нижний банк</b>. Это средняя из
+              трёх колонок, где стоят два чёрных диода (37 &#8212; 39 &#8212; 41), и в неё
+              смотрят <b>оба катода</b>. Она же узел ШИНА.</td></tr>
+      <tr><td>Куда</td>
+          <td><b>&#171;+&#187; верхнего рельса, колонка 16</b> &#8212; красная полоса над
+              платой ESP32, примерно над её серединой; из двух верхних полос это
+              <b>дальняя от макетки</b>.</td></tr>
+      <tr><td>Цвет и длина</td>
+          <td>красный, около <b>65 мм</b> по прямой &#8212; брать 80&#8211;90 мм с запасом
+              на изгиб (в списке проводов помечен &#171;по месту&#187;)</td></tr>
+      <tr><td>Сколько таких</td>
+          <td><b>Ровно один.</b> Больше в &#171;+&#187; рельс не входит ничего:
+              <b class="col">1a</b> и <b class="col">61a</b> &#8212; это потребители,
+              а связка кол.20 и мост 31&#8596;32 раздают уже принесённое.</td></tr>
+    </table></div>
+    <div class="note warn" style="margin-top:12px"><i>&#9888;</i><span><b>Отсюда цена
+      ошибки.</b> Этот провод &#8212; единственная точка отказа для всего питания платы:
+      выпал он, и на <b class="col">39j</b> честные 4.7 В, на TP4056 и обоих бустах тоже
+      всё есть, а ESP32 мертва. Ровно та картина, с которой начинался поиск.</span></div>
+
+    <h3 style="margin:22px 0 0;font-size:15px">Где эта цепь рвётся</h3>
+    <p class="sub">Пять мест, по убыванию вероятности. Каждое — одна перемычка, и любое
+      обрывает питание целиком.</p>
+    <div class="card"><table class="m">
+      <tr><th></th><th>Место</th><th>Что это физически</th><th>Признак обрыва</th></tr><tr><td class="n">1</td><td>Провод <b class='col'>39g &#8594; «+» верх, кол.16</b></td><td style="color:var(--ink-2)">Длинный, идёт поверх всей макетки. Единственный ввод питания в рельс.</td><td style="color:var(--ink-2)">на <b class='col'>39j</b> есть 4.7 В, а на рельсе и на плате ноль</td></tr><tr><td class="n">2</td><td>Диагональ <b class='col'>1a &#8594; «+» верх, кол.3</b></td><td style="color:var(--ink-2)">Косая перемычка над самым левым краем: отверстия рельса прямо над «5V» нет.</td><td style="color:var(--ink-2)">на рельсе есть, на плате ноль</td></tr><tr><td class="n">3</td><td>Перемычка <b class='col'>57h &#8594; 41h</b></td><td style="color:var(--ink-2)">Выход Boost#2 на анод D2 — по нижнему банку, под корпусами.</td><td style="color:var(--ink-2)">от адаптера станция живёт, от батареи мертва</td></tr><tr><td class="n">4</td><td>Полярность <b>D2</b></td><td style="color:var(--ink-2)">Полоска-катод обязана смотреть <b>влево</b>, в кол.39. У D1 — наоборот, вправо.</td><td style="color:var(--ink-2)">то же самое: батарея не питает шину, адаптер питает</td></tr><tr><td class="n">5</td><td>Мост <b class='col'>«+» 31&#8596;32</b></td><td style="color:var(--ink-2)">Арка через разрез рельсов, в середине платы.</td><td style="color:var(--ink-2)">ESP32 работает, а датчик и Boost#1 мертвы</td></tr>
+    </table></div>
+    <div class="note warn" style="margin-top:12px"><i>⚠</i><span><b>Два элемента, которые
+      не рвут, а коротят.</b> <b class="col">C1</b> — электролит на кол.43/44, «плюс» в 43:
+      он полярный и висит прямо на узле ШИНА, перевёрнутый греется и садит её.
+      <b class="col">C2</b> — 100 нФ, воткнут прямо в верхние рельсы (кол.18/19) и остаётся
+      единственной деталью между «+» и «−» на них.</span></div>
+    <div class="note warn" style="margin-top:10px"><i>⚠</i><span><b>Мерить величину, а не
+      «есть или нет».</b> MT3608 со сбитым пресетом не повышает, а пропускает вход через
+      дроссель и диод. Тогда на выходе Boost#2 не 5.2 В, а вход минус падение; после D2 на
+      шине остаётся около 3.6 В, а у AMS1117 на плате падение <b>0.8–1.25 В</b>, а не 0.3 —
+      до 3V3 доходит 2.4–2.8 В. Питание «есть везде», и плата при этом мертва или циклится
+      по brownout. Если <b class="col">57j</b> не <b>выше</b> <b class="col">55a</b> хотя бы
+      на вольт — виноват буст, а не разводка.</span></div>
+  </section>
+
+  <section>
+    <h2>Восемь точек красного щупа</h2>
+    <p class="sub">По порядку. Первая точка, где ожидание не сошлось, и есть граница
+      неисправности — дальше идти незачем.</p>
+    <div class="card"><table class="m">
+      <tr><th></th><th>Точка</th><th>Чёрный</th><th>Что мерим</th><th>Ожидание</th>
+        <th>Если не так</th></tr><tr><td class="n">1</td><td class="pt">37g</td><td class="bk">Ч2</td><td>Адаптер дошёл до анода D1</td><td class="exp">5.0 В</td><td style="color:var(--ink-2)">виноват сам адаптер или провод от него. Колонка 37 снизу — одна точка: там же сходятся анод D1 и провод на IN+ TP4056</td></tr><tr class="dead"><td class="n">2</td><td class="pt">верх кол.50</td><td class="bk">—</td><td>IN+ TP4056 — дошёл ли адаптер до зарядного узла</td><td class="no">не измерить</td><td style="color:var(--ink-2)"><b>щуп не пролезет: контакт под корпусом TP4056.</b> Проверять косвенно — красный светодиод заряда на самом TP4056 и поле <b class='mono'>powerSource</b> в <b class='mono'>/api/data</b>. Значение <b class='mono'>battery</b> при живом адаптере означает, что провод <b class='col'>37f → 50b</b> не припаян; ровно этот дефект был на прошлой сборке</td></tr><tr><td class="n">3</td><td class="pt">42g и 44g</td><td class="bk">Ч2</td><td>По обе стороны F1 (PTC)</td><td class="exp">одинаковые</td><td style="color:var(--ink-2)">PPTC сработал или оборван. ⚠️ если вместо него до сих пор стоит июльская перемычка — батарея сейчас без защиты по току</td></tr><tr><td class="n">4</td><td class="pt">49i</td><td class="bk">Ч2</td><td>OUT+ TP4056 — что отдаёт зарядный модуль, ДО тумблера</td><td class="exp">напряжение банки</td><td style="color:var(--ink-2)">TP4056 или сама банка. Высаженная в ноль читается как 3.2–3.3 В — этого хватает, чтобы всё «показывало напряжение», и не хватает, чтобы плата жила под нагрузкой</td></tr><tr><td class="n">5</td><td class="pt">51g</td><td class="bk">Ч2</td><td>Узел ЗА тумблером</td><td class="exp">банка при ON, <b>0 при OFF</b></td><td style="color:var(--ink-2)">если при OFF не ноль — тумблер стоит не в том разрыве, и выключенная станция продолжает разряжаться. Это и есть смысл правки задачи 11</td></tr><tr><td class="n">6</td><td class="pt">55a, затем 57j</td><td class="bk">Ч2</td><td>Вход и выход Boost#2 — <b>выставлять ДО подключения нагрузки</b></td><td class="exp">выход 5.2 В и <b>выше входа</b></td><td style="color:var(--ink-2)">выход равен входу или ниже — MT3608 не повышает, а пропускает через дроссель и диод. Так выглядит и сбитый пресет, и разряженная банка. Подстроечник крутить только на холостом ходу</td></tr><tr><td class="n">7</td><td class="pt">39j</td><td class="bk">Ч2</td><td>Узел ШИНА — итог диодного ИЛИ</td><td class="exp">~4.7 В</td><td style="color:var(--ink-2)">полярность D1/D2: у обоих <b>катод смотрит в колонку 39</b>. Перевёрнутый даёт либо ноль на шине, либо подпитку адаптера от батареи</td></tr><tr><td class="n">8</td><td class="pt">«+» верх, к.8</td><td class="bk"><b>Ч1</b></td><td>То, что реально приходит на «5V» платы</td><td class="exp">~4.7 В</td><td style="color:var(--ink-2)">диагональная перемычка <b class='col'>1a → «+» верх, кол.3</b> (над кол.1–2 отверстий рельса нет вовсе) либо разрыв левой половины «+»</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>С чего начать</h2>
+    <p class="sub">Одно измерение делит задачу пополам: оно сразу говорит, искать в питании
+      или в самой плате.</p>
+    <ol class="steps"><li><span><b>Поставь чёрный щуп в Ч1</b> (верхний «−», левая половина, к.14), красный — в точку 8 (верхний «+», к.8). Это ровно то напряжение, которое видит плата.</span></li><li><span><b>4.4–4.7 В</b> — питание доходит, и виновата сама плата. Смотри её собственный красный светодиод и померь 3V3 (верхний ряд, кол.19) против Ч1: должно быть 3.3 В.</span></li><li><span><b>0 В</b> — переставь чёрный щуп в Ч2, красный не трогай. Если напряжение появилось, оборван не плюс, а <b>земля платы</b>. Виноваты две перемычки подряд: связка <b class='col'>кол.21</b> (верх↔низ) и мост «−» через разрез <b class='col'>31↔32</b>. Обе в v8 переехали — было 16/17, стало 20/21.</span></li><li><span><b>Ноль и с Ч2</b> — оборван плюс. Иди назад по точкам: 7 → 6' → 5 → 4 → 3 → 1. Первая, где напряжение появилось, и есть граница обрыва.</span></li><li><span><b>2–3.5 В вместо 4.7</b> — шину просаживает нагрузка. Снимай по одной: вынь <b class='col'>61a</b> (Boost#1 и вся ветка датчика), потом <b class='col'>51h</b> (ветка модема). Восстановилось — виновата снятая ветка.</span></li></ol>
+    <div class="note ok" style="margin-top:12px"><i>✓</i><span><b>Плата заведомо живая.</b>
+      Она прошилась и загрузилась по USB 2026-09-07 (мост CP2102, COM12). Значит искать надо
+      не её, а доставку двух потенциалов на два вывода — это и есть весь список
+      выше.</span></div>
+    <div class="note warn" style="margin-top:10px"><i>⚠</i><span><b>Три причины молчания
+      станции, которых нет в схеме.</b> В макетке нет ESP32 (при переезде на 38-pin плата
+      вынимается целиком); провод <b class="col">37f → 50b</b> не припаян — адаптер есть,
+      до TP4056 не доходит; банка высажена в ноль. Причину последнего перезапуска видно
+      без разборки: поле <b class="mono">resetReason</b> в <b class="mono">/api/data</b>
+      и плитка «Аптайм» в дашборде — <b class="mono">brownout</b> означает просадку
+      питания, а не «плата не грузится».</span></div>
+  </section>
+
+  <section>
+    <h2>Как прозванивать</h2>
+    <p class="sub">Когда напряжения путают &#8212; везде &#171;что-то есть&#187;, а плата
+      мертва &#8212; надёжнее мерить не потенциал, а целостность. Но у прозвонки свои
+      правила, и почти все они про то, чтобы не получить красивый ложный ответ.</p>
+
+    <div class="note warn"><i>&#9888;</i><span><b>Обесточить по-настоящему. Тумблера
+      недостаточно:</b> SW1 стоит в разрыве <b class="mono">OUT+</b> TP4056, а адаптер
+      приходит на колонку 37 мимо него. Значит: выдернуть адаптер <b>из розетки</b>, вынуть
+      банку из холдера, подождать секунд десять &#8212; <b class="col">C1</b> держит заряд,
+      и первое касание щупов даст короткий писк, который выглядит как замыкание. Он должен
+      <b>замолкнуть за секунду-две</b>. Мерить сопротивление на живой схеме нельзя вообще:
+      омметр сам подаёт ток, и чужое напряжение поверх него даёт цифры, которые ничего
+      не значат.</span></div>
+
+    <div class="two" style="margin-top:16px">
+      <div class="card">
+        <h3 style="margin:0 0 8px;font-size:15px">Режим на UT33A+</h3>
+        <p style="margin:0;font-size:14px;line-height:1.55;color:var(--ink-2)">
+          Положение со значком <b>&#183;)))</b> &#8212; у этого мультиметра оно совмещено
+          с &#937; и с диодом, переключается кнопкой. Что попал куда надо, проверяется одним
+          движением: <b>сомкнуть щупы</b> &#8212; должен быть писк и около 0.0&#8211;0.5
+          &#937;. Пищит, но цифр нет (или наоборот) &#8212; нажать кнопку ещё раз. Делать
+          это <b>перед каждым сеансом</b>: половина ложных диагнозов &#8212; порванный щуп
+          или неплотно вставленный банан.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px;font-size:15px">Чем цепляться</h3>
+        <p style="margin:0;font-size:14px;line-height:1.55;color:var(--ink-2)">
+          Щуп толще отверстия, и попытка воткнуть его в дырку разбивает пружину &#8212; на
+          этой макетке такое уже было причиной отказа. Поэтому: воткнуть в <b>свободную
+          дырку той же колонки</b> кусок провода 22AWG и звонить за него, либо цеплять за
+          торчащий кончик стоящей перемычки, за ножку резистора, за площадку модуля.</p>
+      </div>
+    </div>
+
+    <h3 style="margin:22px 0 0;font-size:15px">Семь прозвонок под эту неисправность</h3>
+    <p class="sub">Все &#8212; при вынутом адаптере и вынутой банке. Замеры 1&#8211;5
+      закрывают ровно те пять мест обрыва, что перечислены выше.</p>
+    <div class="card"><table class="m">
+      <tr><th></th><th>Между чем</th><th>Где это</th><th>Что проверяет</th>
+        <th>Норма</th></tr><tr><td class="n">1</td><td class="pt"><b>Ч1 &#8596; Ч2</b></td><td style="color:var(--ink-3)">верхняя &#171;&#8722;&#187; слева (к.14) &#8596; нижняя &#171;&#8722;&#187; (к.43)</td><td>земля платы целиком &#8212; связка кол.21 и мост &#171;&#8722;&#187; 31&#8596;32 сразу</td><td class="exp">0 &#937;, писк</td></tr><tr><td class="n">2</td><td class="pt">&#171;+&#187; верх к.8 &#8596; <b class='col'>39j</b></td><td style="color:var(--ink-3)">рельс &#8596; узел ШИНА</td><td>провод-ввод &#8212; единственный, которым питается вся шина</td><td class="exp">0 &#937;</td></tr><tr><td class="n">3</td><td class="pt">&#171;+&#187; верх к.8 &#8596; <b class='col'>1a</b></td><td style="color:var(--ink-3)">рельс &#8596; дырка над пином &#171;5V&#187;</td><td>диагональная перемычка на плату</td><td class="exp">0 &#937;</td></tr><tr><td class="n">4</td><td class="pt">&#171;+&#187; верх к.8 &#8596; &#171;+&#187; верх к.55</td><td style="color:var(--ink-3)">левая половина &#8596; правая</td><td>мост &#171;+&#187; через разрез 31&#8596;32</td><td class="exp">0 &#937;</td></tr><tr><td class="n">5</td><td class="pt"><b class='col'>57h &#8596; 41h</b></td><td style="color:var(--ink-3)">нижний банк, под корпусами</td><td>перемычка &#171;выход Boost#2 &#8594; анод D2&#187;</td><td class="exp">0 &#937;</td></tr><tr><td class="n">6</td><td class="pt">&#171;+&#187; верх &#8596; &#171;&#8722;&#187; верх</td><td style="color:var(--ink-3)">две полосы над платой</td><td>нет ли короткого замыкания на шине</td><td class="exp"><b>писка быть не должно</b></td></tr><tr><td class="n">7</td><td class="pt"><b class='col'>49j &#8596; 51j</b></td><td style="color:var(--ink-3)">по обе стороны тумблера</td><td>сам SW1</td><td class="exp">0 &#937; при ON, <b>OL при OFF</b></td></tr>
+    </table></div>
+    <div class="note info" style="margin-top:12px"><i>&#9679;</i><span><b>Замер 1 проверяет
+      две перемычки сразу.</b> Не прошёл &#8212; развалить пополам: <b>Ч1 &#8596; нижняя
+      &#171;&#8722;&#187;, к.10</b> (это связка кол.21), потом <b>к.10 &#8596; к.43 по
+      нижней &#171;&#8722;&#187;</b> (это мост 31&#8596;32). Первый нолик покажет, какая из
+      двух. <b>Замер 6 наоборот</b> &#8212; там звониться <b>не должно</b>; пищит
+      непрерывно, значит есть короткое, и всё остальное искать бессмысленно (подозреваемые
+      &#8212; C1 и C2).</span></div>
+
+    <h3 style="margin:22px 0 0;font-size:15px">Диоды &#8212; не прозвонкой</h3>
+    <p class="sub">D1 и D2 &#8212; Шоттки: прямое падение 0.2&#8211;0.35 В, и в режиме
+      &#171;&#183;)))&#187; они <b>пищат в прямом направлении</b>. Это не короткое, это
+      нормальный диод, и на слух отличить нельзя. Нужен режим диода, где меряется
+      падение.</p>
+    <div class="card"><table class="m">
+      <tr><th></th><th>Красный щуп &#8212; анод</th><th>Чёрный щуп &#8212; катод</th>
+        <th>Как стоит на макетке</th></tr><tr><td class="bk">D1</td><td class="pt">кол.37 &#8212; адаптер</td><td class="pt">кол.39 &#8212; ШИНА</td><td style="color:var(--ink-2)">полоска смотрит ВПРАВО</td></tr><tr><td class="bk">D2</td><td class="pt">кол.41 &#8212; Boost#2</td><td class="pt">кол.39 &#8212; ШИНА</td><td style="color:var(--ink-2)">полоска смотрит ВЛЕВО</td></tr>
+    </table></div>
+    <p class="hint" style="margin-top:10px">В такой полярности &#8212;
+      <b>0.2&#8211;0.35 В</b>, щупы наоборот &#8212; <b>OL</b>. У обоих диодов чёрный щуп
+      стоит в колонке 39: там сходятся оба катода, это и есть узел ШИНА. Падение мерится
+      в обе стороны или не мерится вовсе, а полоска смотрит куда надо &#8212; диод
+      пробит.</p>
+
+    <div class="note info" style="margin-top:12px"><i>&#9679;</i><span><b>Прозвонить саму
+      макетку.</b> Пять дырок одной колонки внутри одного банка обязаны звониться между
+      собой в ноль: <b class="col">39f &#8596; 39j</b>. Не звонятся &#8212; пружина в одной
+      из дырок убита, и провод в ней стоит, а контакта нет. Стоит проверить так же колонки
+      1, 51 и 57 &#8212; там сидят силовые перемычки, а разношенные пружины на этой макетке
+      уже случались.</span></div>
+    <div class="note warn" style="margin-top:10px"><i>&#9888;</i><span><b>Измерение в схеме
+      врёт в сторону &#171;звонится&#187;.</b> Параллельные пути через модули и
+      конденсаторы дают ложный ноль. Результат странный &#8212; поднять одну ножку детали
+      из макетки и померить её отдельно: на этой сборке это ничего не стоит.</span></div>
+  </section>
+
+  <section>
+    <h2>Куда щуп не пролезет</h2>
+    <p class="sub">Корпуса модулей накрывают часть отверстий, и это не мелочь: половина
+      «очевидных» точек замера после сборки недоступна физически. Отсюда и странные на вид
+      адреса точек — они выбраны из того, что осталось.</p>
+    <div class="card"><table class="m">
+      <tr><th>Что накрывает</th><th>Колонки</th><th>Что остаётся</th></tr><tr><td class="bk">ESP32 DevKitC</td><td class="pt">кол.1–19</td><td>Ряды штырей разнесены на 0.9&#8243;, поэтому плата села в ряды <b>b</b> и <b>j</b> и накрыла собой всё, что между ними. Свободен <b>только ряд a</b> — узкая полоска над платой. Поэтому все провода к ней и идут в <b class='col'>1a · 5a · 6a · 13a · 25a · 27a · 35a</b>: другого места нет.</td></tr><tr><td class="bk">TP4056</td><td class="pt">кол.45–50</td><td>Свес корпуса накрывает ряды a…h. Свободны <b>i</b> и <b>j</b> — оттуда и меряются OUT+ (точка 4) и B+. <b>Верх колонки 50 (IN+) недоступен вовсе</b> — это точка 2.</td></tr><tr><td class="bk">Boost#1 и Boost#2</td><td class="pt">кол.53–57 и 59–63</td><td>Свободны ряд <b>a</b> сверху и ряд <b>j</b> снизу. Отсюда и адреса точки 6: вход <b class='col'>55a</b>, выход <b class='col'>57j</b>.</td></tr><tr><td class="bk">F1 · PTC</td><td class="pt">кол.42–44</td><td>Цилиндр лежит над рядами h и i. Поэтому точки 3 и 3' — в ряду <b>g</b>, а не вплотную к ножкам.</td></tr>
+    </table></div>
+    <div class="note warn" style="margin-top:12px"><i>⛔</i><span><b>Колонки 1–4 держать
+      пустыми.</b> На 38-pin туда выведены шесть ног SPI-флеша: снизу
+      <b class="mono">CLK · D0 · D1</b>, сверху <b class="mono">CMD · D3 · D2</b>. Перемычка
+      или обломок ножки в любой из них — и плата не грузится вообще, без единого признака.
+      Колонка «5V» (1) стоит вплотную к колонке CMD (2), так что щуп туда лучше вести
+      сверху, из ряда a, а не вслепую сбоку.</span></div>
+  </section>
+
+  <section>
+    <h2>Как читать координату</h2>
+    <div class="two">
+      <div class="card">
+        <h3 style="margin:0 0 8px;font-size:15px">Цифра и буква</h3>
+        <p style="margin:0;font-size:14px;line-height:1.55;color:var(--ink-2)">
+          <b>Колонка</b> — цифра, счёт слева от самого края, всего 63.
+          <b>Ряд</b> — буква, счёт сверху вниз: <b class="mono">a</b> идёт сразу под верхней
+          парой рельсов, <b class="mono">j</b> — сразу над нижней. Между <b class="mono">e</b>
+          и <b class="mono">f</b> проходит канавка. Разворачивать макетку надо так же, как
+          нарисовано: <b>USB-разъём ESP32 слева</b>.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px;font-size:15px">Пять дырок — одна точка</h3>
+        <p style="margin:0;font-size:14px;line-height:1.55;color:var(--ink-2)">
+          Пять отверстий одной колонки внутри одного банка соединены между собой:
+          <b class="mono">39f = 39g = 39h = 39i = 39j</b>. Канавка разрывает —
+          <b class="mono">39a…39e</b> уже другая точка. Поэтому «померь 39g» значит
+          «колонка 39, любая свободная дырка нижнего банка».</p>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px;font-size:15px">Где на рельсе «+», а где «−»</h3>
+        <p style="margin:0;font-size:14px;line-height:1.55;color:var(--ink-2)">
+          Сверху дальний от банка ряд отверстий — <b>«+»</b>, ближний — <b>«−»</b>.
+          <b>Снизу наоборот</b>: ближний к банку «+», дальний «−». Перепутать их — самый
+          дешёвый способ получить короткое замыкание вместо измерения.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px;font-size:15px">Рельсы короче банка</h3>
+        <p style="margin:0;font-size:14px;line-height:1.55;color:var(--ink-2)">
+          Полосы «+» и «−» на этой макетке идут только от <b>кол.3 до кол.61</b>, а ряды
+          a…j — от 1 до 63. Над «5V» платы (кол.1) отверстия рельса просто нет, поэтому
+          перемычка туда идёт <b>по диагонали</b> в кол.3. То же на правом краю: Boost#1
+          IN− сидит в кол.62, и его перемычка тоже наискосок, в кол.61.</p>
+      </div>
+    </div>
+  </section>
+</div>
+</body>
+</html>
