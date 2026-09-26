@@ -246,6 +246,17 @@ unsigned long modemRxTotal = 0;
 // step 0b — it is not guessed.
 #define MODEM_APN "internet.mnc003.mcc255.gprs"
 
+// Which UART peripheral esp-modem drives. UART2 — the one Serial2 (the AT console) owns —
+// and not the library's default of UART1, because UART1 is the display link's (see
+// HAS_DISPLAY_LINK). Sharing is safe by construction: the console calls Serial2.end()
+// before PPP.begin(), and modemPppRelease() reopens it only after PPP.end(), so the two
+// never hold the peripheral at the same time. Each end() deletes the IDF driver, which
+// is what lets the other side install its own.
+// Until 2026-09-26 this was UART1. Harmless while nothing else wanted UART1, but note what
+// a Serial1 started with default pins would have done then: the core's UART1 defaults are
+// RX1=26 / TX1=27, and GPIO27 is the modem's RXD.
+#define MODEM_PPP_UART 2
+
 // Retry cadence. The first attempt is cheap because the usual failure is "the modem has
 // not finished booting yet"; the ceiling is long because the usual PERSISTENT failure is
 // "there is no LTE here at all", and a modem that cannot register burns ~0.1 A doing it.
@@ -1140,6 +1151,73 @@ void handleData() {
   server.send(200, "application/json", buildDataJson());
 }
 
+// ===== DISPLAY LINK (CYD, wired) =====
+// A second, separate ESP32 board with its own 2.8" screen (ESP32-2432S028, the "Cheap
+// Yellow Display", project folder wind_display/) sits in the enclosure and shows the same
+// frame the dashboard gets. It is fed by ONE wire, not by WiFi, and the reasons are all
+// on this side:
+//   - a display associated to the AP counts as a client, and serviceUplink() stays
+//     silent while anyone is on the AP (staNoneInRange && apClients() > 0) — a panel
+//     that never leaves would stop the home-network search for good;
+//   - it would take one of the four AP slots, pin the WiFi LED on forever, and make
+//     wifiRssi report the display's signal instead of a person's;
+//   - the display then runs with its radio OFF, which is most of its power budget.
+// Set to 0 and nothing below is compiled — GPIO23 is then simply unused.
+#define HAS_DISPLAY_LINK 1
+
+#if HAS_DISPLAY_LINK
+// Breadboard 18j (bottom header, 38-pin DevKitC seated from column 1, schematic v8) —
+// between GPIO22 at 17j and the GND pin at 19j. Chosen because it is free and is not a
+// strapping pin, so whatever the display's input does at power-up cannot change how this
+// board boots. TX only: the display never answers, so no RX pin is claimed and GPIO23 is
+// the only pin this link costs.
+#define PIN_DISPLAY_TX   23   // -> CYD connector CN1, pin IO27 (the display's RX)
+const unsigned long DISPLAY_BAUD = 115200;
+// 5 Hz. A frame is ~800 bytes = ~70 ms of wire time at 115200, so this uses ~35% of the
+// line and the ring never has reason to fill. Faster buys nothing: a person reads a number
+// off a screen, and the display animates between frames on its own side anyway.
+const unsigned long DISPLAY_PUSH_MS = 200;
+// The ring the driver drains in the background. Two full frames plus change, so one frame
+// can still be leaving while the next is queued behind it. Must be set before begin() —
+// the core refuses to resize a running UART.
+const size_t DISPLAY_TX_BUF = 2048;
+
+unsigned long lastDisplay    = 0;
+// Frames skipped because the ring had no room. Reset with the telemetry line, same as
+// sseDropped. The UART has no idea whether anyone listens, so a dead or unplugged display
+// does NOT raise this — only a stall on this side can. Nonzero means loop() is slow.
+unsigned long displayDropped = 0;
+
+static void displayLinkStart() {
+  Serial1.setTxBufferSize(DISPLAY_TX_BUF);
+  // rx = -1 on purpose, and it is safe: the core only falls back to its default UART1
+  // pins (RX1=26 / TX1=27 — the modem's pair) when BOTH are negative. With tx given, rx
+  // stays unassigned and no pin other than GPIO23 is touched.
+  Serial1.begin(DISPLAY_BAUD, SERIAL_8N1, -1, PIN_DISPLAY_TX);
+  Serial.printf("Display link: UART1 TX=GPIO%u @%lu, frame every %lu ms\n",
+                PIN_DISPLAY_TX, DISPLAY_BAUD, DISPLAY_PUSH_MS);
+}
+
+// Same rule as sseFlush(): never block loop(). Serial1.write() blocks once the ring is
+// full, so a frame is written only if all of it fits RIGHT NOW, otherwise dropped and
+// counted. Whole frames, never half of one: the display parses line by line, and a torn
+// frame would cost it the next good line too.
+// availableForWrite() has a quirk worth knowing: with the ring full the core reports the
+// free space of the 128-byte hardware FIFO instead of 0. A frame is always longer than
+// 128 bytes, so here that still reads as "no room" — it would not for a short message.
+static void serviceDisplayLink() {
+  if (millis() - lastDisplay < DISPLAY_PUSH_MS) return;
+  lastDisplay = millis();
+  String line = buildDataJson();
+  line += '\n';
+  if (Serial1.availableForWrite() < (int)line.length()) {
+    displayDropped++;
+    return;
+  }
+  Serial1.write((const uint8_t*)line.c_str(), line.length());
+}
+#endif
+
 // ===== SSE STREAM =====
 // WebServer serves one client at a time and always replies "Connection: close",
 // so polling above 1 Hz used to exhaust lwIP's 16 TCP PCBs (60 s TIME_WAIT each).
@@ -1611,7 +1689,7 @@ static void serviceModem() {
       // this board, so there is no reset line to pulse — and asking for one would send
       // begin() down the path that waits up to 50 s for the modem to answer instead of
       // giving up in half a second. Nothing called from loop() may cost 50 s.
-      if (!PPP.begin(PPP_MODEM_SIM7600, 1, (int)modemBaud)) {
+      if (!PPP.begin(PPP_MODEM_SIM7600, MODEM_PPP_UART, (int)modemBaud)) {
         modemLastError = "begin() failed";
         modemPppRelease("begin failed");
         modemSetState(MODEM_PPP_FAILED);
@@ -3863,6 +3941,10 @@ void setup() {
 #endif
 #endif
 
+#if HAS_DISPLAY_LINK
+  displayLinkStart();
+#endif
+
   pinMode(PIN_LED_GREEN,  OUTPUT);
   pinMode(PIN_LED_YELLOW, OUTPUT);
   pinMode(PIN_LED_RED,    OUTPUT);
@@ -4194,6 +4276,10 @@ void loop() {
   // soon as the window reopens instead of waiting out the next 50 ms tick.
   sseFlush();
 
+#if HAS_DISPLAY_LINK
+  serviceDisplayLink();
+#endif
+
   // Serial log stays slow — 250 ms would flood the console.
   if (millis() - lastLog > 2000) {
     lastLog = millis();
@@ -4210,15 +4296,23 @@ void loop() {
     // right after boot, which is measured before any of that has been allocated.
     Serial.printf("V=%.1f m/s (%.0f mV ±%.0f, zero %.0f)  D=%.0f°  G=%.1f  "
                   "Bat=%.2fV (%d%%) %s/%s  RSSI=%d  loopMax=%lums (log %lums)  "
-                  "sseDrop=%lu  heap=%lu/min %lu\n",
+                  "sseDrop=%lu  dispDrop=%lu  heap=%lu/min %lu\n",
                   windSpeed, speedMvRaw, speedMvSpread, speedZeroMv, windDir, windGust,
                   batteryVoltage, batteryPercent, powerSource, chargeState, wifiRssi,
                   loopMaxMs, logBusyLast, sseDropped,
+#if HAS_DISPLAY_LINK
+                  displayDropped,
+#else
+                  0UL,
+#endif
                   (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMinFreeHeap());
     logBusy     = millis() - lastLog;
     logBusyLast = logBusy;
     loopMaxMs   = 0;
     sseDropped  = 0;
+#if HAS_DISPLAY_LINK
+    displayDropped = 0;
+#endif
   }
 
   // LED status updates independently so LED_WIFI follows the client count without
