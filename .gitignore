@@ -20,6 +20,9 @@ node_modules/
 wind-ui/dist/
 wind-ui/dist-single/
 dist/
+# Байткод Python — генераторы images/*.py оставляют его при каждом запуске
+__pycache__/
+*.pyc
 
 # === Большие снапшоты-архивы (пересобираются из исходников) ===
 esp32_wind_station.zip

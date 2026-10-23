@@ -895,7 +895,7 @@ gzip в `web_content.h` и внутри `WindStation-kit.zip` подстанов
 Отслеживается ~220 файлов (16 МБ). `.gitignore` держит вне истории всё пересобираемое:
 каталоги сборки (`build/`, `esp32_wind_station/build/`, `node_modules/`, `wind-ui/dist/`),
 снапшоты `esp32_wind_station.zip` и `wind-ui.zip`, черновики `*.bak-*`, `temp/`, `tmp/`, логи,
-служебные файлы KiCad (`*.kicad_prl`, `*.lck`, `.history/` — внутри неё свой `.git`) и `.idea/`.
+служебные файлы KiCad (`*.kicad_prl`, `*.lck`, `.history/` — внутри неё свой `.git`), `.idea/` и байткод Python (`__pycache__/`).
 Два исключения, которые выглядят нелогично, но сделаны намеренно:
 
 - `esp32_wind_station/web_content.h` **коммитится**, хотя генерируется: без него прошивка
