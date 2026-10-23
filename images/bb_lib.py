@@ -837,3 +837,181 @@ def legend(items, y=88):
         out.append(f'<text x="{tx}" y="{y+4}">{text}</text>')
         x = tx + len(text)*7.2 + 26
     return f'<g font-size="13.5" fill="#333">{"".join(out)}</g>'
+
+# ============================================================= ВЫКЛЮЧАТЕЛЬ KCD4 (DPST, схема v9)
+# Почему отдельная функция, а не параметр к switch_rocker: у KCD4 четыре ножевых
+# контакта 6.3 мм и ДВА независимых полюса, которые ходят одной клавишей. Это
+# не украшение — именно вторая пара контактов и есть весь смысл детали: один
+# полюс рвёт «+» батареи (OUT+ TP4056), второй рвёт шину после диодного ИЛИ,
+# и только вдвоём они дают состояние «всё обесточено, банка заряжается вчистую».
+# switch_rocker трогать нельзя — на нём стоят схемы v6/v7/v8.
+SPADE_W, SPADE_H = 17, 12          # ножевой контакт 6.3 мм в масштабе макетки (17 px = 2.54 мм)
+
+def switch_dpst(x, y, w, h, terminals, key_box, pairs=((0, 1), (2, 3)),
+                pole_labels=("A", "B"), title="SW1 · KCD4",
+                subtitle="250 В · 16 А · 4 контакта = два полюса (DPST)",
+                link_note="клавиша одна — полюса ходят вместе",
+                title_x=None, title_anchor="middle"):
+    """Клавишный выключатель KCD4 на два полюса (DPST).
+
+    terminals — ровно четыре (tx, ty, label). Ножевой контакт рисуется ВВЕРХ:
+    точка подключения (tx, ty) лежит на верхней кромке корпуса, лепесток уходит
+    внутрь. Так провод с макетки падает в контакт строго вертикально и нигде
+    не ложится поверх металла — на чертеже видно, где кончается провод и
+    начинается деталь.
+
+    pairs — какие контакты сидят на одном полюсе. Между парами рисуется
+    пунктирная тяга: на чертеже обязано быть видно, что это ОДНА деталь,
+    а не два выключателя рядом, — иначе таблица состояний («OFF + адаптер =
+    заряд вчистую») читается как совпадение двух независимых движений.
+
+    key_box — (kx, ky, kw, kh) качалки в абсолютных координатах: контакты
+    занимают верхнюю кромку, и место под клавишу приходится назначать снаружи.
+
+    Контакты именно ножевые (плоские 6.3 мм), а не штырьки: в макетку они
+    не лезут, к ним идут отрезки 22 AWG с наконечниками-мамами.
+
+    title_x / title_anchor — куда класть заголовок. По умолчанию он стоит по центру
+    над корпусом, но провода к контактам падают сверху вертикально и на обеих
+    картинках v9 проходили ровно сквозь буквы. Сдвинуть их нельзя (контакт стоит
+    под своей колонкой), поэтому сдвигается подпись: вправо от последнего контакта,
+    в пустую часть верхней кромки.
+    switch_rocker трогать нельзя — на нём стоят схемы v6/v7/v8.
+    """
+    cx = x + w / 2
+    frame = (f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="9" fill="#17181c" '
+             f'stroke="#3a3d43" stroke-width="1.6"/>'
+             f'<rect x="{x+4}" y="{y+4}" width="{w-8}" height="{h-8}" rx="7" fill="none" '
+             f'stroke="#000" stroke-opacity="0.4"/>')
+    kx, ky, kw, kh = key_box
+    kcy = ky + kh / 2.0
+    rocker = (f'<rect x="{kx}" y="{ky}" width="{kw}" height="{kh}" rx="6" fill="#c62f24" stroke="#7a1a12"/>'
+              f'<rect x="{kx}" y="{ky}" width="{kw}" height="{kh/2:.0f}" rx="6" fill="#e0443a"/>'
+              f'<circle cx="{kx+kw*0.28:.0f}" cy="{kcy:.0f}" r="7" fill="none" stroke="#fff" stroke-width="2"/>'
+              f'<rect x="{kx+kw*0.70:.0f}" y="{kcy-8:.0f}" width="3" height="16" fill="#fff"/>'
+              f'<text x="{kx+kw*0.28:.0f}" y="{ky+kh+14}" font-size="9" fill="#8d9199" text-anchor="middle">OFF</text>'
+              f'<text x="{kx+kw*0.70:.0f}" y="{ky+kh+14}" font-size="9" fill="#8d9199" text-anchor="middle">ON</text>')
+    # ножевые контакты 6.3 мм: прямоугольник с прорезью, вниз в корпус
+    term = ""
+    for tx, ty, label in terminals:
+        bx = tx - SPADE_H / 2.0
+        term += (f'<rect x="{bx}" y="{ty}" width="{SPADE_H}" height="{SPADE_W}" rx="1.5" '
+                 f'fill="{SILVER}" stroke="#7d828a"/>'
+                 f'<rect x="{bx+SPADE_H/2-1.2}" y="{ty+5}" width="2.4" height="6" rx="1" fill="#7d828a"/>'
+                 f'<circle cx="{tx}" cy="{ty}" r="3" fill="#0b0b0d"/>'
+                 f'<text x="{tx}" y="{ty+SPADE_W+13}" font-size="9" font-weight="700" '
+                 f'fill="{SILK}" text-anchor="middle">{label}</text>')
+    # скобки полюсов + пунктирная тяга между ними
+    pole, mids = "", []
+    for k, (i, j) in enumerate(pairs):
+        if i >= len(terminals) or j >= len(terminals):
+            continue
+        x1, x2 = terminals[i][0], terminals[j][0]
+        by = terminals[i][1] + SPADE_W + 26
+        mids.append(((x1 + x2) / 2.0, by))
+        pole += (f'<path d="M{x1} {by-7} L{x1} {by} L{x2} {by} L{x2} {by-7}" fill="none" '
+                 f'stroke="{SILK_DIM}" stroke-width="1.8" stroke-dasharray="4 3"/>'
+                 f'<text x="{(x1+x2)/2:.0f}" y="{by+15}" font-size="13" font-weight="700" '
+                 f'fill="{SILK}" text-anchor="middle">полюс {pole_labels[k]}</text>')
+    if len(mids) == 2:
+        (mx1, my1), (mx2, my2) = mids
+        ly = max(my1, my2) + 30
+        pole += (f'<path d="M{mx1:.0f} {my1+20} L{mx1:.0f} {ly} L{mx2:.0f} {ly} L{mx2:.0f} {my2+20}" '
+                 f'fill="none" stroke="{SILK_DIM}" stroke-width="2.4" stroke-dasharray="6 4"/>'
+                 f'<circle cx="{mx1:.0f}" cy="{ly}" r="3.4" fill="none" stroke="{SILK_DIM}" stroke-width="1.6"/>'
+                 f'<circle cx="{mx2:.0f}" cy="{ly}" r="3.4" fill="none" stroke="{SILK_DIM}" stroke-width="1.6"/>'
+                 f'<text x="{(mx1+mx2)/2:.0f}" y="{ly+15}" font-size="9" fill="{SILK_DIM}" '
+                 f'text-anchor="middle">{link_note}</text>')
+    tx0 = cx if title_x is None else title_x
+    txt = (f'<text x="{tx0:.0f}" y="{y-10}" font-size="14" font-weight="700" fill="#1a1a1a" '
+           f'text-anchor="{title_anchor}">{title}</text>'
+           f'<text x="{cx}" y="{y+h+16}" font-size="10" fill="#666" text-anchor="middle">{subtitle}</text>')
+    return frame + rocker + term + pole + txt
+
+# ============================================================= ПЕРЕСЕЧЕНИЕ БЕЗ СОЕДИНЕНИЯ (схема v9)
+# Соединение на чертеже — точка (dots в генераторе). Пересечение обязано выглядеть
+# ИНАЧЕ, иначе два провода разных цепей в одной точке читаются как узел, и человек
+# ставит перемычку там, где её быть не должно. Здесь это дуга-мостик: гало цветом
+# фона разрывает нижний провод, дуга цветом верхнего его перешагивает.
+def hop(x, y, color, direction="v", r=9, w=2.8, bg=BOARD_FILL, side=1, halo=7):
+    """Мостик в точке (x, y). direction — направление ВЕРХНЕГО провода ('v'|'h').
+
+    side=+1 — дуга выгибается вправо (для 'v') или вверх (для 'h'), −1 — наоборот.
+    bg — цвет подложки в этом месте (тело макетки, белое поле, тон рельса):
+    гало рисуется именно им, поэтому его надо передавать по месту, а не угадывать.
+    """
+    sweep = 1 if side >= 0 else 0
+    if direction == "v":
+        x1, y1, x2, y2 = x, y - r, x, y + r
+    else:
+        x1, y1, x2, y2 = x - r, y, x + r, y
+    # 1) гало: стирает и чужой провод, и собственный прямой участок под дугой
+    out = (f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{bg}" '
+           f'stroke-width="{w+halo}" stroke-linecap="butt"/>')
+    # 2) сама дуга — в цвете верхнего провода
+    out += (f'<path d="M {x1} {y1} A {r} {r} 0 0 {sweep} {x2} {y2}" fill="none" '
+            f'stroke="{color}" stroke-width="{w}" stroke-linecap="round"/>')
+    return out
+
+# ============================================================= ЛЕГЕНДА ПЛЮСОВЫХ ЦЕПЕЙ (схема v9)
+def plus_legend(x, y, w, items, title="Десять плюсовых цепей — каждая своим цветом",
+                row_h=25, head_h=46):
+    """Панель «какой плюс куда идёт». items: (номер, цвет, имя, напряжение, маршрут).
+
+    Без неё десять оттенков красного превращаются в кашу: цвет работает только
+    тогда, когда рядом написано, что он значит.
+    """
+    h = head_h + row_h * len(items) + 12
+    out = [f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="12" fill="#fffdf7" '
+           f'stroke="#d8d2c0" stroke-width="1.4"/>',
+           f'<text x="{x+18}" y="{y+28}" font-size="15" font-weight="700" fill="#1a1a1a">{title}</text>']
+    for i, (num, color, name, volts, route) in enumerate(items):
+        ry = y + head_h + row_h * i + 8
+        out.append(f'<rect x="{x+18}" y="{ry-10}" width="28" height="13" rx="3" fill="{color}"/>')
+        out.append(f'<text x="{x+54}" y="{ry+1}" font-size="11.5" font-weight="700" fill="{color}">{num}</text>')
+        out.append(f'<text x="{x+88}" y="{ry+1}" font-size="11.5" font-weight="700" fill="#1a1a1a">{name}</text>')
+        out.append(f'<text x="{x+352}" y="{ry+1}" font-size="11.5" fill="#555" text-anchor="end">{volts}</text>')
+        out.append(f'<text x="{x+366}" y="{ry+1}" font-size="11" fill="#666">{route}</text>')
+    return "".join(out)
+
+
+def hop_dpath(pts, hops, r=7):
+    """Путь ломаной, у которой в точках `hops` вырезан мостик-дуга.
+
+    Так пересечение видно САМИМ проводом: на чужой линии он приподнимается дугой,
+    а не разрывает её гало. hops — список (x, y) на сегментах ломаной; дуга строится
+    в плоскости сегмента, сторона выбирается автоматически (вправо/вверх).
+    Для рельсов и чужих проводов это единственный честный вариант: гало стёрло бы
+    медь рельса, которой на самом деле ничего не делается.
+    """
+    def fmt(x, y):
+        return f"{x:.1f} {y:.1f}"
+    # hops принимает и (x, y), и (x, y, r): рельс шириной 12 px надо перешагивать
+    # одной большой дугой, а тонкий провод — маленькой, иначе дуги сливаются.
+    hh = [(h[0], h[1], (h[2] if len(h) > 2 else r)) for h in hops]
+    d = "M" + fmt(*pts[0])
+    for i in range(len(pts) - 1):
+        x0, y0 = pts[i]
+        x1, y1 = pts[i + 1]
+        horiz = abs(y1 - y0) < 0.51
+        vert = abs(x1 - x0) < 0.51
+        on = []
+        if horiz or vert:
+            for hx, hy, hr in hh:
+                if horiz and abs(hy - y0) < 0.6 and min(x0, x1) + hr <= hx <= max(x0, x1) - hr:
+                    on.append((abs(hx - x0), hx, hy, hr))
+                elif vert and abs(hx - x0) < 0.6 and min(y0, y1) + hr <= hy <= max(y0, y1) - hr:
+                    on.append((abs(hy - y0), hx, hy, hr))
+        on.sort()
+        for _, hx, hy, hr in on:
+            if horiz:
+                sgn = 1 if x1 > x0 else -1
+                d += " L" + fmt(hx - sgn * hr, y0)
+                # против часовой в SVG (y вниз) = дуга вверх при движении вправо
+                d += f" A {hr} {hr} 0 0 {0 if sgn > 0 else 1} " + fmt(hx + sgn * hr, y0)
+            else:
+                sgn = 1 if y1 > y0 else -1
+                d += " L" + fmt(x0, hy - sgn * hr)
+                d += f" A {hr} {hr} 0 0 {1 if sgn > 0 else 0} " + fmt(x0, hy + sgn * hr)
+        d += " L" + fmt(x1, y1)
+    return d
