@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#060a1a">
+<title>Установить Weathered_Kiwi</title>
+<link rel="icon" href="icon.png">
+<style>
+  :root { --ease-back: cubic-bezier(.34,1.56,.5,1) }
+  * { box-sizing: border-box }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; color: #e7eef6;
+    background: radial-gradient(130% 100% at 20% 0%, #0b1530 0%, #070c1c 55%, #04060f 100%); overflow-x: hidden }
+  .blob { position: fixed; border-radius: 50%; width: 90vmax; height: 90vmax; pointer-events: none; z-index: -1 }
+  .b1 { left: -40vmax; top: -45vmax; background: radial-gradient(closest-side, rgba(48,104,255,.45), transparent) }
+  .b2 { right: -45vmax; bottom: -50vmax; background: radial-gradient(closest-side, rgba(150,70,235,.35), transparent) }
+  .card { width: min(460px, 100%); padding: 30px 26px 26px; border-radius: 34px; text-align: center;
+    border: 1px solid rgba(255,255,255,.18); background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04));
+    box-shadow: 0 30px 80px -30px rgba(0,0,0,.8), inset 0 1px .5px rgba(255,255,255,.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
+    animation: pop .8s var(--ease-back) both }
+  @keyframes pop { from { opacity: 0; transform: translateY(30px) scale(.9) } to { opacity: 1; transform: none } }
+  .logo { width: 96px; height: 96px; filter: drop-shadow(0 0 14px rgba(140,195,74,.45));
+    animation: bob 3.4s ease-in-out infinite; transform-origin: 50% 80% }
+  @keyframes bob { 0%,100% { transform: translateY(0) rotate(-4deg) } 50% { transform: translateY(-6px) rotate(5deg) } }
+  h1 { margin: 14px 0 0; font-size: 22px; letter-spacing: 1.4px; display: flex; flex-wrap: wrap; gap: 9px; justify-content: center; align-items: center }
+  .chip { font-size: 10.5px; font-weight: 700; letter-spacing: .8px; padding: 3px 10px; border-radius: 999px; white-space: nowrap }
+  .ver { color: #9db8ff; border: 1px solid rgba(120,160,255,.5); background: rgba(60,100,255,.15) }
+  .claude-wrap { position: relative; display: inline-flex }
+  .claude-chip { cursor: pointer; display: inline-flex; align-items: center; gap: 5px; position: relative; color: #ff9a3c;
+    border: 1px solid rgba(255,154,60,.5); background: rgba(255,154,60,.10); text-shadow: 0 0 8px rgba(255,154,60,.45); font-family: inherit }
+  .claude-chip::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; border: 1px solid rgba(255,154,60,.7);
+    pointer-events: none; animation: ring 2.2s ease-out infinite }
+  @keyframes ring { from { transform: scale(1); opacity: .8 } to { transform: scale(1.35,1.9); opacity: 0 } }
+  .claude-chip svg { animation: spin 9s linear infinite }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .pop { position: absolute; top: calc(100% + 12px); left: 50%; margin-left: -110px; z-index: 5; white-space: nowrap; width: 220px;
+    padding: 9px 14px; border-radius: 14px; font-size: 11px; font-weight: 600; color: #ff9a3c; border: 1.5px solid #ff9a3c;
+    background: rgba(40,22,8,.7); box-shadow: 0 0 22px rgba(255,154,60,.35); text-shadow: 0 0 10px rgba(255,154,60,.6);
+    transform-origin: 50% -6px; animation: cin .55s var(--ease-back) both }
+  .pop.out { animation: cout .4s cubic-bezier(.5,0,.8,.4) forwards; pointer-events: none }
+  @keyframes cin { from { opacity: 0; transform: translateY(-14px) scale(.4) rotate(-6deg) } to { opacity: 1; transform: none } }
+  @keyframes cout { 0% { opacity: 1 } 30% { transform: translateY(3px) scale(1.06) } 100% { opacity: 0; transform: translateY(-16px) scale(.35) rotate(7deg); filter: blur(6px) } }
+  p.sub { margin: 10px 0 22px; font-size: 12px; color: rgba(231,238,246,.62); letter-spacing: .5px; line-height: 1.6 }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 16px 20px; margin-top: 12px;
+    border-radius: 999px; text-decoration: none; color: #fff; font-weight: 700; font-size: 13px; font-family: inherit; letter-spacing: 2px; text-transform: uppercase;
+    border: 1px solid rgba(255,255,255,.25); background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.06));
+    box-shadow: inset 0 1px .5px rgba(255,255,255,.5), 0 10px 26px -12px rgba(0,0,0,.7); cursor: pointer;
+    transition: transform .4s var(--ease-back) }
+  .btn:hover { transform: translateY(-3px) scale(1.03) } .btn:active { transform: scale(.95) }
+  .btn small { display: block; font-size: 9.5px; letter-spacing: .8px; opacity: .65; text-transform: none; margin-top: 4px }
+  .btn small .v { font-style: normal }
+  .btn.win { border-color: rgba(120,170,255,.6) } .btn.and { border-color: rgba(140,205,90,.6) }
+  .btn svg { flex: none }
+  .hint { display: none; margin-top: 14px; padding: 12px 14px; border-radius: 18px; font-size: 11.5px; line-height: 1.6; text-align: left;
+    color: rgba(231,238,246,.8); border: 1px dashed rgba(255,255,255,.25); animation: cin .5s var(--ease-back) both }
+  .hint.on { display: block }
+  .foot { margin-top: 18px; font-size: 10px; color: rgba(231,238,246,.4) }
+  .foot a { color: inherit }
+  #src { display: block; line-height: 1.6 }
+</style>
+</head>
+<body>
+<div class="blob b1"></div><div class="blob b2"></div>
+<main class="card">
+  <img class="logo" src="icon.png" alt="">
+  <h1>Weathered_Kiwi
+    <span class="chip ver" id="ver">Beta</span>
+    <span class="claude-wrap">
+      <button class="chip claude-chip" id="cc" type="button">
+        <svg width="11" height="11" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true">
+          <line x1="12" y1="2.5" x2="12" y2="21.5"/><line x1="12" y1="2.5" x2="12" y2="21.5" transform="rotate(30 12 12)"/>
+          <line x1="12" y1="2.5" x2="12" y2="21.5" transform="rotate(60 12 12)"/><line x1="12" y1="2.5" x2="12" y2="21.5" transform="rotate(90 12 12)"/>
+          <line x1="12" y1="2.5" x2="12" y2="21.5" transform="rotate(120 12 12)"/><line x1="12" y1="2.5" x2="12" y2="21.5" transform="rotate(150 12 12)"/>
+        </svg>Claude</button>
+    </span>
+  </h1>
+  <p class="sub">Станция ветра у вас в кармане.<br>Выберите устройство.</p>
+
+  <a class="btn win" id="win" href="https://drive.usercontent.google.com/download?export=download&confirm=t&id=1UKmGYh1ytxFKk4IWdxBOnzj6vDQakeYP">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.5 4.5v6.8H3zM11.5 4.4 21 3v8.3h-9.5zM3 12.3h7.5v6.9L3 18.2zM11.5 12.3H21V21l-9.5-1.3z"/></svg>
+    <span>Скачать для Windows<small>установщик .exe<i class="v" id="v-exe"></i></small></span>
+  </a>
+  <a class="btn and" id="and" href="https://drive.usercontent.google.com/download?export=download&confirm=t&id=1eEkW6Uo1I0hTSFit50msWYdmKxqtgk6k">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 9.5a6 6 0 0 0-11.2 0zM6 10.5v7a1 1 0 0 0 1 1h1v3a1.2 1.2 0 0 0 2.4 0v-3h3.2v3a1.2 1.2 0 0 0 2.4 0v-3h1a1 1 0 0 0 1-1v-7z"/></svg>
+    <span>Скачать для Android<small>приложение .apk<i class="v" id="v-apk"></i></small></span>
+  </a>
+  <div class="hint" id="hint"><b>Почти готово.</b> Откройте скачанный файл <b>Weathered_Kiwi.apk</b>. Если Android спросит — разрешите установку из этого источника (браузера) и нажмите «Установить». <br>iPhone/iPad: приложения нет — в домашней сети откройте «Без установки» → «Поделиться» → «На экран “Домой”».</div>
+  <div class="foot"><a id="web" href="app/">Без установки (в браузере)</a><span id="src"></span></div>
+</main>
+<script>
+  // Claude: открывается нажатием и закрывается повторным, с анимацией в обе стороны.
+  var cc = document.getElementById("cc"), pop = null, busy = false;
+  cc.onclick = function () {
+    if (busy) return;
+    if (!pop) { pop = document.createElement("span"); pop.className = "pop"; pop.textContent = "Сделано с помощью Claude"; cc.parentNode.appendChild(pop); return; }
+    busy = true; pop.classList.add("out");
+    setTimeout(function () { pop.remove(); pop = null; busy = false; }, 400);
+  };
+  // Откуда брать файлы. Страница работает в двух местах:
+  //  • на домашнем сервере (serve-phone.ps1) — качает с этого компьютера, по своей
+  //    сети это в разы быстрее, и показывает версии из ленты;
+  //  • на любом хостинге или просто открытая файлом — тогда кнопки ведут на Google Диск
+  //    (Kiwi_Drop/updates, доступ по ссылке). id там постоянные: Publish-Shell в
+  //    build-setup.ps1 перезаписывает файлы на месте (см. drive-feed.json), так что
+  //    ссылка всегда отдаёт самую свежую сборку и компьютер для этого не нужен.
+  // Ссылки Диска стоят в разметке по умолчанию — работают даже без скрипта.
+  // Версии и «без установки» с Диска не взять: обычную загрузку он пускает, а fetch
+  // со стороннего сайта режет ответом 403 (проверено 2026-11-07), поэтому вне дома
+  // эти две вещи просто не показываются.
+  function get(url, ms) {
+    var c = window.AbortController ? new AbortController() : null;
+    var t = c && setTimeout(function () { c.abort(); }, ms);
+    return fetch(url, { cache: "no-store", signal: c && c.signal }).then(function (r) {
+      clearTimeout(t); if (!r.ok) throw new Error(r.status); return r;
+    });
+  }
+  var foot = document.getElementById("src"), web = document.getElementById("web");
+  web.style.display = "none";
+  foot.innerHTML = "Файлы — с Google Диска. Он скажет, что не может проверить файл на вирусы:<br>это про любой .exe/.apk — нажмите «Всё равно скачать».";
+  if (location.protocol === "http:" || location.protocol === "https:") {
+    get("feed/shell.json", 2500).then(function (r) { return r.json(); }).then(function (j) {
+      var win = document.getElementById("win"), and = document.getElementById("and");
+      win.href = "Kiwi_Drop.exe"; and.href = "Weathered_Kiwi.apk";
+      win.setAttribute("download", ""); and.setAttribute("download", "");
+      if (j.exe) document.getElementById("v-exe").textContent = " · версия " + j.exe.version;
+      if (j.apk) document.getElementById("v-apk").textContent = " · версия " + j.apk.version;
+      foot.textContent = "";
+      web.style.display = "";
+      return get("feed/latest.json", 2500).then(function (r) { return r.json(); }).then(function (l) {
+        if (l.version) document.getElementById("ver").textContent = "Beta " + l.version;
+      });
+    }).catch(function () {});
+  }
+  // После нажатия «Скачать для Android» показываем, что делать с файлом.
+  document.getElementById("and").addEventListener("click", function () {
+    document.getElementById("hint").classList.add("on");
+  });
+</script>
+</body>
+</html>
