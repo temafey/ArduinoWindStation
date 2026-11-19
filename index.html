@@ -2,168 +2,408 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#060a1a">
-<title>Установить Weathered_Kiwi</title>
+<title>Weathered_Kiwi — станция ветра</title>
+<meta name="description" content="Weathered_Kiwi — приложение самодельной станции ветра: скорость, порывы, анализ, прогноз и карта. Windows, macOS, Linux, Android, iPhone и iPad.">
+<meta property="og:title" content="Weathered_Kiwi — станция ветра">
+<meta property="og:description" content="Windows · macOS · Linux · Android · iPhone · iPad · браузер">
+<meta property="og:image" content="icon.png">
 <link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="app/apple-touch-icon.png">
 <style>
-  :root { --ease-back: cubic-bezier(.34,1.56,.5,1) }
+  :root {
+    --ease-back: cubic-bezier(.34,1.56,.5,1);
+    --fg: #e7eef6; --dim: rgba(231,238,246,.62); --faint: rgba(231,238,246,.4);
+    --line: rgba(255,255,255,.16); --glass: linear-gradient(180deg, rgba(255,255,255,.11), rgba(255,255,255,.035));
+    --acc: #8cc34a; --gold: #ffd27a; --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
   * { box-sizing: border-box }
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px;
-    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; color: #e7eef6;
-    background: radial-gradient(130% 100% at 20% 0%, #0b1530 0%, #070c1c 55%, #04060f 100%); overflow-x: hidden }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100% }
+  body { margin: 0; font-family: var(--sans); color: var(--fg); line-height: 1.55; overflow-x: hidden;
+    background: radial-gradient(130% 90% at 20% 0%, #0b1530 0%, #070c1c 55%, #04060f 100%) fixed #04060f }
+  a { color: inherit }
+  code { font-family: var(--mono); font-size: .86em; color: var(--gold); background: rgba(255,210,122,.08);
+    padding: 1px 6px; border-radius: 6px; word-break: break-all }
   .blob { position: fixed; border-radius: 50%; width: 90vmax; height: 90vmax; pointer-events: none; z-index: -1 }
-  .b1 { left: -40vmax; top: -45vmax; background: radial-gradient(closest-side, rgba(48,104,255,.45), transparent) }
-  .b2 { right: -45vmax; bottom: -50vmax; background: radial-gradient(closest-side, rgba(150,70,235,.35), transparent) }
-  .card { width: min(460px, 100%); padding: 30px 26px 26px; border-radius: 34px; text-align: center;
-    border: 1px solid rgba(255,255,255,.18); background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04));
-    box-shadow: 0 30px 80px -30px rgba(0,0,0,.8), inset 0 1px .5px rgba(255,255,255,.4);
-    -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
-    animation: pop .8s var(--ease-back) both }
-  @keyframes pop { from { opacity: 0; transform: translateY(30px) scale(.9) } to { opacity: 1; transform: none } }
-  .logo { width: 96px; height: 96px; filter: drop-shadow(0 0 14px rgba(140,195,74,.45));
-    animation: bob 3.4s ease-in-out infinite; transform-origin: 50% 80% }
-  @keyframes bob { 0%,100% { transform: translateY(0) rotate(-4deg) } 50% { transform: translateY(-6px) rotate(5deg) } }
-  h1 { margin: 14px 0 0; font-size: 22px; letter-spacing: 1.4px; display: flex; flex-wrap: wrap; gap: 9px; justify-content: center; align-items: center }
-  .chip { font-size: 10.5px; font-weight: 700; letter-spacing: .8px; padding: 3px 10px; border-radius: 999px; white-space: nowrap }
-  .ver { color: #9db8ff; border: 1px solid rgba(120,160,255,.5); background: rgba(60,100,255,.15) }
-  .claude-wrap { position: relative; display: inline-flex }
-  .claude-chip { cursor: pointer; display: inline-flex; align-items: center; gap: 5px; position: relative; color: #ff9a3c;
-    border: 1px solid rgba(255,154,60,.5); background: rgba(255,154,60,.10); text-shadow: 0 0 8px rgba(255,154,60,.45); font-family: inherit }
-  .claude-chip::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; border: 1px solid rgba(255,154,60,.7);
-    pointer-events: none; animation: ring 2.2s ease-out infinite }
-  @keyframes ring { from { transform: scale(1); opacity: .8 } to { transform: scale(1.35,1.9); opacity: 0 } }
-  .claude-chip svg { animation: spin 9s linear infinite }
-  @keyframes spin { to { transform: rotate(360deg) } }
-  .pop { position: absolute; top: calc(100% + 12px); left: 50%; margin-left: -110px; z-index: 5; white-space: nowrap; width: 220px;
-    padding: 9px 14px; border-radius: 14px; font-size: 11px; font-weight: 600; color: #ff9a3c; border: 1.5px solid #ff9a3c;
-    background: rgba(40,22,8,.7); box-shadow: 0 0 22px rgba(255,154,60,.35); text-shadow: 0 0 10px rgba(255,154,60,.6);
-    transform-origin: 50% -6px; animation: cin .55s var(--ease-back) both }
-  .pop.out { animation: cout .4s cubic-bezier(.5,0,.8,.4) forwards; pointer-events: none }
-  @keyframes cin { from { opacity: 0; transform: translateY(-14px) scale(.4) rotate(-6deg) } to { opacity: 1; transform: none } }
-  @keyframes cout { 0% { opacity: 1 } 30% { transform: translateY(3px) scale(1.06) } 100% { opacity: 0; transform: translateY(-16px) scale(.35) rotate(7deg); filter: blur(6px) } }
-  p.sub { margin: 10px 0 22px; font-size: 12px; color: rgba(231,238,246,.62); letter-spacing: .5px; line-height: 1.6 }
-  .btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 16px 20px; margin-top: 12px;
-    border-radius: 999px; text-decoration: none; color: #fff; font-weight: 700; font-size: 13px; font-family: inherit; letter-spacing: 2px; text-transform: uppercase;
-    border: 1px solid rgba(255,255,255,.25); background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.06));
-    box-shadow: inset 0 1px .5px rgba(255,255,255,.5), 0 10px 26px -12px rgba(0,0,0,.7); cursor: pointer;
-    transition: transform .4s var(--ease-back) }
-  .btn:hover { transform: translateY(-3px) scale(1.03) } .btn:active { transform: scale(.95) }
-  .btn small { display: block; font-size: 9.5px; letter-spacing: .8px; opacity: .65; text-transform: none; margin-top: 4px }
-  .btn small .v { font-style: normal }
-  .btn.win { border-color: rgba(120,170,255,.6) } .btn.and { border-color: rgba(140,205,90,.6) }
-  .btn.mac { border-color: rgba(220,220,230,.6) } .btn.lin { border-color: rgba(255,200,80,.6) } .btn.ios { border-color: rgba(200,140,255,.6) }
-  .hint code { font-size: 10.5px; color: #ffd27a; word-break: break-all }
+  .b1 { left: -40vmax; top: -45vmax; background: radial-gradient(closest-side, rgba(48,104,255,.4), transparent) }
+  .b2 { right: -45vmax; bottom: -50vmax; background: radial-gradient(closest-side, rgba(150,70,235,.3), transparent) }
+  .wrap { width: min(1080px, 100%); margin: 0 auto; padding: 0 16px }
+  .glass { border: 1px solid var(--line); background: var(--glass); border-radius: 26px;
+    box-shadow: 0 30px 80px -40px rgba(0,0,0,.8), inset 0 1px .5px rgba(255,255,255,.35);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4) }
+
+  /* шапка */
+  header.top { position: sticky; top: 0; z-index: 10; padding: 10px 0;
+    background: linear-gradient(180deg, rgba(4,6,15,.85), rgba(4,6,15,0)); }
+  .nav { display: flex; align-items: center; gap: 14px; padding: 8px 14px 8px 10px; border-radius: 999px }
+  .brand { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-weight: 700; letter-spacing: 1px; text-decoration: none; font-size: 14px }
+  .brand img { width: 28px; height: 28px }
+  .nav nav { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap }
+  .nav nav a { text-decoration: none; font-size: 13px; color: var(--dim); padding: 6px 11px; border-radius: 999px }
+  .nav nav a:hover { color: var(--fg); background: rgba(255,255,255,.08) }
+  @media (max-width: 640px) { .nav nav a.opt { display: none } }
+
+  /* первый экран */
+  .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding: 56px 0 40px }
+  @media (max-width: 820px) { .hero { grid-template-columns: 1fr; padding-top: 28px; text-align: center } .hero .logo-big { order: -1 } }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--acc) }
+  h1 { font-size: clamp(34px, 6vw, 58px); line-height: 1.05; margin: 12px 0 16px; letter-spacing: -.5px }
+  h1 .k { background: linear-gradient(90deg, #b6e27a, #8cc34a 40%, #6fb6ff); -webkit-background-clip: text; background-clip: text; color: transparent }
+  .lead { font-size: 17px; color: var(--dim); max-width: 34em; margin: 0 0 26px }
+  @media (max-width: 820px) { .lead { margin-left: auto; margin-right: auto } }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap }
+  @media (max-width: 820px) { .cta { justify-content: center } }
+  .btn { display: inline-flex; align-items: center; gap: 11px; padding: 14px 22px; border-radius: 999px; text-decoration: none;
+    font-weight: 700; font-size: 15px; color: #fff; cursor: pointer; font-family: inherit;
+    border: 1px solid rgba(255,255,255,.28); background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.06));
+    box-shadow: inset 0 1px .5px rgba(255,255,255,.5), 0 12px 30px -14px rgba(0,0,0,.8); transition: transform .4s var(--ease-back) }
+  .btn:hover { transform: translateY(-2px) scale(1.03) } .btn:active { transform: scale(.96) }
+  .btn.primary { background: linear-gradient(180deg, #9fd45a, #6ea830); border-color: rgba(200,255,140,.6); color: #0b1406;
+    box-shadow: inset 0 1px .5px rgba(255,255,255,.6), 0 14px 36px -12px rgba(140,195,74,.6) }
+  .btn small { display: block; font-weight: 500; font-size: 11.5px; opacity: .72; margin-top: 1px }
   .btn svg { flex: none }
-  .hint { display: none; margin-top: 14px; padding: 12px 14px; border-radius: 18px; font-size: 11.5px; line-height: 1.6; text-align: left;
-    color: rgba(231,238,246,.8); border: 1px dashed rgba(255,255,255,.25); animation: cin .5s var(--ease-back) both }
-  .hint.on { display: block }
-  .foot { margin-top: 18px; font-size: 10px; color: rgba(231,238,246,.4) }
-  .foot a { color: inherit }
-  #src { display: block; line-height: 1.6 }
+  .meta { margin-top: 14px; font-size: 12.5px; color: var(--faint) }
+  .meta a { color: var(--dim) }
+  .logo-big { justify-self: center; position: relative; width: min(340px, 70vw); aspect-ratio: 1; display: grid; place-items: center }
+  .logo-big::before { content: ""; position: absolute; inset: 8%; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(140,195,74,.35), transparent 70%); filter: blur(10px) }
+  .logo-big img { width: 62%; position: relative; filter: drop-shadow(0 0 22px rgba(140,195,74,.45));
+    animation: bob 3.6s ease-in-out infinite; transform-origin: 50% 80% }
+  @keyframes bob { 0%,100% { transform: translateY(0) rotate(-4deg) } 50% { transform: translateY(-10px) rotate(5deg) } }
+  .ring { position: absolute; inset: 0; border-radius: 50%; border: 1px dashed rgba(255,255,255,.18); animation: spin 40s linear infinite }
+  .ring.r2 { inset: 13%; border-style: solid; border-color: rgba(111,182,255,.18); animation-duration: 26s; animation-direction: reverse }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  @media (prefers-reduced-motion: reduce) { .logo-big img, .ring { animation: none } }
+
+  section { padding: 44px 0 }
+  h2 { font-size: clamp(24px, 3.6vw, 34px); margin: 0 0 8px; letter-spacing: -.3px }
+  .sec-sub { color: var(--dim); margin: 0 0 26px; max-width: 46em }
+
+  /* системы */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px }
+  .os { padding: 20px; display: flex; flex-direction: column; gap: 10px; position: relative; transition: transform .4s var(--ease-back), border-color .3s }
+  .os:hover { transform: translateY(-3px) }
+  .os.me { border-color: rgba(160,220,100,.7); box-shadow: 0 0 0 1px rgba(160,220,100,.35), 0 30px 80px -40px rgba(0,0,0,.8) }
+  .os.me::after { content: "ваша система"; position: absolute; top: 14px; right: 14px; font: 700 10px var(--mono); letter-spacing: .8px;
+    color: #0b1406; background: var(--acc); padding: 3px 8px; border-radius: 999px }
+  .os .ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(255,255,255,.08); border: 1px solid var(--line) }
+  .os h3 { margin: 4px 0 0; font-size: 18px }
+  .os p { margin: 0; font-size: 13.5px; color: var(--dim); flex: 1 }
+  .os .dl { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px }
+  .chipbtn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 999px; text-decoration: none; font-size: 13px; font-weight: 600;
+    border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.08); cursor: pointer; color: var(--fg); font-family: inherit }
+  .chipbtn:hover { background: rgba(255,255,255,.16) }
+  .chipbtn.main { background: rgba(140,195,74,.2); border-color: rgba(160,220,100,.6) }
+  .chipbtn.off { opacity: .45; pointer-events: none }
+  .tag { font: 600 10.5px var(--mono); color: var(--faint); letter-spacing: .5px }
+
+  /* как поставить */
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px }
+  .tab { padding: 8px 15px; border-radius: 999px; font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+    color: var(--dim); border: 1px solid var(--line); background: transparent }
+  .tab[aria-selected="true"] { color: #0b1406; background: var(--acc); border-color: var(--acc) }
+  .panel { padding: 24px 26px; display: none } .panel.on { display: block; animation: pin .45s var(--ease-back) both }
+  @keyframes pin { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+  .panel ol { margin: 0; padding-left: 22px } .panel li { margin: 8px 0 }
+  .panel .note { margin-top: 16px; padding: 12px 14px; border-radius: 14px; font-size: 13.5px; color: var(--dim); border: 1px dashed rgba(255,255,255,.22) }
+
+  /* возможности */
+  .feats { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px }
+  .feat { padding: 18px 20px } .feat b { display: block; font-size: 15.5px; margin-bottom: 4px } .feat span { font-size: 13.5px; color: var(--dim) }
+  .feat i { font-style: normal; font-size: 22px; display: block; margin-bottom: 6px }
+
+  /* сравнение */
+  .tbl { width: 100%; overflow-x: auto }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 560px }
+  th, td { padding: 11px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.08) }
+  th { font: 600 11px var(--mono); letter-spacing: .8px; text-transform: uppercase; color: var(--faint) }
+  td.y { color: var(--acc) } td.n { color: var(--faint) }
+
+  /* новое и вопросы */
+  .news { padding: 22px 24px } .news ul { margin: 8px 0 0; padding-left: 20px } .news li { margin: 4px 0; color: var(--dim) }
+  details { padding: 16px 20px; margin-bottom: 10px }
+  details summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 12px }
+  details summary::-webkit-details-marker { display: none }
+  details summary::after { content: "+"; font-family: var(--mono); color: var(--acc); transition: transform .3s }
+  details[open] summary::after { transform: rotate(45deg) }
+  details p { margin: 10px 0 0; color: var(--dim); font-size: 14px }
+
+  footer { padding: 40px 0 60px; font-size: 12.5px; color: var(--faint); text-align: center }
+  footer a { color: var(--dim) }
+  .claude { color: #ff9a3c; text-shadow: 0 0 8px rgba(255,154,60,.45); font-weight: 600 }
 </style>
 </head>
 <body>
 <div class="blob b1"></div><div class="blob b2"></div>
-<main class="card">
-  <img class="logo" src="icon.png" alt="">
-  <h1>Weathered_Kiwi
-    <span class="chip ver" id="ver">Beta</span>
-    <span class="claude-wrap">
-      <button class="chip claude-chip" id="cc" type="button">
-        <svg width="11" height="11" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true">
-          <line x1="12" y1="2.5" x2="12" y2="21.5"/><line x1="12" y1="2.5" x2="12" y2="21.5" transform="rotate(30 12 12)"/>
-          <line x1="12" y1="2.5" x2="12" y2="21.5" transform="rotate(60 12 12)"/><line x1="12" y1="2.5" x2="12" y2="21.5" transform="rotate(90 12 12)"/>
-          <line x1="12" y1="2.5" x2="12" y2="21.5" transform="rotate(120 12 12)"/><line x1="12" y1="2.5" x2="12" y2="21.5" transform="rotate(150 12 12)"/>
-        </svg>Claude</button>
-    </span>
-  </h1>
-  <p class="sub">Станция ветра у вас в кармане.<br>Выберите устройство.</p>
 
-  <a class="btn win" id="win" href="https://drive.usercontent.google.com/download?export=download&confirm=t&id=1UKmGYh1ytxFKk4IWdxBOnzj6vDQakeYP">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.5 4.5v6.8H3zM11.5 4.4 21 3v8.3h-9.5zM3 12.3h7.5v6.9L3 18.2zM11.5 12.3H21V21l-9.5-1.3z"/></svg>
-    <span>Скачать для Windows<small>установщик .exe<i class="v" id="v-exe"></i></small></span>
-  </a>
-  <a class="btn and" id="and" href="https://drive.usercontent.google.com/download?export=download&confirm=t&id=1eEkW6Uo1I0hTSFit50msWYdmKxqtgk6k">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 9.5a6 6 0 0 0-11.2 0zM6 10.5v7a1 1 0 0 0 1 1h1v3a1.2 1.2 0 0 0 2.4 0v-3h3.2v3a1.2 1.2 0 0 0 2.4 0v-3h1a1 1 0 0 0 1-1v-7z"/></svg>
-    <span>Скачать для Android<small>приложение .apk<i class="v" id="v-apk"></i></small></span>
-  </a>
-  <a class="btn mac" id="mac" href="https://github.com/temafey/ArduinoWindStation/releases/latest/download/Weathered_Kiwi-mac-arm64.zip">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.8-3.5.8s-1.8-.8-3-.8C6.9 7.2 5.4 8.1 4.6 9.6c-1.7 2.9-.4 7.2 1.2 9.5.8 1.1 1.7 2.4 2.9 2.4s1.6-.8 3-.8 1.8.8 3 .7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.6 1.3-2.6s-2.4-1-2.4-3.9zM14.1 5.6c.6-.8 1.1-1.9 1-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 .1 2.1-.5 2.7-1.3z"/></svg>
-    <span>Скачать для macOS<small>Apple Silicon (M1 и новее)</small></span>
-  </a>
-  <a class="btn lin" id="lin" href="https://github.com/temafey/ArduinoWindStation/releases/latest/download/Weathered_Kiwi-linux-x64.tar.gz">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c-2 0-3.3 1.7-3.3 4.2 0 1.5.4 2.3-.6 3.8C6.9 11.7 5 14 5 17c0 1.2.4 2 1.2 2.6.9.7 2.4 1.4 5.8 1.4s4.9-.7 5.8-1.4c.8-.6 1.2-1.4 1.2-2.6 0-3-1.9-5.3-3.1-7-1-1.5-.6-2.3-.6-3.8C15.3 3.7 14 2 12 2z"/></svg>
-    <span>Скачать для Linux<small>x64 .tar.gz</small></span>
-  </a>
-  <button class="btn ios" id="ios" type="button">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><line x1="10" y1="18.5" x2="14" y2="18.5"/></svg>
-    <span>iPhone и iPad<small>веб-приложение на экран «Домой»</small></span>
-  </button>
-  <div class="hint" id="hint-mac"><b>macOS.</b> Распакуйте zip и перетащите <b>Weathered_Kiwi</b> в «Программы». Сборка без подписи Apple: при первом запуске — правой кнопкой → «Открыть». Если пишет «повреждено», в Терминале: <code>xattr -cr /Applications/Weathered_Kiwi.app</code><br>Mac на Intel: <a style="color:#ffd27a" href="https://github.com/temafey/ArduinoWindStation/releases/latest/download/Weathered_Kiwi-mac-x64.zip">другая сборка</a>.</div>
-  <div class="hint" id="hint-lin"><b>Linux.</b> <code>tar xzf Weathered_Kiwi-linux-*.tar.gz</code>, затем <code>Weathered_Kiwi/install.sh</code> — ярлык появится в меню. Запуск без меню: <code>Weathered_Kiwi/weathered-kiwi.sh</code><br>ARM64 / Raspberry Pi: <a style="color:#ffd27a" href="https://github.com/temafey/ArduinoWindStation/releases/latest/download/Weathered_Kiwi-linux-arm64.tar.gz">другая сборка</a>.</div>
-  <div class="hint" id="hint-ios"><b>iPhone/iPad.</b> Откройте в <b>Safari</b> <a style="color:#ffd27a" href="https://temafey.github.io/ArduinoWindStation/app/">temafey.github.io/ArduinoWindStation/app</a> → «Поделиться» → «На экран “Домой”». Откроется отдельным приложением во весь экран, работает откуда угодно. Рядом со станцией (Wi-Fi <b>WindStation</b>) живой ветер — по адресу <b>http://MyWindProbeBETA.org</b>, так же на экран «Домой».</div>
-  <div class="hint" id="hint"><b>Почти готово.</b> Откройте скачанный файл <b>Weathered_Kiwi.apk</b>. Если Android спросит — разрешите установку из этого источника (браузера) и нажмите «Установить».</div>
-  <div class="foot"><a id="web" href="app/">Без установки (в браузере)</a><span id="src"></span></div>
+<header class="top">
+  <div class="wrap">
+    <div class="nav glass">
+      <a class="brand" href="#"><img src="icon.png" alt="">Weathered_Kiwi</a>
+      <nav>
+        <a href="#download">Скачать</a>
+        <a href="#install">Установка</a>
+        <a class="opt" href="#features">Возможности</a>
+        <a class="opt" href="#faq">Вопросы</a>
+        <a href="app/">Открыть в браузере</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Станция ветра · <span id="ver">Beta</span></div>
+      <h1>Ветер с вашей мачты — <span class="k">на любом экране</span></h1>
+      <p class="lead">Скорость и порывы в реальном времени, журнал и статистика, прогноз, карта бурь и спутник.
+        Одна программа для Windows, macOS, Linux, Android, iPhone и iPad.</p>
+      <div class="cta">
+        <a class="btn primary" id="hero-dl" href="#download">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+          <span><span id="hero-t">Скачать</span><small id="hero-s">выберите систему ниже</small></span>
+        </a>
+        <a class="btn" href="app/">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg>
+          <span>Без установки<small>прямо в браузере</small></span>
+        </a>
+      </div>
+      <div class="meta" id="src">Файлы раздаются с Google Диска. Перед .exe/.apk/.zip Диск предупредит, что не может проверить файл на вирусы, — нажмите «Всё равно скачать».</div>
+    </div>
+    <div class="logo-big"><div class="ring"></div><div class="ring r2"></div><img src="icon.png" alt="Киви в разрезе — знак Weathered_Kiwi"></div>
+  </section>
+
+  <section id="download">
+    <h2>Скачать</h2>
+    <p class="sec-sub">Все версии одинаковые внутри — тот же дашборд. Обновления интерфейса приходят сами, переустанавливать ничего не нужно.</p>
+    <div class="grid">
+      <article class="os glass" data-os="win">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="#7fb0ff"><path d="M3 5.5 10.5 4.5v6.8H3zM11.5 4.4 21 3v8.3h-9.5zM3 12.3h7.5v6.9L3 18.2zM11.5 12.3H21V21l-9.5-1.3z"/></svg></div>
+        <h3>Windows</h3><p>Windows 10 и 11, 64 бита. Виджеты на рабочем столе, уведомления, самообновление.</p>
+        <span class="tag" id="v-exe">установщик .exe</span>
+        <div class="dl"><a class="chipbtn main" data-dl="exe" href="#">Скачать .exe</a></div>
+      </article>
+      <article class="os glass" data-os="mac">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="#e6e6ee"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.8-3.5.8s-1.8-.8-3-.8C6.9 7.2 5.4 8.1 4.6 9.6c-1.7 2.9-.4 7.2 1.2 9.5.8 1.1 1.7 2.4 2.9 2.4s1.6-.8 3-.8 1.8.8 3 .7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.6 1.3-2.6s-2.4-1-2.4-3.9zM14.1 5.6c.6-.8 1.1-1.9 1-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 .1 2.1-.5 2.7-1.3z"/></svg></div>
+        <h3>macOS</h3><p>macOS 11 и новее. Отдельные сборки для Apple Silicon (M1–M4) и для Mac на Intel.</p>
+        <span class="tag">архив .zip · без подписи Apple</span>
+        <div class="dl"><a class="chipbtn main" data-dl="macArm" href="#">Apple Silicon</a><a class="chipbtn" data-dl="macX64" href="#">Intel</a></div>
+      </article>
+      <article class="os glass" data-os="lin">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="#ffc850"><path d="M12 2c-2 0-3.3 1.7-3.3 4.2 0 1.5.4 2.3-.6 3.8C6.9 11.7 5 14 5 17c0 1.2.4 2 1.2 2.6.9.7 2.4 1.4 5.8 1.4s4.9-.7 5.8-1.4c.8-.6 1.2-1.4 1.2-2.6 0-3-1.9-5.3-3.1-7-1-1.5-.6-2.3-.6-3.8C15.3 3.7 14 2 12 2z"/></svg></div>
+        <h3>Linux</h3><p>Ubuntu, Debian, Fedora, Mint и другие. ARM64 — для Raspberry Pi 4/5 и ARM-ноутбуков.</p>
+        <span class="tag">архив .tar.gz</span>
+        <div class="dl"><a class="chipbtn main" data-dl="linX64" href="#">x64</a><a class="chipbtn" data-dl="linArm" href="#">ARM64 / Raspberry Pi</a></div>
+      </article>
+      <article class="os glass" data-os="and">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="#8ccd5a"><path d="M17.6 9.5a6 6 0 0 0-11.2 0zM6 10.5v7a1 1 0 0 0 1 1h1v3a1.2 1.2 0 0 0 2.4 0v-3h3.2v3a1.2 1.2 0 0 0 2.4 0v-3h1a1 1 0 0 0 1-1v-7z"/></svg></div>
+        <h3>Android</h3><p>Телефоны и планшеты на Android 8+. Виджеты на главном экране, уведомления о шквале.</p>
+        <span class="tag" id="v-apk">приложение .apk</span>
+        <div class="dl"><a class="chipbtn main" data-dl="apk" href="#">Скачать .apk</a></div>
+      </article>
+      <article class="os glass" data-os="ios">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c88cff" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="3"/><line x1="10" y1="18.5" x2="14" y2="18.5"/></svg></div>
+        <h3>iPhone и iPad</h3><p>Веб-приложение на экране «Домой»: свой значок, во весь экран, без App Store.</p>
+        <span class="tag">через Safari</span>
+        <div class="dl"><a class="chipbtn main" href="#install" data-tab="ios">Как поставить</a><a class="chipbtn" href="app/">Открыть</a></div>
+      </article>
+      <article class="os glass" data-os="cros">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6fd3ff" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M12 8.5h8M9 13.8 5 6.8M15 13.8l-4 7"/></svg></div>
+        <h3>ChromeOS</h3><p>Хромбуки: веб-приложение одной кнопкой «Установить» в Chrome или Linux-версия в среде Linux.</p>
+        <span class="tag">через Chrome</span>
+        <div class="dl"><a class="chipbtn main" href="#install" data-tab="cros">Как поставить</a><a class="chipbtn" href="app/">Открыть</a></div>
+      </article>
+      <article class="os glass" data-os="web">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e7eef6" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg></div>
+        <h3>Любой браузер</h3><p>Chrome, Edge, Safari, Firefox — на чём угодно, ничего не устанавливая.</p>
+        <span class="tag">без установки</span>
+        <div class="dl"><a class="chipbtn main" href="app/">Открыть дашборд</a></div>
+      </article>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>Установка</h2>
+    <p class="sec-sub">Коротко, по шагам. Программа не просит прав администратора, кроме как на Linux для ярлыка — и там не просит.</p>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-t="win">Windows</button>
+      <button class="tab" role="tab" data-t="mac">macOS</button>
+      <button class="tab" role="tab" data-t="lin">Linux</button>
+      <button class="tab" role="tab" data-t="and">Android</button>
+      <button class="tab" role="tab" data-t="ios">iPhone / iPad</button>
+      <button class="tab" role="tab" data-t="cros">ChromeOS</button>
+    </div>
+    <div class="panel glass" data-p="win"><ol>
+      <li>Скачайте <b>.exe</b> и запустите.</li>
+      <li>Если появится «Windows защитила ваш компьютер» — «Подробнее» → «Выполнить в любом случае». У программы нет платного сертификата, отсюда и предупреждение.</li>
+      <li>Ярлык появится на рабочем столе и в «Пуске». Дальше программа обновляется сама.</li>
+    </ol></div>
+    <div class="panel glass" data-p="mac"><ol>
+      <li>Скачайте zip для своего Mac: Apple → «Об этом Mac»: «Apple M…» — Apple Silicon, «Intel» — Intel.</li>
+      <li>Распакуйте и перетащите <b>Weathered_Kiwi</b> в «Программы».</li>
+      <li>Первый запуск — <b>правой кнопкой → «Открыть»</b> → «Открыть». Сборка не подписана в Apple, поэтому обычный двойной щелчок система не пустит.</li>
+      <li>Если macOS пишет «повреждено, переместите в корзину» — это то же самое. Один раз в Терминале:<br><code>xattr -cr /Applications/Weathered_Kiwi.app</code></li>
+    </ol></div>
+    <div class="panel glass" data-p="lin"><ol>
+      <li>Скачайте архив (x64 — обычный компьютер, ARM64 — Raspberry Pi и ARM).</li>
+      <li>Распакуйте: <code>tar xzf Weathered_Kiwi-linux-*.tar.gz</code></li>
+      <li>Ярлык в меню приложений: <code>Weathered_Kiwi/install.sh</code></li>
+      <li>Или запуск без ярлыка: <code>Weathered_Kiwi/weathered-kiwi.sh</code></li>
+    </ol><div class="note">На Ubuntu 24 и новее песочница Chromium без root не поднимается — <code>weathered-kiwi.sh</code> это видит и запускает программу без неё. Запускать сам файл <code>weathered_kiwi</code> напрямую там не стоит.</div></div>
+    <div class="panel glass" data-p="and"><ol>
+      <li>Скачайте <b>.apk</b> на телефоне.</li>
+      <li>Откройте файл. Android спросит разрешение на установку из браузера — разрешите.</li>
+      <li>Нажмите «Установить». Виджеты «Ветер» — долгим нажатием на главном экране → «Виджеты».</li>
+    </ol></div>
+    <div class="panel glass" data-p="ios"><ol>
+      <li>Откройте эту страницу в <b>Safari</b> (в Chrome на iPhone на экран «Домой» добавить нельзя).</li>
+      <li>Нажмите <a href="app/">«Открыть дашборд»</a>.</li>
+      <li>Кнопка «Поделиться» <span aria-hidden="true">⬆︎</span> → <b>«На экран “Домой”»</b> → «Добавить».</li>
+      <li>Значок киви откроет программу во весь экран, как обычное приложение.</li>
+    </ol><div class="note"><b>Живой ветер с мачты</b> на iPhone — рядом со станцией: подключитесь к Wi-Fi <b>WindStation</b> и откройте <code>http://MyWindProbeBETA.org</code>, его тоже можно добавить на экран «Домой». Версия с этого сайта показывает демо, погоду района, карту, анализ и прогноз — откуда угодно.</div></div>
+    <div class="panel glass" data-p="cros"><ol>
+      <li>Откройте <a href="app/">дашборд</a> в Chrome.</li>
+      <li>Меню ⋮ → «Трансляция, сохранение и отправка» → <b>«Установить страницу как приложение»</b> (или значок установки в адресной строке).</li>
+      <li>Нужны виджеты и полный набор — включите «Среду разработки Linux» в настройках и поставьте Linux-версию (вкладка Linux).</li>
+    </ol></div>
+  </section>
+
+  <section id="features">
+    <h2>Что внутри</h2>
+    <p class="sec-sub">Станция — самодельная, на ESP32: чашечный анемометр, батарея, своя точка Wi-Fi и облачный канал через 4G.</p>
+    <div class="feats">
+      <div class="feat glass"><i>🌬</i><b>Живой ветер</b><span>Поток 20 раз в секунду напрямую со станции, порывы, тренд, тревога «ветер растёт».</span></div>
+      <div class="feat glass"><i>📈</i><b>Анализ</b><span>Журнал за 400 дней, распределение Вейбулла, рекорды, календарь, экспорт CSV/JSON.</span></div>
+      <div class="feat glass"><i>🌦</i><b>Прогноз</b><span>Open-Meteo против своей мачты, окна для кайта, парусов и дронов, METAR соседних аэродромов.</span></div>
+      <div class="feat glass"><i>🗺</i><b>Карта бурь</b><span>Предупреждения NWS, донесения SPC, радар по всему миру, суперклеточный экран.</span></div>
+      <div class="feat glass"><i>🛰</i><b>Эфир</b><span>Живые снимки GOES-19/18 и радарные петли.</span></div>
+      <div class="feat glass"><i>🔔</i><b>Уведомления</b><span>Шквал, утренняя сводка, потеря связи — с тихими часами и без спама.</span></div>
+      <div class="feat glass"><i>🧩</i><b>Виджеты</b><span>На рабочем столе Windows и на главном экране Android.</span></div>
+      <div class="feat glass"><i>🫧</i><b>Liquid Glass</b><span>Стеклянное оформление и эко-режим, который сам включается на слабых устройствах.</span></div>
+    </div>
+  </section>
+
+  <section id="compare">
+    <h2>Где что работает</h2>
+    <div class="tbl glass" style="padding:6px 10px">
+      <table>
+        <thead><tr><th></th><th>Windows</th><th>macOS</th><th>Linux</th><th>Android</th><th>iPhone/iPad</th><th>Браузер</th></tr></thead>
+        <tbody>
+          <tr><td>Дашборд целиком</td><td class="y">да</td><td class="y">да</td><td class="y">да</td><td class="y">да</td><td class="y">да</td><td class="y">да</td></tr>
+          <tr><td>Обновления сами</td><td class="y">да</td><td class="y">интерфейс</td><td class="y">интерфейс</td><td class="y">да</td><td class="y">да</td><td class="y">да</td></tr>
+          <tr><td>Виджеты</td><td class="y">рабочий стол</td><td class="n">—</td><td class="n">—</td><td class="y">главный экран</td><td class="n">—</td><td class="n">—</td></tr>
+          <tr><td>Уведомления</td><td class="y">да</td><td class="y">да</td><td class="y">да</td><td class="y">да</td><td class="y">iOS 16.4+</td><td class="y">по HTTPS</td></tr>
+          <tr><td>Прямая связь со станцией</td><td class="y">да</td><td class="y">да</td><td class="y">да</td><td class="y">да</td><td class="y">с адреса станции</td><td class="y">с адреса станции</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="news">
+    <h2>Что нового</h2>
+    <div class="news glass"><b id="news-v">Последняя версия</b><ul id="news-list">
+      <li>Сборки для macOS (Apple Silicon и Intel) и Linux (x64 и ARM64).</li>
+      <li>iPhone и iPad — веб-приложение на экран «Домой».</li>
+      <li>Новая страница загрузки: подсказывает вашу систему и шаги установки.</li>
+    </ul></div>
+  </section>
+
+  <section id="faq">
+    <h2>Вопросы</h2>
+    <details class="glass"><summary>Почему нет приложения в App Store и Google Play?</summary>
+      <p>Это самодельный проект, а не магазинный продукт. Публикация в App Store требует Mac, Xcode и платного аккаунта разработчика Apple. На iPhone веб-приложение с экрана «Домой» ведёт себя почти как обычное: свой значок, во весь экран, без адресной строки.</p></details>
+    <details class="glass"><summary>Система предупреждает, что файл опасный. Это нормально?</summary>
+      <p>Да. У сборок нет платных сертификатов Microsoft и Apple, а Google Диск не проверяет на вирусы файлы больше 25 МБ — отсюда предупреждения. Обновления, которые программа ставит сама, подписаны ключом проекта и проверяются перед установкой.</p></details>
+    <details class="glass"><summary>Нужна ли сама станция?</summary>
+      <p>Нет. Без станции работают демо-режим, погода района по вашему месту, карта бурь, спутник и прогноз. Со станцией — живые показания с мачты.</p></details>
+    <details class="glass"><summary>Как подключиться к станции?</summary>
+      <p>Станция раздаёт свою сеть Wi-Fi <b>WindStation</b>, дашборд — по адресу <code>http://MyWindProbeBETA.org</code> или <code>192.168.4.1</code>. Программа на компьютере и телефоне находит станцию сама во вкладке «Станция → Подключение».</p></details>
+    <details class="glass"><summary>Какой Mac у меня?</summary>
+      <p>Меню Apple → «Об этом Mac». Написано «Chip Apple M1/M2/M3/M4» — берите Apple Silicon, «Processor Intel» — Intel.</p></details>
+  </section>
 </main>
+
+<footer class="wrap">
+  Weathered_Kiwi · самодельная станция ветра на ESP32 · <a href="https://github.com/temafey/ArduinoWindStation">исходники на GitHub</a><br>
+  Сделано с помощью <span class="claude">Claude</span>
+</footer>
+
 <script>
-  // Claude: открывается нажатием и закрывается повторным, с анимацией в обе стороны.
-  var cc = document.getElementById("cc"), pop = null, busy = false;
-  cc.onclick = function () {
-    if (busy) return;
-    if (!pop) { pop = document.createElement("span"); pop.className = "pop"; pop.textContent = "Сделано с помощью Claude"; cc.parentNode.appendChild(pop); return; }
-    busy = true; pop.classList.add("out");
-    setTimeout(function () { pop.remove(); pop = null; busy = false; }, 400);
+  // Файлы — с Google Диска, папка Kiwi_Drop/updates (доступ «все, у кого есть ссылка»).
+  // id постоянные: сборка перезаписывает файлы на месте (см. desktop/drive-feed.json).
+  var DRIVE = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=";
+  var ID = {
+    exe: "1UKmGYh1ytxFKk4IWdxBOnzj6vDQakeYP",
+    apk: "1eEkW6Uo1I0hTSFit50msWYdmKxqtgk6k",
+    macArm: "", macX64: "", linX64: "", linArm: ""
   };
-  // Откуда брать файлы. Страница работает в двух местах:
-  //  • на домашнем сервере (serve-phone.ps1) — качает с этого компьютера, по своей
-  //    сети это в разы быстрее, и показывает версии из ленты;
-  //  • на любом хостинге или просто открытая файлом — тогда кнопки ведут на Google Диск
-  //    (Kiwi_Drop/updates, доступ по ссылке). id там постоянные: Publish-Shell в
-  //    build-setup.ps1 перезаписывает файлы на месте (см. drive-feed.json), так что
-  //    ссылка всегда отдаёт самую свежую сборку и компьютер для этого не нужен.
-  // Ссылки Диска стоят в разметке по умолчанию — работают даже без скрипта.
-  // Версии и «без установки» с Диска не взять: обычную загрузку он пускает, а fetch
-  // со стороннего сайта режет ответом 403 (проверено 2026-11-07), поэтому вне дома
-  // эти две вещи просто не показываются.
-  function get(url, ms) {
-    var c = window.AbortController ? new AbortController() : null;
-    var t = c && setTimeout(function () { c.abort(); }, ms);
-    return fetch(url, { cache: "no-store", signal: c && c.signal }).then(function (r) {
-      clearTimeout(t); if (!r.ok) throw new Error(r.status); return r;
+  var NAMES = { exe: "Kiwi_Drop.exe", apk: "Weathered_Kiwi.apk", macArm: "Weathered_Kiwi-mac-arm64.zip",
+    macX64: "Weathered_Kiwi-mac-x64.zip", linX64: "Weathered_Kiwi-linux-x64.tar.gz", linArm: "Weathered_Kiwi-linux-arm64.tar.gz" };
+  function setLinks(local) {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-dl]"), function (a) {
+      var k = a.getAttribute("data-dl");
+      if (local) { a.href = NAMES[k]; a.setAttribute("download", ""); a.classList.remove("off"); }
+      else if (ID[k]) a.href = DRIVE + ID[k];
+      else { a.classList.add("off"); a.title = "скоро"; }
     });
   }
-  var foot = document.getElementById("src"), web = document.getElementById("web");
-  web.style.display = "none";
-  foot.innerHTML = "Файлы — с Google Диска. Он скажет, что не может проверить файл на вирусы:<br>это про любой .exe/.apk — нажмите «Всё равно скачать».";
-  if (location.protocol === "http:" || location.protocol === "https:") {
+  setLinks(false);
+
+  // Какая система у смотрящего — её карточка первая, кнопка на первом экране ведёт прямо на файл.
+  var ua = navigator.userAgent, os =
+    /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "ios" :
+    /CrOS/.test(ua) ? "cros" : /Android/.test(ua) ? "and" : /Mac OS X/.test(ua) ? "mac" :
+    /Linux/.test(ua) ? "lin" : /Windows/.test(ua) ? "win" : "";
+  var HERO = { win: ["Скачать для Windows", "установщик .exe", "exe"], mac: ["Скачать для macOS", "Apple Silicon · Intel — ниже", "macArm"],
+    lin: ["Скачать для Linux", "x64 · ARM64 — ниже", "linX64"], and: ["Скачать для Android", "приложение .apk", "apk"],
+    ios: ["Поставить на iPhone", "через Safari, 30 секунд", ""], cros: ["Поставить на Chromebook", "через Chrome", ""] };
+  var card = os && document.querySelector('[data-os="' + os + '"]');
+  if (card) { card.classList.add("me"); card.parentNode.insertBefore(card, card.parentNode.firstChild); }
+  function hero() {
+    var h = HERO[os]; if (!h) return;
+    document.getElementById("hero-t").textContent = h[0];
+    document.getElementById("hero-s").textContent = h[1];
+    var a = document.getElementById("hero-dl"), src = h[2] && document.querySelector('[data-dl="' + h[2] + '"]');
+    if (src && !src.classList.contains("off")) { a.href = src.href; if (src.hasAttribute("download")) a.setAttribute("download", ""); }
+    else { a.href = "#install"; a.onclick = function () { pick(os); }; }
+  }
+
+  // Вкладки установки.
+  function pick(t) {
+    Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (b) { b.setAttribute("aria-selected", b.getAttribute("data-t") === t); });
+    Array.prototype.forEach.call(document.querySelectorAll(".panel"), function (p) { p.classList.toggle("on", p.getAttribute("data-p") === t); });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (b) { b.onclick = function () { pick(b.getAttribute("data-t")); }; });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-tab]"), function (a) { a.addEventListener("click", function () { pick(a.getAttribute("data-tab")); }); });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-dl]"), function (a) {
+    a.addEventListener("click", function () { var k = a.getAttribute("data-dl"); pick(k === "exe" ? "win" : k === "apk" ? "and" : k.slice(0, 3)); });
+  });
+  pick(HERO[os] ? os : "win");
+  hero();
+
+  // На домашнем сервере (serve-phone.ps1) рядом лежит лента: файлы — с этого компьютера,
+  // быстрее Диска, и с версиями. На GitHub Pages ленты нет — остаются ссылки Диска.
+  function get(url, ms) {
+    var c = window.AbortController ? new AbortController() : null, t = c && setTimeout(function () { c.abort(); }, ms);
+    return fetch(url, { cache: "no-store", signal: c && c.signal }).then(function (r) { clearTimeout(t); if (!r.ok) throw new Error(r.status); return r; });
+  }
+  if (/^https?:$/.test(location.protocol) && !/github\.io$/.test(location.hostname)) {
     get("feed/shell.json", 2500).then(function (r) { return r.json(); }).then(function (j) {
-      var win = document.getElementById("win"), and = document.getElementById("and");
-      win.href = "Kiwi_Drop.exe"; and.href = "Weathered_Kiwi.apk";
-      win.setAttribute("download", ""); and.setAttribute("download", "");
-      if (j.exe) document.getElementById("v-exe").textContent = " · версия " + j.exe.version;
-      if (j.apk) document.getElementById("v-apk").textContent = " · версия " + j.apk.version;
-      foot.textContent = "";
-      web.style.display = "";
+      setLinks(true); hero();
+      if (j.exe) document.getElementById("v-exe").textContent = "установщик .exe · версия " + j.exe.version;
+      if (j.apk) document.getElementById("v-apk").textContent = "приложение .apk · версия " + j.apk.version;
+      document.getElementById("src").textContent = "Файлы — с домашнего компьютера, по своей сети.";
       return get("feed/latest.json", 2500).then(function (r) { return r.json(); }).then(function (l) {
-        if (l.version) document.getElementById("ver").textContent = "Beta " + l.version;
+        if (l.version) { document.getElementById("ver").textContent = "Beta " + l.version; document.getElementById("news-v").textContent = "Версия " + l.version; }
+        if (l.notes && l.notes.length) {
+          var ul = document.getElementById("news-list"); ul.innerHTML = "";
+          l.notes.forEach(function (n) { var li = document.createElement("li"); li.textContent = n; ul.appendChild(li); });
+        }
       });
     }).catch(function () {});
   }
-  // После нажатия «Скачать для Android» показываем, что делать с файлом.
-  document.getElementById("and").addEventListener("click", function () {
-    document.getElementById("hint").classList.add("on");
-  });
-  ["mac", "lin", "ios"].forEach(function (k) {
-    document.getElementById(k).addEventListener("click", function () { document.getElementById("hint-" + k).classList.add("on"); });
-  });
-  // Подсветить кнопку своей системы — она встаёт первой.
-  (function () {
-    var ua = navigator.userAgent, id = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "ios"
-      : /Android/.test(ua) ? "and" : /Mac OS X/.test(ua) ? "mac" : /Linux/.test(ua) ? "lin" : /Windows/.test(ua) ? "win" : "";
-    var el = id && document.getElementById(id), first = document.getElementById("win");
-    if (el && el !== first) first.parentNode.insertBefore(el, first);
-  })();
 </script>
 </body>
 </html>
