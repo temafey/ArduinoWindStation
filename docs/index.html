@@ -52,6 +52,8 @@
   .btn small { display: block; font-size: 9.5px; letter-spacing: .8px; opacity: .65; text-transform: none; margin-top: 4px }
   .btn small .v { font-style: normal }
   .btn.win { border-color: rgba(120,170,255,.6) } .btn.and { border-color: rgba(140,205,90,.6) }
+  .btn.mac { border-color: rgba(220,220,230,.6) } .btn.lin { border-color: rgba(255,200,80,.6) } .btn.ios { border-color: rgba(200,140,255,.6) }
+  .hint code { font-size: 10.5px; color: #ffd27a; word-break: break-all }
   .btn svg { flex: none }
   .hint { display: none; margin-top: 14px; padding: 12px 14px; border-radius: 18px; font-size: 11.5px; line-height: 1.6; text-align: left;
     color: rgba(231,238,246,.8); border: 1px dashed rgba(255,255,255,.25); animation: cin .5s var(--ease-back) both }
@@ -86,7 +88,22 @@
     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 9.5a6 6 0 0 0-11.2 0zM6 10.5v7a1 1 0 0 0 1 1h1v3a1.2 1.2 0 0 0 2.4 0v-3h3.2v3a1.2 1.2 0 0 0 2.4 0v-3h1a1 1 0 0 0 1-1v-7z"/></svg>
     <span>Скачать для Android<small>приложение .apk<i class="v" id="v-apk"></i></small></span>
   </a>
-  <div class="hint" id="hint"><b>Почти готово.</b> Откройте скачанный файл <b>Weathered_Kiwi.apk</b>. Если Android спросит — разрешите установку из этого источника (браузера) и нажмите «Установить». <br>iPhone/iPad: приложения нет — в домашней сети откройте «Без установки» → «Поделиться» → «На экран “Домой”».</div>
+  <a class="btn mac" id="mac" href="https://github.com/temafey/ArduinoWindStation/releases/latest/download/Weathered_Kiwi-mac-arm64.zip">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.8-3.5.8s-1.8-.8-3-.8C6.9 7.2 5.4 8.1 4.6 9.6c-1.7 2.9-.4 7.2 1.2 9.5.8 1.1 1.7 2.4 2.9 2.4s1.6-.8 3-.8 1.8.8 3 .7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.6 1.3-2.6s-2.4-1-2.4-3.9zM14.1 5.6c.6-.8 1.1-1.9 1-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 .1 2.1-.5 2.7-1.3z"/></svg>
+    <span>Скачать для macOS<small>Apple Silicon (M1 и новее)</small></span>
+  </a>
+  <a class="btn lin" id="lin" href="https://github.com/temafey/ArduinoWindStation/releases/latest/download/Weathered_Kiwi-linux-x64.tar.gz">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c-2 0-3.3 1.7-3.3 4.2 0 1.5.4 2.3-.6 3.8C6.9 11.7 5 14 5 17c0 1.2.4 2 1.2 2.6.9.7 2.4 1.4 5.8 1.4s4.9-.7 5.8-1.4c.8-.6 1.2-1.4 1.2-2.6 0-3-1.9-5.3-3.1-7-1-1.5-.6-2.3-.6-3.8C15.3 3.7 14 2 12 2z"/></svg>
+    <span>Скачать для Linux<small>x64 .tar.gz</small></span>
+  </a>
+  <button class="btn ios" id="ios" type="button">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><line x1="10" y1="18.5" x2="14" y2="18.5"/></svg>
+    <span>iPhone и iPad<small>веб-приложение на экран «Домой»</small></span>
+  </button>
+  <div class="hint" id="hint-mac"><b>macOS.</b> Распакуйте zip и перетащите <b>Weathered_Kiwi</b> в «Программы». Сборка без подписи Apple: при первом запуске — правой кнопкой → «Открыть». Если пишет «повреждено», в Терминале: <code>xattr -cr /Applications/Weathered_Kiwi.app</code><br>Mac на Intel: <a style="color:#ffd27a" href="https://github.com/temafey/ArduinoWindStation/releases/latest/download/Weathered_Kiwi-mac-x64.zip">другая сборка</a>.</div>
+  <div class="hint" id="hint-lin"><b>Linux.</b> <code>tar xzf Weathered_Kiwi-linux-*.tar.gz</code>, затем <code>Weathered_Kiwi/install.sh</code> — ярлык появится в меню. Запуск без меню: <code>Weathered_Kiwi/weathered-kiwi.sh</code><br>ARM64 / Raspberry Pi: <a style="color:#ffd27a" href="https://github.com/temafey/ArduinoWindStation/releases/latest/download/Weathered_Kiwi-linux-arm64.tar.gz">другая сборка</a>.</div>
+  <div class="hint" id="hint-ios"><b>iPhone/iPad.</b> Откройте в <b>Safari</b> <a style="color:#ffd27a" href="https://temafey.github.io/ArduinoWindStation/app/">temafey.github.io/ArduinoWindStation/app</a> → «Поделиться» → «На экран “Домой”». Откроется отдельным приложением во весь экран, работает откуда угодно. Рядом со станцией (Wi-Fi <b>WindStation</b>) живой ветер — по адресу <b>http://MyWindProbeBETA.org</b>, так же на экран «Домой».</div>
+  <div class="hint" id="hint"><b>Почти готово.</b> Откройте скачанный файл <b>Weathered_Kiwi.apk</b>. Если Android спросит — разрешите установку из этого источника (браузера) и нажмите «Установить».</div>
   <div class="foot"><a id="web" href="app/">Без установки (в браузере)</a><span id="src"></span></div>
 </main>
 <script>
@@ -137,6 +154,16 @@
   document.getElementById("and").addEventListener("click", function () {
     document.getElementById("hint").classList.add("on");
   });
+  ["mac", "lin", "ios"].forEach(function (k) {
+    document.getElementById(k).addEventListener("click", function () { document.getElementById("hint-" + k).classList.add("on"); });
+  });
+  // Подсветить кнопку своей системы — она встаёт первой.
+  (function () {
+    var ua = navigator.userAgent, id = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "ios"
+      : /Android/.test(ua) ? "and" : /Mac OS X/.test(ua) ? "mac" : /Linux/.test(ua) ? "lin" : /Windows/.test(ua) ? "win" : "";
+    var el = id && document.getElementById(id), first = document.getElementById("win");
+    if (el && el !== first) first.parentNode.insertBefore(el, first);
+  })();
 </script>
 </body>
 </html>
