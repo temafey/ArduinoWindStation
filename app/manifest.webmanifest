@@ -1,0 +1,23 @@
+{
+  "name": "Weathered_Kiwi",
+  "short_name": "Weathered_Kiwi",
+  "description": "Метеостанция ветра — скорость, порывы, батарея, светодиоды",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#04070a",
+  "theme_color": "#04070a",
+  "icons": [
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "../icon.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "scope": "./"
+}
