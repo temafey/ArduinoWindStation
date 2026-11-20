@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.windstation.weatheredkiwi">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Самообновление: новый APK ставится через PackageInstaller (MainActivity.installApk). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Уведомления (сводка ветра, тревоги). С Android 13 — по запросу. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Долгая тихая вибрация на полосе установки обновления (обычное разрешение, без запроса). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <application
+        android:label="Weathered_Kiwi"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:usesCleartextTraffic="true"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Виджеты рабочего стола (WindWidget.java). Два входа в списке виджетов —
+             квадратный и широкий; рисует их один и тот же код, и оба растягиваются. -->
+        <receiver
+            android:name=".WindWidget"
+            android:label="@string/widget_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/wk_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".WindWidget$Wide"
+            android:label="@string/widget_wide_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/wk_widget_wide_info" />
+        </receiver>
+    </application>
+</manifest>

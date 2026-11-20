@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; connect-src http: https:">
+<title>Ветер</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; }
+  /* Всё окно — ручка перетаскивания (см. wkw:move); меню — правой кнопкой. */
+  body { cursor: grab; }
+  body.drag { cursor: grabbing; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// Виджет рабочего стола. Рисуется целиком холстом — тем же приёмом, что виджет
+// Android (WindWidget.java): стекло, кольцо скорости, порыв, Бофорт, батарея
+// и кривая последних минут. Раскладка выбирается по пропорциям окна.
+const BFT = [[0.5,"#94a3b8","Штиль"],[1.6,"#67e8f9","Тихий"],[3.4,"#22d3ee","Лёгкий"],[5.5,"#34d399","Слабый"],
+  [8,"#4ade80","Умеренный"],[10.8,"#a3e635","Свежий"],[13.9,"#facc15","Сильный"],[17.2,"#fb923c","Крепкий"],
+  [20.8,"#f97316","Очень крепкий"],[24.5,"#ef4444","Шторм"],[28.5,"#dc2626","Сильный шторм"],[32.7,"#b91c1c","Жёсткий шторм"],[1e9,"#7f1d1d","Ураган"]];
+const UNITS = { ms: [1, "м/с", 1], kmh: [3.6, "км/ч", 0], mph: [2.236936, "mph", 0], kt: [1.943844, "kt", 0], fts: [3.28084, "ft/s", 0] };
+const bft = (v) => { for (let i = 0; i < BFT.length; i++) if (v < BFT[i][0]) return [i, BFT[i][1], BFT[i][2]]; return [12, BFT[12][1], BFT[12][2]]; };
+const fmt = (v, unit) => {
+  if (unit === "bft") return String(bft(v)[0]);
+  const u = UNITS[unit] || UNITS.ms;
+  return (v * u[0]).toFixed(u[2]);
+};
+const uname = (unit) => unit === "bft" ? "бфт" : (UNITS[unit] || UNITS.ms)[1];
+
+let frame = null, at = 0;
+const curve = [];            // скорость раз в 5 с, последние 10 минут
+let curveAt = 0;
+function take(f) {
+  frame = f; at = Date.now();
+  if (f && f.c && f.d && Number.isFinite(f.d.speed) && at - curveAt > 4500) {
+    curveAt = at; curve.push(f.d.speed); if (curve.length > 120) curve.shift();
+  }
+  draw();
+}
+window.wkw.onFrame((json) => { try { take(JSON.parse(json)); } catch { /* битый кадр — ждём следующий */ } });
+
+// Главное окно закрыто — кадров нет. Тогда сами, раз в 5 с, но только когда
+// до платы есть прямой HTTP: через облако виджету идти не с чем.
+setInterval(async () => {
+  if (Date.now() - at < 9000 || !frame || frame.link === "cloud" || !frame.host || frame.src !== "station") { draw(); return; }
+  try {
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 4000);
+    const r = await fetch(`http://${frame.host}/api/data`, { signal: ctl.signal, cache: "no-store" });
+    clearTimeout(t);
+    const d = await r.json();
+    const keep = frame; take({ ...keep, d, c: true }); frame.self = true;
+  } catch { if (frame) frame.c = false; draw(); }
+}, 5000);
+
+const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+function draw() {
+  const dpr = window.devicePixelRatio || 1, W = innerWidth, H = innerHeight;
+  if (cv.width !== W * dpr || cv.height !== H * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const R = Math.min(26, Math.min(W, H) * 0.16);
+  // стекло: тёмная тонировка, светлая фаска, блик сверху
+  rr(1, 1, W - 2, H - 2, R);
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "rgba(28,38,52,0.80)"); bg.addColorStop(1, "rgba(8,12,18,0.86)");
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.16)"; ctx.lineWidth = 1; ctx.stroke();
+  const sheen = ctx.createLinearGradient(0, 0, 0, H * 0.5);
+  sheen.addColorStop(0, "rgba(255,255,255,0.10)"); sheen.addColorStop(1, "rgba(255,255,255,0)");
+  rr(1, 1, W - 2, H * 0.5, [R, R, 0, 0]); ctx.fillStyle = sheen; ctx.fill();
+
+  const live = frame && frame.c && frame.d && Date.now() - at < 20000;
+  const d = (frame && frame.d) || {};
+  const unit = (frame && frame.unit) || "ms";
+  const sp = live && Number.isFinite(d.speed) ? d.speed : 0;
+  const [bn, col, desc] = bft(sp);
+  const max = d.speedMax || 30;
+  const wide = W / H > 1.45;
+  const S = Math.min(wide ? H : W, H);
+  const cx = wide ? S * 0.52 : W / 2, cy = wide ? H / 2 : H * 0.47, rad = S * 0.34;
+
+  // кольцо
+  ctx.lineCap = "round";
+  ctx.lineWidth = Math.max(5, S * 0.06);
+  ctx.strokeStyle = "rgba(255,255,255,0.09)";
+  ctx.beginPath(); ctx.arc(cx, cy, rad, Math.PI * 0.75, Math.PI * 2.25); ctx.stroke();
+  if (live) {
+    const f = Math.max(0.01, Math.min(1, sp / max));
+    ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(cx, cy, rad, Math.PI * 0.75, Math.PI * (0.75 + 1.5 * f)); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = live ? "#e7eef6" : "rgba(231,238,246,0.45)";
+  ctx.font = `600 ${Math.round(S * 0.22)}px "Cascadia Mono", Consolas, monospace`;
+  ctx.fillText(live ? fmt(sp, unit) : "—", cx, cy - S * 0.02);
+  ctx.fillStyle = "rgba(231,238,246,0.5)";
+  ctx.font = `${Math.round(S * 0.075)}px "Segoe UI", sans-serif`;
+  ctx.fillText(uname(unit), cx, cy + S * 0.14);
+  ctx.fillStyle = live ? col : "rgba(231,238,246,0.35)";
+  ctx.font = `600 ${Math.round(S * 0.07)}px "Segoe UI", sans-serif`;
+  ctx.fillText(live ? `${bn} бфт · ${desc}` : (frame ? "нет связи" : "откройте программу"), cx, wide ? cy + rad + S * 0.04 : H - S * 0.08);
+
+  if (!wide) return;
+  // правая колонка: порыв, батарея, кривая
+  const x0 = S * 1.02, x1 = W - S * 0.1, cw = x1 - x0;
+  ctx.textAlign = "left";
+  const lab = (t, y) => { ctx.fillStyle = "rgba(231,238,246,0.45)"; ctx.font = `${Math.round(H * 0.07)}px "Segoe UI", sans-serif`; ctx.fillText(t, x0, y); };
+  const val = (t, y, c) => { ctx.fillStyle = c || "#e7eef6"; ctx.font = `600 ${Math.round(H * 0.12)}px "Cascadia Mono", Consolas, monospace`; ctx.fillText(t, x0, y); };
+  lab("ПОРЫВ", H * 0.17);
+  val(live && Number.isFinite(d.gust) ? `${fmt(d.gust, unit)} ${uname(unit)}` : "—", H * 0.29);
+  lab("БАТАРЕЯ", H * 0.43);
+  const bat = live && d.batteryPresent && Number.isFinite(d.batteryPercent) ? Math.round(d.batteryPercent) : null;
+  val(bat == null ? "—" : `${bat} %${d.chargeState === "charging" ? " ⚡" : ""}`, H * 0.55,
+      bat == null ? null : bat > 60 ? "#4ade80" : bat > 30 ? "#facc15" : "#ff5d5d");
+  // кривая
+  const gy0 = H * 0.68, gh = H * 0.2;
+  ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, gy0 + gh); ctx.lineTo(x1, gy0 + gh); ctx.stroke();
+  if (curve.length > 1) {
+    const top = Math.max(5, ...curve) * 1.1;
+    ctx.beginPath();
+    curve.forEach((v, i) => {
+      const x = x0 + (i / (curve.length - 1)) * cw, y = gy0 + gh - (v / top) * gh;
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    });
+    ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.lineCap = "round"; ctx.stroke();
+  } else {
+    ctx.fillStyle = "rgba(231,238,246,0.3)"; ctx.font = `${Math.round(H * 0.06)}px "Segoe UI", sans-serif`;
+    ctx.fillText("кривая — через пару минут", x0, gy0 + gh * 0.5);
+  }
+}
+addEventListener("resize", draw);
+addEventListener("contextmenu", (e) => { e.preventDefault(); window.wkw.menu(); });
+addEventListener("dblclick", () => window.wkw.openMain());
+// Перетаскивание: от точки захвата в координатах экрана.
+let grab = null;
+addEventListener("pointerdown", (e) => {
+  if (e.button !== 0) return;
+  grab = { dx: e.screenX - window.screenX, dy: e.screenY - window.screenY };
+  document.body.classList.add("drag");
+  e.target.setPointerCapture(e.pointerId);
+});
+addEventListener("pointermove", (e) => { if (grab) window.wkw.moveTo(e.screenX - grab.dx, e.screenY - grab.dy); });
+const drop = () => { grab = null; document.body.classList.remove("drag"); };
+addEventListener("pointerup", drop);
+addEventListener("pointercancel", drop);
+addEventListener("wheel", (e) => { if (e.ctrlKey) { e.preventDefault(); window.wkw.zoom(e.deltaY < 0 ? 1 : -1); } }, { passive: false });
+draw();
+</script>
+</body>
+</html>

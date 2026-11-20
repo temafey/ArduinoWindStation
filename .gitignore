@@ -67,3 +67,26 @@ desktop.ini
 .claude/settings.local.json
 .remember/logs/
 .remember/tmp/
+
+desktop/node_modules/
+desktop/out/
+desktop/dist/
+
+# === Программа Weathered_Kiwi (desktop/): всё, что пересобирается или секретно ===
+desktop/out-setup/
+desktop/android/out/
+desktop/android/build/
+# ключ подписи APK — секрет: потерять нельзя, публиковать — тем более
+desktop/android/wk.keystore
+*.keystore
+*.jks
+# лента обновлений и сборки, которые делает rebuild.ps1 / build-setup.ps1
+desktop/feed/
+desktop/app/
+desktop/site/app/
+desktop/site/feed/
+desktop/site/*.apk
+desktop/site/*.exe
+# адрес домашнего компьютера в локальной сети
+desktop/lan-feed.txt
+desktop/*.log

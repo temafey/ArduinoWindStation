@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Квадратный по умолчанию (2×2). Тянется в обе стороны: раскладку выбирает
+     WindWidget.Painter по пропорциям — кольцо, широкая панель, высокая колонка, большая плитка. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="70dp"
+    android:minResizeHeight="70dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:maxResizeWidth="1200dp"
+    android:maxResizeHeight="1200dp"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen|keyguard"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/wk_widget"
+    android:previewImage="@drawable/widget_preview"
+    android:description="@string/widget_desc" />

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_name">Ветер</string>
+    <string name="widget_wide_name">Ветер · панель</string>
+    <string name="widget_refresh">Обновить</string>
+    <string name="widget_desc">Скорость ветра кольцом, порыв и свежесть данных. Растягивается.</string>
+    <string name="widget_wide_desc">Ветер, шкала Бофорта, порыв, батарея и кривая последних минут. Растягивается.</string>
+</resources>

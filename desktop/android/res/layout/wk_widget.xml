@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Весь виджет — одна картинка, нарисованная WindWidget.java под текущий размер.
+     Поверх — прозрачная зона ↻ в правом верхнем углу: там на картинке нарисована кнопка. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <ImageView
+        android:id="@+id/img"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/widget_name" />
+    <FrameLayout
+        android:id="@+id/refresh"
+        android:layout_width="46dp"
+        android:layout_height="40dp"
+        android:layout_gravity="top|end"
+        android:contentDescription="@string/widget_refresh" />
+</FrameLayout>

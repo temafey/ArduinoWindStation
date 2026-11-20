@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Адаптивный значок: стеклянная сцена фоном, долька киви — передним слоем
+     (лаунчер сдвигает их друг относительно друга — получается глубина). Monochrome —
+     тематические значки Android 13+. Картинки рисует desktop/make-icon.js. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_bg" />
+    <foreground android:drawable="@mipmap/ic_launcher_fg" />
+    <monochrome android:drawable="@mipmap/ic_launcher_mono" />
+</adaptive-icon>

@@ -11,6 +11,19 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File \"$CLAUDE_PROJECT_DIR\\desktop\\auto-rebuild.ps1\"",
+            "timeout": 600,
+            "async": true,
+            "statusMessage": "Weathered_Kiwi: проверка обновлений"
+          }
+        ]
+      }
     ]
   }
 }

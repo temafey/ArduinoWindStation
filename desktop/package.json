@@ -1,0 +1,42 @@
+{
+  "name": "weathered-kiwi",
+  "productName": "Weathered_Kiwi",
+  "version": "0.4.29",
+  "description": "Weathered_Kiwi — настольная программа станции",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-packager . Weathered_Kiwi --platform=win32 --arch=x64 --out=out --overwrite --prune=true --icon=build/icon.ico --ignore=\"^/out\" --ignore=\"^/dist\" --ignore=\"^/make-icon.js\" --ignore=\"^/feed\" --ignore=\"^/release-notes.txt\" --ignore=\"^/auto-rebuild\" --ignore=\"^/serve-phone\" --ignore=\"^/site\" --ignore=\"^/android\" --ignore=\"^/build-apk\" --ignore=\"^/build-setup\" --ignore=\"^/lan-feed.txt.tmp\"",
+    "installer": "electron-builder --prepackaged out/Weathered_Kiwi-win32-x64 --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "@electron/packager": "^18.3.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "org.windstation.weatheredkiwi",
+    "productName": "Weathered_Kiwi",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false,
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Weathered_Kiwi",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "artifactName": "Kiwi_Drop-${version}.${ext}"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Широкий по умолчанию (4×2): кольцо + шкала Бофорта, порыв, батарея и кривая последних минут. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="70dp"
+    android:minResizeHeight="70dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:maxResizeWidth="1200dp"
+    android:maxResizeHeight="1200dp"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen|keyguard"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/wk_widget"
+    android:previewImage="@drawable/widget_preview_wide"
+    android:description="@string/widget_wide_desc" />
