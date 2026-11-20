@@ -1,12 +1,9 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { SwitchGlyph } from "./wind-switch.jsx";
+import { SwitchGlyph, GlassPill } from "./wind-switch.jsx";
 import { WORLD_RINGS } from "./world-rings.js";
 import { EF_SCALE, efInfo, ALARM_FROM, ARCHIVE_SORTED } from "./storm-archive.js";
 import { visibleCities } from "./world-cities.js";
-import {
-  BG, LINE, LINE_HI, TEXT, DIM, FAINT, MONO, SANS, NUM,
-  glow, glowColor, dropGlow,
-} from "./ui-kit.js";
+import { LINE, LINE_HI, TEXT, DIM, FAINT, MONO, SANS, NUM, glow, glowColor, dropGlow } from "./ui-kit.js";
 
 // ============================================================
 // ЧТО ЗДЕСЬ ЧЕСТНО, А ЧТО НЕВОЗМОЖНО
@@ -68,15 +65,14 @@ function unproject(ux, uy) {
   return [lon, lat];
 }
 
-// Единичные координаты -> метры EPSG:3857 для запроса WMS.
-const toMercX = (u) => (u - 0.5) * 2 * Math.PI * R_EARTH;
-const toMercY = (v) => (0.5 - v) * 2 * Math.PI * R_EARTH;
-
 // Холст карты. Соотношение почти 2:1 — на нём мир при масштабе 1 занимает всю
 // ширину, а по вертикали остаются широты примерно от +62° до −62°, то есть вся
 // населённая суша и оба смерчевых пояса.
 const VW = 1000, VH = 520;
 const Z_MIN = 0.55, Z_MAX = 64;
+// С сетью глубже: подложка там уже не контур 110m, а береговая линия до z13,
+// и на ×256 видно бухты и острова, а не ломаную.
+const Z_MAX_NET = 256;
 
 // ============================================================
 // ГЕОМЕТРИЯ СУШИ
@@ -160,6 +156,224 @@ const RV_COLOR = 6;
 // «пиксельная / обычная»: она не рисуется поверх, а запрашивается у сервера,
 // поэтому «пиксельная» — это настоящие ячейки радара, а не эффект.
 const rvTail = (pixel) => `${pixel ? 0 : 1}_1.png`;
+// Дальше z7 RainViewer не отдаёт ничего, кроме картинки «Zoom Level Not
+// Supported» (проверено живьём). Над США глубже идёт мозаика NEXRAD от
+// Iowa Environmental Mesonet: та же базовая отражаемость, но с разрешением
+// самих радаров — около километра, — и до z10 у неё есть что показать.
+const RV_ZMAX = 7;
+const IEM_ZMAX = 10;
+const iemTile = (z, x, y) =>
+  `https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/${z}/${x}/${y}.png`;
+// Где NEXRAD вообще есть: материковые США с запасом на дальность радаров.
+const CONUS = { w: -127, e: -65, n: 50.5, s: 23 };
+
+// ---- Детальная подложка ----
+// Контур 110m хорош для мира целиком и для работы без сети, но на приближении
+// он становится ломаной из километровых отрезков. При наличии интернета берег
+// рисуется растром NASA GIBS (Coastlines_15m, до z13), а границы стран —
+// вектором Natural Earth 50m. Подписей в обоих нет: текстом карту не заваливаем.
+const GIBS = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/";
+const COAST_ZMAX = 13;
+const coastTile = (z, x, y) =>
+  `${GIBS}Coastlines_15m/default/GoogleMapsCompatible_Level13/${z}/${y}/${x}.png`;
+const BORDERS_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json";
+
+// ---- Облака ----
+// У RainViewer спутникового слоя больше нет (satellite.infrared пуст). Мировая
+// облачность без ключа — мозаика EUMETSAT «Geostationary Ring IR10.8»: снимки
+// всех геостационарных спутников, сшитые в один слой, раз в три часа. Яркость —
+// это температура верхней границы: холодные облака белые, тёплая земля серая.
+// Серое делаем прозрачным на клиенте (сервер SLD_BODY не принимает).
+// Формат — именно png8: на «image/png» сервер на части масштабов отвечает JPEG,
+// у которого нет прозрачности, и пустота за краем снимка становится белой плитой.
+const CLOUD_WMS = "https://view.eumetsat.int/geoserver/wms";
+const CLOUD_ZMAX = 6;
+function cloudTile(z, x, y, slot) {
+  const n = 2 ** z, s = (2 * Math.PI * R_EARTH) / n, o = Math.PI * R_EARTH;
+  const bbox = [-o + x * s, o - (y + 1) * s, -o + (x + 1) * s, o - y * s].map((v) => v.toFixed(0)).join(",");
+  return `${CLOUD_WMS}?service=WMS&version=1.3.0&request=GetMap&layers=mumi:worldcloudmap_ir108&styles=`
+    + `&crs=EPSG:3857&bbox=${bbox}&width=512&height=512&format=image/png8&transparent=true&_=${slot}`;
+}
+
+// Перекраска тайлов под тёмную карту. Делается один раз на тайл через canvas,
+// а дальше это обычная картинка: SVG-фильтр сделал бы то же самое, но заново
+// на каждом кадре панорамы. Кэш — на модуль, чтобы вкладка, открытая второй
+// раз, не качала мир заново; самые старые выталкиваются, их адреса отзываются.
+const TINTERS = {
+  // Береговая линия у GIBS — тёмная сердцевина (0,17,17) в светлой обводке
+  // (187,204,204). Для тёмной карты цвета меняются местами: сердцевина светлая,
+  // обводка — цвета фона. На пустом фоне обводки не видно, а над облаком или
+  // эхом радара она отделяет берег от них. Выбрасывать обводку нельзя: от неё
+  // остаётся рваная «верёвка» из пикселей сглаживания.
+  coast: (p, i) => {
+    let t = (p[i + 1] - 24) / 150;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    p[i] = 196 - 194 * t; p[i + 1] = 212 - 208 * t; p[i + 2] = 228 - 221 * t;
+  },
+  // Земля 70–110, облака от 140 и выше: плавная ступенька между 115 и 215.
+  cloud: (p, i) => {
+    let a = (p[i] - 115) / 100;
+    a = a < 0 ? 0 : a > 1 ? 1 : a * a * (3 - 2 * a);
+    p[i + 3] = p[i + 3] ? a * 214 : 0;
+    p[i] = 236; p[i + 1] = 242; p[i + 2] = 250;
+  },
+};
+function flatTile(p) {
+  let n = 0, sum = 0, sq = 0;
+  for (let i = 0; i < p.length; i += 64) {
+    if (!p[i + 3]) continue;
+    n++; sum += p[i]; sq += p[i] * p[i];
+  }
+  if (n < 64) return false;
+  const m = sum / n;
+  return sq / n - m * m < 9;   // стандартное отклонение меньше 3 уровней
+}
+function opaqueShare(p) {
+  let n = 0, k = 0;
+  for (let i = 3; i < p.length; i += 64) { n++; if (p[i] > 0) k++; }
+  return n ? k / n : 0;
+}
+const TINT = new Map();
+const TINT_MAX = 160;
+function tint(src, kind) {
+  const hit = TINT.get(src);
+  if (hit) { TINT.delete(src); TINT.set(src, hit); return hit; }
+  const e = { url: null, failed: false, p: null };
+  e.p = (async () => {
+    // Второй заход — потому что GIBS изредка отвечает 500 на совершенно
+    // нормальный тайл, а через полсекунды отдаёт его как ни в чём не бывало.
+    for (let k = 0; k < 2; k++) {
+      try {
+        const r = await fetch(src);
+        if (!r.ok) throw new Error(String(r.status));
+        const img = await createImageBitmap(await r.blob());
+        const c = document.createElement("canvas");
+        c.width = img.width; c.height = img.height;
+        const x = c.getContext("2d", { willReadFrequently: true });
+        x.drawImage(img, 0, 0);
+        const d = x.getImageData(0, 0, c.width, c.height), p = d.data, f = TINTERS[kind];
+        // Там, где у мозаики нет снимка, сервер на части масштабов отдаёт не
+        // пустоту, а ровную светлую заливку — после перекраски это сплошная
+        // белая плита посреди карты. Настоящие облака всегда текстурные, так
+        // что тайл без разброса яркости — это дыра в данных, и он гасится.
+        // У GIBS другая беда того же рода: вместо береговой линии изредка
+        // приходит сплошная непрозрачная заглушка. Линия берега занимает доли
+        // процента тайла, поэтому тайл, закрашенный больше чем наполовину, —
+        // это заглушка, а не берег.
+        if ((kind === "cloud" && flatTile(p)) || (kind === "coast" && opaqueShare(p) > 0.5)) p.fill(0);
+        else for (let i = 0; i < p.length; i += 4) f(p, i);
+        x.putImageData(d, 0, 0);
+        const blob = await new Promise((res) => c.toBlob(res, "image/png"));
+        if (!blob) throw new Error("toBlob");
+        e.url = URL.createObjectURL(blob);
+        return;
+      } catch {
+        if (k) e.failed = true;
+        else await new Promise((res) => setTimeout(res, 700));
+      }
+    }
+  })();
+  TINT.set(src, e);
+  while (TINT.size > TINT_MAX) {
+    const [k, old] = TINT.entries().next().value;
+    if (old.url) URL.revokeObjectURL(old.url);
+    TINT.delete(k);
+  }
+  return e;
+}
+
+// Список тайлов → только готовые, с перерисовкой по мере готовности. Готовность
+// собирается в один кадр: двадцать тайлов, пришедших подряд, — одна
+// перерисовка, а не двадцать.
+function useTinted(list, kind) {
+  const [, bump] = useState(0);
+  useEffect(() => {
+    let alive = true, raf = 0;
+    const kick = () => { if (alive && !raf) raf = requestAnimationFrame(() => { raf = 0; if (alive) bump((n) => n + 1); }); };
+    for (const t of list) {
+      const e = tint(t.href, kind);
+      if (!e.url && !e.failed) e.p.then(kick);
+    }
+    return () => { alive = false; cancelAnimationFrame(raf); };
+  }, [list, kind]);
+  const out = [];
+  for (const t of list) {
+    const e = TINT.get(t.href);
+    if (e && e.url) out.push({ ...t, url: e.url });
+  }
+  // Пока новая ступень не пришла, под ней лежит прошлая: географически она на
+  // своём месте, только грубее. Иначе каждый щелчок колеса гасил бы слой.
+  // Упавший тайл считается завершённым: иначе один ответ 500 навсегда
+  // оставлял бы под слоем растянутую прошлую ступень — размытую вторую линию.
+  const prev = useRef([]);
+  const done = list.every((t) => { const e = TINT.get(t.href); return e && (e.url || e.failed); });
+  if (done) { prev.current = out; return out; }
+  const have = new Set(out.map((t) => t.key));
+  return [...prev.current.filter((t) => !have.has(t.key) && TINT.get(t.href)?.url === t.url), ...out];
+}
+
+// Видимые тайлы ступени z. Потолок на всякий случай: ошибка в расчёте кадра
+// не должна превращаться в сотню запросов к чужому серверу.
+function tileGrid(view, z, keep = null, cap = 48) {
+  const n = 2 ** z, step = VW / n;
+  const halfW = 0.5 / view.z, halfH = ((VH / VW) * 0.5) / view.z;
+  const x0 = Math.max(0, Math.floor((view.cx - halfW) * n));
+  const x1 = Math.min(n - 1, Math.floor((view.cx + halfW) * n));
+  const y0 = Math.max(0, Math.floor((view.cy - halfH) * n));
+  const y1 = Math.min(n - 1, Math.floor((view.cy + halfH) * n));
+  const out = [];
+  for (let x = x0; x <= x1 && out.length < cap; x++) {
+    for (let y = y0; y <= y1 && out.length < cap; y++) {
+      if (keep && !keep(x, y, n)) continue;
+      out.push({ z, x, y, px: x * step, py: y * step, s: step });
+    }
+  }
+  return out;
+}
+// Ступень тайла под масштаб: при view.z ≈ 2^z · size / VW пиксель тайла
+// попадает в пиксель экрана.
+const tileLevel = (vz, size, bump) => Math.round(Math.log2(Math.max(0.25, vz * (VW / size)))) + bump;
+
+// Прямоугольник тайла в градусах — чтобы понять, лежит ли он в зоне NEXRAD.
+function tileBox(x, y, n) {
+  const [w, nLat] = unproject(x / n, y / n);
+  const [e, sLat] = unproject((x + 1) / n, (y + 1) / n);
+  return { w, e, n: nLat, s: sLat };
+}
+const overlaps = (a, b) => a.w < b.e && a.e > b.w && a.s < b.n && a.n > b.s;
+const inside = (a, b) => a.w >= b.w && a.e <= b.e && a.s >= b.s && a.n <= b.n;
+
+// Границы стран — дуги TopoJSON, общие для двух стран (у берега страна одна).
+// Грузится один раз на сеанс и собирается в один путь: двадцать тысяч точек
+// одним элементом дешевле, чем по пути на страну.
+let bordersP = null;
+function loadBorders() {
+  if (!bordersP) {
+    bordersP = fetch(BORDERS_URL).then((r) => (r.ok ? r.json() : null)).then((t) => {
+      if (!t) return null;
+      const use = new Map();
+      const walk = (a) => {
+        if (typeof a === "number") { const k = a < 0 ? ~a : a; use.set(k, (use.get(k) || 0) + 1); }
+        else if (Array.isArray(a)) a.forEach(walk);
+      };
+      for (const g of t.objects.countries.geometries) walk(g.arcs);
+      const [sx, sy] = t.transform.scale, [tx, ty] = t.transform.translate;
+      let d = "";
+      use.forEach((cnt, k) => {
+        if (cnt < 2) return;
+        let x = 0, y = 0, first = true;
+        for (const [dx, dy] of t.arcs[k]) {
+          x += dx; y += dy;
+          const [ux, uy] = project(x * sx + tx, y * sy + ty);
+          d += (first ? "M" : "L") + (ux * VW).toFixed(2) + " " + (uy * VW).toFixed(2);
+          first = false;
+        }
+      });
+      return d;
+    }).catch(() => { bordersP = null; return null; });
+  }
+  return bordersP;
+}
 
 // ---- Мировой экран суперклеток ----
 // Продукта «вот суперклетка» на весь мир не существует — об этом ниже, у
@@ -341,27 +555,14 @@ function geometryRings(geometry) {
 // же. Цвет слоя переехал с квадратика на сам тумблер: квадратик был легендой,
 // и терять её нельзя, а держать рядом и легенду, и переключатель — это два
 // значка на одну мысль.
-function LayerToggle({ on, onClick, color, label, count, g, busy }) {
+function LayerToggle({ on, onClick, color, label, count, busy }) {
   return (
-    <button
-      onClick={onClick} role="switch" aria-checked={on}
-      style={{
-        display: "flex", alignItems: "center", gap: 6,
-        background: on ? "rgba(231,238,246,0.09)" : "transparent",
-        border: `1px solid ${on ? LINE_HI : LINE}`,
-        color: on ? TEXT : DIM,
-        fontFamily: SANS, fontSize: 10, letterSpacing: 1, fontWeight: 500,
-        padding: "4px 10px 4px 5px", cursor: "pointer", transition: "all .18s ease",
-        whiteSpace: "nowrap",
-        boxShadow: on ? glowColor(color, g, 0.18) : "none",
-      }}
-    >
-      <SwitchGlyph on={on} accent={color} />
+    <GlassPill on={on} onClick={onClick} color={color}>
       {label}
       <span style={{ ...NUM, fontSize: 9, color: on ? DIM : FAINT }}>
         {busy ? "…" : count == null ? "" : count}
       </span>
-    </button>
+    </GlassPill>
   );
 }
 
@@ -488,7 +689,7 @@ function OutLink({ href, children, g }) {
        style={{
          display: "inline-block", border: `1px solid ${LINE}`, padding: "6px 10px",
          color: TEXT, textDecoration: "none", fontFamily: SANS, fontSize: 10,
-         letterSpacing: 1, textShadow: glow(g, 0.4), transition: "border-color .18s ease",
+         letterSpacing: 1, textShadow: glow(g, 0.4), transition: "border-color .24s ease",
        }}>
       {children} ↗
     </a>
@@ -641,11 +842,6 @@ function Detail({ item, g, motion, onClose }) {
                 <Field k="Выпустил" v={p.senderName} g={g} />
                 {/* Рейтинга EF тут нет и быть не может — сказать это прямо
                     важнее, чем оставить пустое место, которое читается как недоделка */}
-                <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.55, marginTop: 8 }}>
-                  Категории EF у действующего предупреждения нет: её присваивают после наземного
-                  обследования разрушений, обычно через день-два. Здесь показан уровень угрозы
-                  из самого предупреждения.
-                </div>
               </>
             );
           })()}
@@ -660,11 +856,6 @@ function Detail({ item, g, motion, onClose }) {
                 <Field k="Действует до" v={fmt(item.props.EXPIRE_ISO)} g={g} />
                 <Field k="Выпущен" v={fmt(item.props.ISSUE_ISO)} g={g} />
                 <Field k="Синоптик" v={item.props.FORECASTER} g={g} mono={false} />
-                <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.55, marginTop: 8 }}>
-                  {item.torn
-                    ? "Область, в которой на сегодня ожидаются смерчи. Прогноз, а не наблюдение: он говорит, где условия складываются, а не что смерч есть."
-                    : "Область, в которой на сегодня ожидается сильная конвекция — то есть там, где и рождаются суперклетки. Отдельного потока с координатами суперклеток не существует ни у одной службы: суперклетку опознают по доплеровской скорости на конкретном радаре, объектами наружу её никто не отдаёт. Этот прогноз — то, по чему работают и сами шторм-чейзеры."}
-                </div>
               </>
             );
           })()}
@@ -674,10 +865,6 @@ function Detail({ item, g, motion, onClose }) {
               <Field k="Время (UTC)" v={item.time} g={g} />
               <Field k="Оценка на месте" v={item.fScale || "ещё не оценён"} g={g} />
               <Field k="Координаты" v={`${item.lat.toFixed(2)}, ${item.lon.toFixed(2)}`} g={g} />
-              <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.55, marginTop: 8 }}>
-                Предварительное донесение за текущие сутки. Часть таких сообщений после проверки
-                не подтверждается, а рейтинг появляется только после обследования.
-              </div>
             </>
           )}
         </div>
@@ -685,7 +872,7 @@ function Detail({ item, g, motion, onClose }) {
         {(item.note || (isAlert && item.props.description)) && (
           <div style={{
             marginTop: 11, paddingTop: 10, borderTop: `1px solid ${LINE}`,
-            color: "rgba(231,238,246,0.8)", fontSize: 11, lineHeight: 1.65, fontFamily: SANS,
+            color: "rgba(var(--ink, 231,238,246),0.8)", fontSize: 11, lineHeight: 1.65, fontFamily: SANS,
             whiteSpace: isAlert ? "pre-wrap" : undefined,
             maxHeight: 260, overflowY: "auto",
           }}>
@@ -704,7 +891,7 @@ function Detail({ item, g, motion, onClose }) {
         )}
 
         {item.comments && (
-          <div style={{ marginTop: 11, color: "rgba(231,238,246,0.8)", fontSize: 11, lineHeight: 1.6 }}>
+          <div style={{ marginTop: 11, color: "rgba(var(--ink, 231,238,246),0.8)", fontSize: 11, lineHeight: 1.6 }}>
             {item.comments}
           </div>
         )}
@@ -728,6 +915,15 @@ function Detail({ item, g, motion, onClose }) {
   );
 }
 
+// Тот же упор, что clampView внутри карты, — для промежуточных кадров
+// плавного вида (их считает обработчик кадра вне рендера).
+function clampGlide(v) {
+  const halfW = 0.5 / v.z, halfH = (VH / VW) * 0.5 / v.z;
+  const cx = halfW >= 0.5 ? 0.5 : Math.max(halfW, Math.min(1 - halfW, v.cx));
+  const cy = halfH >= 0.5 ? 0.5 : Math.max(halfH, Math.min(1 - halfH, v.cy));
+  return { z: v.z, cx, cy };
+}
+
 // ============================================================
 // КАРТА
 // ============================================================
@@ -735,14 +931,60 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
                                   pixelRadar = true, pixelCells = true }) {
   // Масштаб 1 — мир во всю ширину холста; по вертикали при этом видно примерно
   // от +62° до −62°, то есть обе смерчевые зоны и все тропические бассейны.
-  const [view, setView] = useState({ z: 1, cx: 0.5, cy: 0.5 });
+  // Вид едет к цели с инерцией, а не прыгает: колесо, кнопки «＋/−», «весь мир»
+  // и перелёт к точке задают цель, а кадр за кадром вид догоняет её по
+  // экспоненте (масштаб — в логарифме, иначе приближение ускорялось бы к
+  // концу). Перетаскивание — без инерции: карта обязана идти за пальцем.
+  // Зум к курсору держит под курсором ту же точку мира и на промежуточных
+  // кадрах — см. anchor.
+  const [view, setShown] = useState({ z: 1, cx: 0.5, cy: 0.5 });
+  const glide = useRef({ cur: { z: 1, cx: 0.5, cy: 0.5 }, to: { z: 1, cx: 0.5, cy: 0.5 }, anchor: null, tau: 140, raf: 0, at: 0 });
+  const motionRef = useRef(motion);
+  motionRef.current = motion;
+  const setView = useCallback((next, opt = {}) => {
+    const G = glide.current;
+    const goal = typeof next === "function" ? next(G.to) : next;
+    if (goal === G.to) return;
+    G.to = goal;
+    G.anchor = opt.anchor || null;
+    G.tau = opt.slow ? 260 : 140;
+    if (opt.now || motionRef.current === "off" || typeof requestAnimationFrame === "undefined") {
+      if (G.raf) cancelAnimationFrame(G.raf);
+      G.raf = 0; G.cur = goal; setShown(goal);
+      return;
+    }
+    if (G.raf) return;
+    G.at = performance.now();
+    const step = (t) => {
+      const dt = Math.min(64, t - G.at); G.at = t;
+      const k = 1 - Math.exp(-dt / G.tau);
+      const c = G.cur, to = G.to;
+      const lz = Math.log(c.z) + (Math.log(to.z) - Math.log(c.z)) * k;
+      const z = Math.exp(lz);
+      let cx = c.cx + (to.cx - c.cx) * k, cy = c.cy + (to.cy - c.cy) * k;
+      const A = G.anchor;
+      if (A) {
+        // Точка мира под курсором остаётся под ним, пока меняется масштаб.
+        const ax = A.wx - A.px / (VW * z), ay = A.wy - A.py / (VW * z);
+        if (Math.abs(ax - cx) * z < 0.05 && Math.abs(ay - cy) * z < 0.05) { cx = ax; cy = ay; }
+      }
+      const done = Math.abs(Math.log(to.z) - lz) < 0.003
+        && Math.abs(to.cx - cx) * to.z < 0.0004 && Math.abs(to.cy - cy) * to.z < 0.0004;
+      G.cur = done ? to : clampGlide({ z, cx, cy });
+      setShown(G.cur);
+      G.raf = done ? 0 : requestAnimationFrame(step);
+    };
+    G.raf = requestAnimationFrame(step);
+  }, []);
+  useEffect(() => () => { if (glide.current.raf) cancelAnimationFrame(glide.current.raf); }, []);
   const [layers, setLayers] = useState({
     // Архив выключен: это справочник прошлых событий, а не то, что происходит
     // сейчас. Включённый по умолчанию, он рассыпал по карте полтора десятка
     // красных точек ещё до того, как придут живые слои, и первое, что видел
     // человек, — катастрофы двадцатилетней давности вперемешку с сегодняшними.
-    alerts: true, reports: true, archive: false, radar: true, cities: true, outlook: true,
+    alerts: true, reports: true, archive: false, radar: true, cities: true, outlook: true, clouds: true,
   });
+  const zMax = online ? Z_MAX_NET : Z_MAX;
   // Своё место. Геолокацию браузер отдаёт только защищённым страницам, поэтому
   // на копии со станции (обычный HTTP) синей точки не будет — и это не поломка,
   // а запрет браузера, о котором надо сказать вслух, а не молча ничего не рисовать.
@@ -875,36 +1117,65 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
   }, [layers.radar, online]);
 
   // Ступень тайлов. Ступени, а не непрерывный размер: иначе каждый щелчок
-  // колеса — новая пачка запросов. Один тайл 512 px на VW/2^z единиц карты,
-  // значит при view.z ≈ 2^z / 2 пиксель тайла попадает в пиксель экрана.
-  const tileZ = useMemo(() => {
-    const bump = quality === "eco" ? -1 : quality === "max" ? 1 : 0;
-    const raw = Math.round(Math.log2(Math.max(0.25, view.z * (VW / 512)))) + bump;
-    return Math.max(0, Math.min(7, raw));
-  }, [view.z, quality]);
+  // колеса — новая пачка запросов.
+  const bump = quality === "eco" ? -1 : quality === "max" ? 1 : 0;
+  const tileZ = Math.max(0, Math.min(RV_ZMAX, tileLevel(view.z, 512, bump)));
+  // Глубже z7 над США — NEXRAD в полном разрешении. Ступень своя (тайл 256).
+  const iemZ = Math.min(IEM_ZMAX, tileLevel(view.z, 256, bump));
+  const iemOn = layers.radar && online && iemZ > RV_ZMAX;
 
   const tiles = useMemo(() => {
     if (!layers.radar || !rv) return [];
-    const n = 2 ** tileZ, step = VW / n;
-    const halfW = 0.5 / view.z, halfH = ((VH / VW) * 0.5) / view.z;
-    const x0 = Math.max(0, Math.floor((view.cx - halfW) * n));
-    const x1 = Math.min(n - 1, Math.floor((view.cx + halfW) * n));
-    const y0 = Math.max(0, Math.floor((view.cy - halfH) * n));
-    const y1 = Math.min(n - 1, Math.floor((view.cy + halfH) * n));
-    const out = [];
-    // Потолок на всякий случай: ошибка в расчёте кадра не должна превращаться
-    // в сотню запросов к чужому серверу.
-    for (let x = x0; x <= x1 && out.length < 48; x++) {
-      for (let y = y0; y <= y1 && out.length < 48; y++) {
-        out.push({
-          key: `${rv.path}/${tileZ}/${x}/${y}/${pixelRadar ? "p" : "s"}`,
-          x: x * step, y: y * step, s: step,
-          href: `${rv.host}${rv.path}/512/${tileZ}/${x}/${y}/${RV_COLOR}/${rvTail(pixelRadar)}`,
-        });
-      }
-    }
-    return out;
-  }, [layers.radar, rv, tileZ, view, pixelRadar]);
+    // Там, где поверх лягут тайлы NEXRAD, размытый z7 под ними не нужен.
+    const keep = iemOn ? (x, y, n) => !inside(tileBox(x, y, n), CONUS) : null;
+    return tileGrid(view, tileZ, keep).map((t) => ({
+      ...t, key: `${rv.path}/${t.z}/${t.x}/${t.y}/${pixelRadar ? "p" : "s"}`,
+      href: `${rv.host}${rv.path}/512/${t.z}/${t.x}/${t.y}/${RV_COLOR}/${rvTail(pixelRadar)}`,
+    }));
+  }, [layers.radar, rv, tileZ, view, pixelRadar, iemOn]);
+
+  const iemTiles = useMemo(() => {
+    if (!iemOn) return [];
+    // Кадр мозаики IEM меняется раз в пять минут, как и индекс RainViewer:
+    // метка кадра RainViewer заодно сбрасывает кэш браузера для NEXRAD.
+    const stamp = rv ? rv.time : Math.floor(Date.now() / 300000);
+    return tileGrid(view, iemZ, (x, y, n) => overlaps(tileBox(x, y, n), CONUS)).map((t) => ({
+      ...t, key: `iem/${stamp}/${t.z}/${t.x}/${t.y}`, href: `${iemTile(t.z, t.x, t.y)}?_=${stamp}`,
+    }));
+  }, [iemOn, iemZ, view, rv]);
+
+  // ---------- подложка: берег и границы ----------
+  const coastZ = Math.max(0, Math.min(COAST_ZMAX, tileLevel(view.z, 256, bump)));
+  const coastList = useMemo(() => (online
+    ? tileGrid(view, coastZ, null, 64).map((t) => ({ ...t, key: `c/${t.z}/${t.x}/${t.y}`, href: coastTile(t.z, t.x, t.y) }))
+    : []), [online, view, coastZ]);
+  const coast = useTinted(coastList, "coast");
+  // Контур 110m уступает место, когда растр почти весь пришёл: двойная линия
+  // (грубая под точной) выглядела бы как размытие.
+  const coastReady = coastList.length > 0 && coast.length >= coastList.length * 0.8;
+
+  const [borders, setBorders] = useState(null);
+  useEffect(() => {
+    if (!online) return undefined;
+    let alive = true;
+    loadBorders().then((d) => { if (alive && d) setBorders(d); });
+    return () => { alive = false; };
+  }, [online]);
+
+  // ---------- облака ----------
+  // Мозаика обновляется раз в три часа; ключ кадра меняется раз в полчаса —
+  // так новый снимок появится не позже чем через полчаса после выхода.
+  const [cloudSlot, setCloudSlot] = useState(() => Math.floor(Date.now() / 1800000));
+  useEffect(() => {
+    if (!layers.clouds || !online) return undefined;
+    const id = setInterval(() => setCloudSlot(Math.floor(Date.now() / 1800000)), 60000);
+    return () => clearInterval(id);
+  }, [layers.clouds, online]);
+  const cloudZ = Math.max(0, Math.min(CLOUD_ZMAX, tileLevel(view.z, 512, bump)));
+  const cloudList = useMemo(() => (layers.clouds && online
+    ? tileGrid(view, cloudZ).map((t) => ({ ...t, key: `cl/${cloudSlot}/${t.z}/${t.x}/${t.y}`, href: cloudTile(t.z, t.x, t.y, cloudSlot) }))
+    : []), [layers.clouds, online, view, cloudZ, cloudSlot]);
+  const clouds = useTinted(cloudList, "cloud");
 
   // ---------- где сегодня рождаются суперклетки ----------
   // Сетка считается по видимому куску карты, а не по всему миру: на весь глобус
@@ -992,7 +1263,10 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
 
   const onPointerDown = (e) => {
     if (e.button != null && e.button !== 0) return;
-    drag.current = { x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy, moved: false };
+    // Палец останавливает разгон: карта встаёт там, где её видно сейчас.
+    const G = glide.current;
+    if (G.raf) { cancelAnimationFrame(G.raf); G.raf = 0; G.to = G.cur; }
+    drag.current = { x: e.clientX, y: e.clientY, cx: G.cur.cx, cy: G.cur.cy, moved: false };
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
 
@@ -1002,7 +1276,7 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
     const f = scaleFactor();
     const dx = (e.clientX - d.x) * f, dy = (e.clientY - d.y) * f;
     if (Math.abs(dx) + Math.abs(dy) > 3) d.moved = true;
-    setView((v) => clampView({ ...v, cx: d.cx - dx / (VW * v.z), cy: d.cy - dy / (VW * v.z) }));
+    setView((v) => clampView({ ...v, cx: d.cx - dx / (VW * v.z), cy: d.cy - dy / (VW * v.z) }), { now: true });
   };
 
   const onPointerUp = () => { drag.current = null; };
@@ -1021,15 +1295,15 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
     const f = VW / r.width;
     const px = (e.clientX - r.left) * f - VW / 2;
     const py = (e.clientY - r.top) * f - VH / 2;
-    setView((v) => {
-      const z = Math.max(Z_MIN, Math.min(Z_MAX, v.z * (e.deltaY < 0 ? 1.22 : 1 / 1.22)));
-      if (z === v.z) return v;
-      return clampView({
-        z,
-        cx: v.cx + px / (VW * v.z) - px / (VW * z),
-        cy: v.cy + py / (VW * v.z) - py / (VW * z),
-      });
-    });
+    const v = glide.current.to;
+    const z = Math.max(Z_MIN, Math.min(zMax, v.z * (e.deltaY < 0 ? 1.22 : 1 / 1.22)));
+    if (z === v.z) return;
+    const wx = v.cx + px / (VW * v.z), wy = v.cy + py / (VW * v.z);
+    const goal = clampView({ z, cx: wx - px / (VW * z), cy: wy - py / (VW * z) });
+    // Якорь — только если упор в край не сдвинул цель: иначе держать точку
+    // под курсором значило бы спорить с самим упором.
+    const free = Math.abs(goal.cx - (wx - px / (VW * z))) < 1e-9 && Math.abs(goal.cy - (wy - py / (VW * z))) < 1e-9;
+    setView(goal, free ? { anchor: { wx, wy, px, py } } : undefined);
   };
 
   // Ссылка на свежий обработчик: слушатель вешается один раз, а замыкание в
@@ -1053,11 +1327,11 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
     return { z: v.z, cx, cy };
   }
 
-  const zoomBy = (m) => setView((v) => clampView({ ...v, z: Math.max(Z_MIN, Math.min(Z_MAX, v.z * m)) }));
-  const reset = () => setView({ z: 1, cx: 0.5, cy: 0.5 });
+  const zoomBy = (m) => setView((v) => clampView({ ...v, z: Math.max(Z_MIN, Math.min(zMax, v.z * m)) }));
+  const reset = () => setView({ z: 1, cx: 0.5, cy: 0.5 }, { slow: true });
   const flyTo = (lon, lat, z = 14) => {
     const [ux, uy] = project(lon, lat);
-    setView(clampView({ z, cx: ux, cy: uy }));
+    setView(clampView({ z, cx: ux, cy: uy }), { slow: true });
   };
 
   const pick = (item) => (e) => {
@@ -1296,7 +1570,7 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
         <path d={`M${x} ${y - 11} L${x} ${y}`} stroke={TEXT} strokeWidth="1" opacity="0.6" />
         <path d={`M${x} ${y - 11} l7 3 -7 3 z`} fill={TEXT} opacity="0.85" />
         <circle cx={x} cy={y} r="2.6" stroke={TEXT} strokeWidth="1.4" fill="var(--ui-bg, #04070a)"
-                style={{ filter: dropGlow("rgba(231,238,246,0.8)", g, 0.8) }} />
+                style={{ filter: dropGlow("rgba(var(--ink, 231,238,246),0.8)", g, 0.8) }} />
         {/* Откуда взялась точка — подписано прямо на карте. Координаты из
             каталога человек ввёл сам, и выдавать их за телеметрию станции
             нельзя: ошибиться в них можно ровно так же, как в любом
@@ -1326,6 +1600,8 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
     );
   }, [me, toScreen, g, motion]);
 
+  // Заливка суши гаснет с ×8 до ×32 — только там, где есть чем её заменить.
+  const landFill = online ? Math.max(0, Math.min(1, 1 - (Math.log2(view.z) - 3) / 2)) : 1;
   const landTransform = `translate(${VW / 2 - view.cx * VW * view.z} ${VH / 2 - view.cy * VW * view.z}) scale(${view.z})`;
   const counts = {
     alerts: alerts ? alerts.length : null,
@@ -1343,10 +1619,10 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
            при вращении меняет ширину — этого хватает, чтобы значок читался
            как крутящийся, и это дешевле любого поворота. */
         @keyframes tornSwirl { 0%, 100% { transform: scaleX(1) } 50% { transform: scaleX(.52) } }
-        .torn-swirl { animation: tornSwirl 2.6s ease-in-out infinite;
+        .torn-swirl { animation: tornSwirl 3.12s ease-in-out infinite;
                       transform-box: fill-box; transform-origin: 50% 50% }
         .mo-off .torn-swirl { animation: none }
-        .mo-calm .torn-swirl { animation-duration: 5s }
+        .mo-calm .torn-swirl { animation-duration: 6.75s }
       `}</style>
       {/* Панель слоёв */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
@@ -1363,8 +1639,11 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
                      onClick={() => setLayers((l) => ({ ...l, archive: !l.archive }))} />
         <LayerToggle g={g} on={layers.radar} color="#a3e635" label="ОТРАЖАЕМОСТЬ"
                      busy={layers.radar && (rvBusy || !rv)}
-                     count={layers.radar && rv ? `z${tileZ}` : null}
+                     count={layers.radar && rv ? `z${iemOn ? iemZ : tileZ}` : null}
                      onClick={() => setLayers((l) => ({ ...l, radar: !l.radar }))} />
+        <LayerToggle g={g} on={layers.clouds} color="#e2e8f0" label="ОБЛАКА"
+                     busy={layers.clouds && online && cloudList.length > 0 && clouds.length < cloudList.length}
+                     onClick={() => setLayers((l) => ({ ...l, clouds: !l.clouds }))} />
         <LayerToggle g={g} on={layers.cities} color="#94a3b8" label="ГОРОДА"
                      onClick={() => setLayers((l) => ({ ...l, cities: !l.cities }))} />
         <LayerToggle g={g} on={!!me} color="#3b82f6"
@@ -1415,9 +1694,10 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
       </div>
 
       {/* Холст */}
-      <div style={{ position: "relative", border: `1px solid ${LINE}`, background: "#020407" }}>
+      <div className="ink-dark" style={{ position: "relative", border: `1px solid ${LINE}`, background: "#020407" }}>
         <svg
           ref={svgRef}
+          className="no-glow"
           viewBox={`0 0 ${VW} ${VH}`}
           width="100%"
           style={{ display: "block", touchAction: "none", cursor: drag.current ? "grabbing" : "grab" }}
@@ -1462,19 +1742,49 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
           </g>
 
           <g transform={landTransform} style={{ pointerEvents: "none" }}>
-            {/* Отражаемость под контурами и внутри той же трансформации: берег
-                остаётся читаемым, а панорама и зум двигают растр на GPU без запросов. */}
+            {/* Заливка суши — контур 110m. С сетью она гаснет на приближении:
+                на масштабе города грубый многоугольник заезжал бы в море, а
+                берег там уже рисует точный растр. */}
+            {LAND_PATHS.map((d, i) => (
+              <path key={i} d={d} fill="rgba(var(--ink, 231,238,246),0.045)" fillOpacity={landFill}
+                    stroke={LINE_HI} strokeOpacity={coastReady ? 0 : 1}
+                    strokeWidth="0.8" vectorEffect="non-scaling-stroke" strokeLinejoin="round"
+                    style={{ transition: "stroke-opacity .54s ease" }} />
+            ))}
+            {/* Облака под радаром: эхо грозы должно читаться поверх облака,
+                из которого оно идёт, а не тонуть в нём. */}
+            {clouds.map((tl) => (
+              <image key={tl.key} href={tl.url} x={tl.px} y={tl.py} width={tl.s} height={tl.s}
+                     preserveAspectRatio="none" className={motion === "off" ? undefined : "radar-fade"}
+                     style={{ opacity: 0.85 }} />
+            ))}
+            {/* Отражаемость внутри той же трансформации: панорама и зум двигают
+                растр на GPU без запросов. */}
             {layers.radar && tiles.map((tl) => (
               <image key={tl.key} href={tl.href}
-                     x={tl.x} y={tl.y} width={tl.s} height={tl.s}
+                     x={tl.px} y={tl.py} width={tl.s} height={tl.s}
                      preserveAspectRatio="none"
                      className={motion === "off" ? undefined : "radar-fade"}
                      style={{ opacity: 0.8, imageRendering: pixelRadar ? "pixelated" : "auto" }} />
             ))}
-            {LAND_PATHS.map((d, i) => (
-              <path key={i} d={d} fill="rgba(231,238,246,0.045)" stroke={LINE_HI}
-                    strokeWidth="0.8" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+            {iemTiles.map((tl) => (
+              <image key={tl.key} href={tl.href}
+                     x={tl.px} y={tl.py} width={tl.s} height={tl.s}
+                     preserveAspectRatio="none"
+                     className={motion === "off" ? undefined : "radar-fade"}
+                     style={{ opacity: 0.8, imageRendering: pixelRadar ? "pixelated" : "auto" }} />
             ))}
+            {/* Берег и границы — поверх всего растрового: по ним читается,
+                над какой землёй стоит облако или гроза. */}
+            {coast.map((tl) => (
+              <image key={tl.key} href={tl.url} x={tl.px} y={tl.py} width={tl.s} height={tl.s}
+                     preserveAspectRatio="none" className={motion === "off" ? undefined : "radar-fade"}
+                     style={{ opacity: 0.8 }} />
+            ))}
+            {borders && (
+              <path d={borders} fill="none" stroke={LINE_HI} strokeOpacity="0.55"
+                    strokeWidth="0.6" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+            )}
           </g>
 
           {cellNodes}
@@ -1493,7 +1803,7 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
             position: "absolute", left: 10, bottom: 10, maxWidth: "min(420px, 70%)",
             border: `1px solid ${LINE}`, background: "rgba(4,7,10,0.9)",
             padding: "8px 11px", fontFamily: SANS, fontSize: 10.5, lineHeight: 1.55,
-            color: online ? DIM : "rgba(231,238,246,0.75)",
+            color: online ? DIM : "rgba(var(--ink, 231,238,246),0.75)",
           }}>
             {status.busy ? "Запрашиваю службу погоды…" : status.error}
           </div>
@@ -1553,7 +1863,7 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
                         background: "transparent", border: `1px solid ${LINE}`,
                         borderLeft: `2px solid ${color}`,
                         color: DIM, fontFamily: SANS, fontSize: 10, padding: "4px 9px",
-                        cursor: "pointer", transition: "color .18s ease, border-color .18s ease",
+                        cursor: "pointer", transition: "color .24s ease, border-color .24s ease",
                       }}>
                 <span style={{ ...NUM, color, fontSize: 9.5 }}>{a.scale}</span>
                 {archiveLabel(a)}
@@ -1565,27 +1875,15 @@ export default function WorldMap({ g, motion, online, site, showGrid = true, qua
 
       {/* Происхождение данных — на виду, а не в подвале */}
       <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.65, fontFamily: SANS }}>
-        Предупреждения и донесения о смерчах — служба погоды США:{" "}
-        <b style={{ color: DIM }}>api.weather.gov</b> и <b style={{ color: DIM }}>SPC</b>; они
-        покрывают только США, потому что открытых потоков по смерчам за её пределами,
-        доступных браузеру напрямую, не существует. Конус движения рисуется там, где
-        служба сама указала направление и скорость шторма, — у донесений его нет,
-        и выдумывать направление для них нельзя. Отражаемость — мировая мозаика{" "}
-        <b style={{ color: DIM }}>RainViewer</b>: сводка национальных радарных сетей,
-        от NEXRAD до европейской OPERA. Суперклеточный экран считается из энергии
-        неустойчивости и сдвига ветра модели <b style={{ color: DIM }}>Open-Meteo</b> и
-        показывает сочетание, из которого рождаются суперклетки; это не прогноз службы,
-        а расчёт по двум величинам, и над США поверх него лежат настоящие области SPC.
-        {noGeom > 0 && ` Ещё ${noGeom} предупреждений заданы зонами без контура — на карту они не попали.`}
-        {" "}Архив — обследованные события по записям NWS и NCEI, по умолчанию выключен.
-        {status.at && ` Обновлено в ${status.at.toLocaleTimeString("uk-UA")}.`}
-        {/* Условие не трогали намеренно: геолокация закрыта браузером, и
-            облачный канал тут ничего не меняет — он лечит доступ к плате, а
-            не право страницы спрашивать, где стоит человек. */}
-        {geoState === "off" && " Своё место показать нельзя: браузер отдаёт координаты только защищённым страницам, а эта копия открыта по обычному HTTP. А где стоит сама станция, дашборд знает и так: это её собственные координаты из secrets.h, а не геолокация браузера."}
-        {geoState === "denied" && " Доступ к геоданным закрыт — вернуть его можно только в настройках сайта в браузере, но своё место всегда можно поставить вручную."}
-        {me && me.manual && " Ваша отметка поставлена вручную и хранится только в этом браузере."}
-        {picking && " Ткните в карту — там и будет ваша отметка."}
+        Источники: <b style={{ color: DIM }}>api.weather.gov</b> · <b style={{ color: DIM }}>SPC</b> ·
+        <b style={{ color: DIM }}>RainViewer</b> · <b style={{ color: DIM }}>IEM NEXRAD</b> ·
+        <b style={{ color: DIM }}>EUMETSAT</b> (облака, раз в 3 ч) · <b style={{ color: DIM }}>NASA GIBS</b> ·
+        <b style={{ color: DIM }}>Natural Earth</b> · <b style={{ color: DIM }}>Open-Meteo</b> · NWS/NCEI.
+        {noGeom > 0 && ` Без контура: ${noGeom}.`}
+        {status.at && ` Обновлено ${status.at.toLocaleTimeString("uk-UA")}.`}
+        {geoState === "off" && " Своё место — только по HTTPS."}
+        {geoState === "denied" && " Геоданные закрыты в браузере."}
+        {picking && " Ткните в карту."}
       </div>
     </div>
   );

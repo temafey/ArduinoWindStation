@@ -1,77 +1,5 @@
 import { useMemo } from "react";
-import {
-  BG_VAR, LINE, TEXT, DIM, FAINT, MONO, SANS, NUM, dropGlow, clamp01, INSTR_H, INSTR_FIT,
-} from "./ui-kit.js";
-
-// ============================================================
-// ФЛЮГЕР
-// ============================================================
-// Абстрактный компас со стрелкой убран: он показывал число, но ничего не
-// говорил о том, чем оно измерено. Здесь нарисован сам датчик — флюгер,
-// вид сверху, как его и видно с земли, если смотреть на мачту.
-//
-// Форма выбрана так, чтобы направление читалось без подписей: сзади широкое
-// раздвоенное перо, которое ветер и разворачивает, спереди — узкий нос
-// с маленькой стрелкой. Перо всегда сносит по ветру, нос всегда смотрит
-// туда, откуда дует. Это метеорологическое соглашение: направление ветра —
-// это откуда он, а не куда.
-export function Compass({ direction, angle, accent, g }) {
-  return (
-    <svg viewBox="0 0 200 200" style={INSTR_FIT}>
-      <circle cx="100" cy="100" r="86" fill="none" stroke={LINE} strokeWidth="1" />
-
-      {[0, 90, 180, 270].map((a) => {
-        const p1 = polarAt(100, 100, 80, a), p2 = polarAt(100, 100, 86, a);
-        return <line key={a} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-                     stroke={TEXT} strokeWidth="1.2" opacity="0.55" />;
-      })}
-      {/* Промежуточные румбы — короткими рисками, без подписей */}
-      {[45, 135, 225, 315].map((a) => {
-        const p1 = polarAt(100, 100, 83, a), p2 = polarAt(100, 100, 86, a);
-        return <line key={a} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-                     stroke={TEXT} strokeWidth="0.8" opacity="0.3" />;
-      })}
-      {["С", "В", "Ю", "З"].map((l, i) => {
-        const p = polarAt(100, 100, 71, i * 90);
-        return (
-          <text key={l} x={p.x} y={p.y + 3.5} textAnchor="middle" fill={DIM}
-                fontSize="9" fontFamily={SANS} fontWeight="600">{l}</text>
-        );
-      })}
-
-      {/* Сам флюгер. Нос вверх в локальных координатах, группа повёрнута
-          на азимут — значит нос смотрит туда, откуда дует. */}
-      <g transform={`rotate(${angle}, 100, 100)`}>
-        {/* Раздвоенное перо: то, за что ветер и держит прибор */}
-        <path d="M 100 112 L 86 152 L 100 142 L 114 152 Z"
-              fill={accent} fillOpacity="0.28" stroke={accent} strokeWidth="1.4"
-              strokeLinejoin="round" style={{ filter: dropGlow(accent, g, 0.8) }} />
-        {/* Ось прибора */}
-        <line x1="100" y1="118" x2="100" y2="42" stroke={accent} strokeWidth="2.2"
-              strokeLinecap="round" style={{ filter: dropGlow(accent, g, 0.9) }} />
-        {/* Стрелка на носу — маленькая, она указатель, а не главный герой */}
-        <path d="M 100 30 L 106 45 L 100 41 L 94 45 Z"
-              fill={accent} stroke={accent} strokeWidth="1" strokeLinejoin="round"
-              style={{ filter: dropGlow(accent, g, 1.2) }} />
-        {/* Втулка на оси вращения */}
-        <circle cx="100" cy="100" r="5" style={{ fill: BG_VAR }} stroke={accent} strokeWidth="1.6" />
-        <circle cx="100" cy="100" r="1.6" fill={accent} />
-      </g>
-
-      <text x="100" y="185" textAnchor="middle" fill={TEXT} fontSize="22" fontWeight="700"
-            fontFamily={MONO} style={{ filter: dropGlow("rgba(231,238,246,0.7)", g, 0.7) }}>
-        {DIRS8[Math.round(direction / 45) % 8]}
-        <tspan fill={DIM} fontSize="12">{"  " + String(Math.round(direction)).padStart(3, "0") + "°"}</tspan>
-      </text>
-    </svg>
-  );
-}
-
-const DIRS8 = ["С", "СВ", "В", "ЮВ", "Ю", "ЮЗ", "З", "СЗ"];
-function polarAt(cx, cy, r, deg) {
-  const rad = ((deg - 90) * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-}
+import { LINE, FAINT, NUM, clamp01, INSTR_H } from "./ui-kit.js";
 
 // ============================================================
 // СОЛНЦЕ
@@ -110,6 +38,12 @@ function daylight(elevDeg) {
 }
 
 function lerp(a, b, t) { return a + (b - a) * t; }
+// Период штриха полосы воронки — сумма штриха и пробела, ровно как в
+// strokeDasharray (те же округления); сдвиг за круг ≈ 40, но кратен периоду.
+function bandShift(w) {
+  const p = Number((w * 0.5).toFixed(1)) + Number((w * 1.5).toFixed(1));
+  return p > 0 ? +(p * Math.max(1, Math.round(40 / p))).toFixed(2) : 40;
+}
 function mixHex(h1, h2, t) {
   const p = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const [r1, g1, b1] = p(h1), [r2, g2, b2] = p(h2);
@@ -133,7 +67,7 @@ function mixHex(h1, h2, t) {
 export function CameraWindow({ url, accent, g, motion, speedMs, site, now }) {
   if (url) {
     return (
-      <div style={{ ...INSTR_FRAME, background: "#020407" }}>
+      <div className="ink-dark" style={{ ...INSTR_FRAME, background: "#020407" }}>
         <img src={url} alt="Камера станции"
              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
       </div>
@@ -262,8 +196,8 @@ function TornadoScene({ accent, g, motion, speedMs, site, now }) {
     const aim = (Math.atan2(target.y - LA.y, target.x - LA.x) * 180) / Math.PI;
 
     return (
-      <div style={{ ...INSTR_FRAME, background: sky[4], overflow: "hidden" }}>
-        <svg viewBox="0 0 200 125" width="100%" height="100%"
+      <div className="ink-dark" style={{ ...INSTR_FRAME, background: sky[4], overflow: "hidden" }}>
+        <svg viewBox="0 0 200 125" width="100%" height="100%" className="no-glow"
              preserveAspectRatio="xMidYMid slice" style={{ display: "block" }}>
           <defs>
             <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -343,7 +277,10 @@ function TornadoScene({ accent, g, motion, speedMs, site, now }) {
                   <path key={b.i} d={b.d} fill="none" stroke="rgba(232,240,252,0.5)"
                         strokeWidth="0.55" strokeDasharray={`${(b.w * 0.5).toFixed(1)} ${(b.w * 1.5).toFixed(1)}`}
                         className={still ? undefined : "funnel-band"}
-                        style={still ? undefined : { animationDuration: `${spinDur}s`, animationDelay: `${-b.i * 0.16}s` }} />
+                        // Сдвиг за круг — целое число периодов штриха: иначе на
+                        // каждом повторе полоса перескакивала бы на полшага.
+                        style={still ? undefined : { animationDuration: `${spinDur}s`, animationDelay: `${-b.i * 0.16}s`,
+                                                     "--fb": `${-bandShift(b.w)}` }} />
                 ))}
               </g>
             </g>

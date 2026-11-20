@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Segments } from "./wind-switch.jsx";
 import {
   BG_VAR, LINE, LINE_HI, TEXT, DIM, FAINT, MONO, SANS, NUM, glow, dropGlow,
 } from "./ui-kit.js";
@@ -378,7 +379,7 @@ function Photo({ id, alt, ratio = "4 / 3", g }) {
              onLoad={() => setState("ok")} onError={() => setState("fail")}
              style={{
                width: "100%", height: "100%", objectFit: "cover", display: "block",
-               opacity: state === "ok" ? 1 : 0, transition: "opacity .35s ease",
+               opacity: state === "ok" ? 1 : 0, transition: "opacity .47s ease",
              }} />
         {state !== "ok" && (
           <div style={{
@@ -387,7 +388,7 @@ function Photo({ id, alt, ratio = "4 / 3", g }) {
             color: FAINT, fontSize: 10, lineHeight: 1.55, fontFamily: SANS,
           }}>
             {state === "fail"
-              ? "Фотография не загрузилась: у этого устройства нет выхода в интернет либо запрос к чужому домену закрыт политикой безопасности страницы."
+              ? "Нет снимка — нужен интернет."
               : "Загружаю снимок…"}
           </div>
         )}
@@ -763,7 +764,7 @@ const VIEWS = [
 // закрывает другую, никакой светотени. Так набор читается как один чертёж,
 // а не как коллекция иконок из разных мест.
 function Art({ kind, accent, g, size = 74 }) {
-  const A = accent, S = LINE_HI, F = "rgba(231,238,246,0.08)";
+  const A = accent, S = LINE_HI, F = "rgba(var(--ink, 231,238,246),0.08)";
   const common = {
     width: size, height: size * 0.78, viewBox: "0 0 120 94",
     style: { display: "block", flexShrink: 0 },
@@ -1040,7 +1041,7 @@ const ASK_CONTEXT =
   "Я пользуюсь самодельной метеостанцией MyWindProbe: ESP32 с анемометром, " +
   "дашборд на React вшит в прошивку и раздаётся самой платой. Вкладки: " +
   "Основное, Метеорология, Радар (круговой обзор, конвективный профиль, роза " +
-  "ветров, шкала Бофорта, карта мира, эфир), Система, Настройки. Вопрос: ";
+  "ветров, шкала Бофорта, карта мира, эфир), Район, Анализ (занятия, статистика, прогноз), Станция, Настройки. Вопрос: ";
 
 const ASK_PRESETS = [
   "Как подключить датчик BME280 к моей станции и что для этого поменять в прошивке?",
@@ -1094,7 +1095,7 @@ function AskClaude({ g, accent }) {
           onClick={() => text.trim() && open(text.trim())}
           disabled={!text.trim()}
           style={{
-            background: text.trim() ? "rgba(231,238,246,0.10)" : "transparent",
+            background: text.trim() ? "rgba(var(--ink, 231,238,246),0.10)" : "transparent",
             border: `1px solid ${text.trim() ? LINE_HI : LINE}`,
             color: text.trim() ? TEXT : FAINT,
             fontFamily: SANS, fontSize: 10.5, letterSpacing: 1,
@@ -1106,13 +1107,6 @@ function AskClaude({ g, accent }) {
         </button>
       </div>
 
-      <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 10 }}>
-        Открывает claude.ai в новой вкладке с уже написанным вопросом и коротким описанием
-        станции, чтобы не объяснять заново. Встроить чат прямо сюда нельзя: ему нужен
-        платный ключ, а эту страницу отдаёт плата любому в своей сети, и её исходники
-        лежат в открытом репозитории — ключ утёк бы в первый же день, и тратили бы его
-        не вы. Нужен интернет: со станции, раздающей свою сеть, ссылка не откроется.
-      </div>
     </div>
   );
 }
@@ -1165,7 +1159,7 @@ function Gallery({ ids, alt, ratio, g, accent }) {
                         flex: 1, height: 2, padding: 0, border: "none", cursor: "pointer",
                         background: k === cur ? accent : LINE_HI,
                         boxShadow: k === cur ? glow(g, 0.5) : "none",
-                        transition: "background .25s ease",
+                        transition: "background .34s ease",
                       }} />
             ))}
           </div>
@@ -1196,24 +1190,11 @@ function Cards({ items, cats, g, accent, motion, ratio }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {cats.length > 1 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {[{ id: "all", label: "Все" }, ...cats].map((c) => {
-            const on = c.id === cat;
-            return (
-              <button key={c.id} onClick={() => { setCat(c.id); setOpen(null); }}
-                      style={{
-                        background: on ? "rgba(231,238,246,0.09)" : "transparent",
-                        border: `1px solid ${on ? LINE_HI : LINE}`,
-                        color: on ? TEXT : DIM, textShadow: on ? glow(g, 0.5) : "none",
-                        fontFamily: SANS, fontSize: 10, letterSpacing: 1.4,
-                        textTransform: "uppercase", padding: "5px 11px", cursor: "pointer",
-                      }}>
-                {c.label}
-              </button>
-            );
-          })}
-          <div style={{ flex: 1 }} />
-          <span style={{ ...NUM, fontSize: 9.5, color: FAINT, alignSelf: "center" }}>
+        <div className="chip-row" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <Segments variant="chips" ariaLabel="Категория" value={cat}
+                    onChange={(id) => { setCat(id); setOpen(null); }}
+                    options={[{ id: "all", label: "Все" }, ...cats].map((c) => ({ value: c.id, label: c.label }))} />
+          <span className="chip-count" style={{ ...NUM, fontSize: 9.5, color: FAINT, alignSelf: "center", marginLeft: "auto", flex: "none", paddingLeft: 6 }}>
             {list.length} из {items.length}
           </span>
         </div>
@@ -1277,7 +1258,7 @@ function Cards({ items, cats, g, accent, motion, ratio }) {
                     ))}
                   </div>
 
-                  <div style={{ color: "rgba(231,238,246,0.82)", fontSize: 11.5, lineHeight: 1.65, fontFamily: SANS }}>
+                  <div style={{ color: "rgba(var(--ink, 231,238,246),0.82)", fontSize: 11.5, lineHeight: 1.65, fontFamily: SANS }}>
                     {it.why}
                   </div>
 
@@ -1318,24 +1299,9 @@ export default function Meteorology({ g, accent, motion }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 3, borderBottom: `1px solid ${LINE}` }}>
-        {VIEWS.map((v) => {
-          const on = v.id === view;
-          return (
-            <button key={v.id} onClick={() => pick(v.id)}
-                    style={{
-                      background: on ? "rgba(231,238,246,0.08)" : "transparent",
-                      border: `1px solid ${on ? LINE_HI : "transparent"}`,
-                      borderBottom: `1px solid ${on ? BG_VAR : "transparent"}`,
-                      marginBottom: -1,
-                      color: on ? TEXT : DIM, textShadow: on ? glow(g, 0.6) : "none",
-                      fontFamily: SANS, fontWeight: 600, fontSize: 9.5, letterSpacing: 1.8,
-                      textTransform: "uppercase", padding: "7px 11px", cursor: "pointer",
-                    }}>
-              {v.label}
-            </button>
-          );
-        })}
+      <div className="sub-row" style={{ display: "flex" }}>
+        <Segments variant="tabs" ariaLabel="Раздел" value={view} onChange={pick}
+                  options={VIEWS.map((v) => ({ value: v.id, label: v.label }))} />
       </div>
 
       <div key={view} className={motion === "off" ? undefined : "tabfade"}>
@@ -1367,15 +1333,6 @@ export default function Meteorology({ g, accent, motion }) {
 
       <AskClaude g={g} accent={accent} />
 
-      <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.65, fontFamily: SANS }}>
-        Фотографии настоящие и взяты только оттуда, где их разрешено показывать: работы NOAA,
-        NASA, NWS и ВВС США — общественное достояние, остальное — Викисклад под свободными
-        лицензиями, автор и лицензия подписаны под каждым кадром. Снимки из поисковой выдачи
-        сюда не годятся: они принадлежат производителям и магазинам, а этот репозиторий
-        публичный. Файлы не встроены, а подгружаются по ссылке — один кадр весит 30–80 КБ,
-        а во флеше платы остаётся около сотни, поэтому на копии, отданной самой станцией,
-        фотографий не будет: у неё нет выхода в интернет. Чертежи там останутся.
-      </div>
     </div>
   );
 }

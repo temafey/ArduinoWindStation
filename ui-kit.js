@@ -13,11 +13,16 @@ export const BG = "#04070a";
 // подставлять нельзя: var() там не разворачивается, и фон окажется прибит
 // к чёрному, что бы ни выбрал пользователь.
 export const BG_VAR = "var(--ui-bg, #04070a)";
-export const LINE = "rgba(160,180,200,0.15)";
-export const LINE_HI = "rgba(160,180,200,0.30)";
-export const TEXT = "#e7eef6";
-export const DIM = "rgba(231,238,246,0.46)";
-export const FAINT = "rgba(231,238,246,0.24)";
+// Цвета текста и линеек — через переменные --ink / --rule (тройки RGB), с
+// прежним значением запасным: в тёмных темах переменных нет и всё как было.
+// Светлая тема «По умолчанию» ставит их на :root, а «тёмные островки»
+// (карта, снимки, сцена камеры — экраны поверх картинки) возвращают внутри
+// себя светлые чернила. var() работает и в атрибутах SVG (fill/stroke).
+export const LINE = "rgba(var(--rule, 160,180,200),0.15)";
+export const LINE_HI = "rgba(var(--rule, 160,180,200),0.30)";
+export const TEXT = "rgb(var(--ink, 231,238,246))";
+export const DIM = "rgba(var(--ink, 231,238,246),0.46)";
+export const FAINT = "rgba(var(--ink, 231,238,246),0.24)";
 
 // Шрифты идут через CSS-переменные, а не константами. Причина: гарнитура стала
 // настройкой, а оформление здесь живёт инлайн-стилями — протаскивать выбранный
@@ -35,6 +40,15 @@ export const SANS = "var(--ui-sans, 'Inter', -apple-system, 'Segoe UI', Roboto, 
 // Наборы для настройки «Гарнитура». Каждый задаёт обе переменные: у приборной
 // панели подписи и числа обязаны быть разными, иначе таблица теряет строку.
 export const FONT_SETS = {
+  // Терминальная гарнитура — та, которой набраны Claude Code и PowerShell
+  // в Windows Terminal. Cascadia стоит в Windows 11 из коробки; на айфоне и
+  // маке её место занимает SF Mono, на Android — системный моноширинный.
+  // Подписи и числа здесь одной гарнитурой намеренно: так выглядит терминал.
+  cascadia: {
+    label: "Cascadia · терминал",
+    sans: "'Cascadia Code', 'Cascadia Mono', ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, 'Roboto Mono', monospace",
+    mono: "'Cascadia Code', 'Cascadia Mono', ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, 'Roboto Mono', monospace",
+  },
   grotesk: {
     label: "гротеск",
     sans: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', system-ui, sans-serif",
@@ -73,11 +87,6 @@ export const FONT_SETS = {
     label: "округлый",
     sans: "'SF Pro Rounded', 'Nunito', 'Varela Round', 'Trebuchet MS', system-ui, sans-serif",
     mono: "ui-monospace, 'Cascadia Mono', Consolas, monospace",
-  },
-  terminal: {
-    label: "терминал",
-    sans: "'Cascadia Mono', 'Consolas', 'Lucida Console', 'Courier New', monospace",
-    mono: "'Cascadia Mono', 'Consolas', 'Lucida Console', 'Courier New', monospace",
   },
   humanist: {
     label: "гуманистический",
@@ -130,7 +139,7 @@ export function glow(level, base = 1) {
 export function glowColor(color, level, base = 1) {
   const m = (GLOW_MUL[level] ?? 1) * base;
   if (m === 0) return "none";
-  return `0 0 ${5 * m}px ${color}, 0 0 ${18 * m}px ${color}88`;
+  return `0 0 ${5 * m}px ${color}, 0 0 ${18 * m}px color-mix(in srgb, ${color} 53%, transparent)`;
 }
 
 // drop-shadow для SVG: то же самое, но фильтром, иначе свечение не ложится на пути.

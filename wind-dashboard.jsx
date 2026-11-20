@@ -1,15 +1,17 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
 import {
-  BG, BG_VAR, LINE, LINE_HI, TEXT, DIM, FAINT, MONO, SANS, NUM,
-  glow, glowColor, dropGlow, clamp01, polar, wedgePath, FONT_SETS, INSTR_BOX, INSTR_FIT,
+  BG, BG_VAR, LINE, LINE_HI, TEXT, DIM, FAINT, MONO, SANS, NUM, glow, glowColor, dropGlow,
+  clamp01, polar, wedgePath, FONT_SETS,
 } from "./ui-kit.js";
 import { KiwiMark } from "./wind-kiwi.jsx";
 import { chunk, warmUp } from "./wind-guard.jsx";
-import { mergeLayout, packLayout, layoutOps, useDrag, useResize, BlockFrame, LayoutBar,
-         TRACKS, ROW, GAP, tracksFor, spanFor, useViewport } from "./wind-layout.jsx";
+import {
+  mergeLayout, packLayout, layoutOps, useDrag, useResize, BlockFrame, LayoutBar, ROW, GAP,
+  tracksFor, spanFor, useViewport,
+} from "./wind-layout.jsx";
 import { WIDTHS } from "./wind-widths.js";
 import DemoControls from "./wind-demo.jsx";
-import { Compass, CameraWindow } from "./wind-instrument.jsx";
+import { CameraWindow } from "./wind-instrument.jsx";
 
 // Отложенная загрузка. Причина не в красоте архитектуры, а в канале: плата
 // висит на далёкой точке доступа, и на слабом сигнале сборка идёт со скоростью
@@ -25,13 +27,31 @@ import { Compass, CameraWindow } from "./wind-instrument.jsx";
 // приложение целиком — именно так и получался чёрный экран.
 const WorldMap     = chunk(() => import("./wind-map.jsx"));
 const LiveWatch    = chunk(() => import("./wind-live.jsx"));
-const Tutor        = chunk(() => import("./wind-tutor.jsx"));
-const Permissions  = chunk(() => import("./wind-permissions.jsx"));
 const Meteorology  = chunk(() => import("./wind-meteo.jsx"));
+const AnalysisTab  = chunk(() => import("./wind-analysis.jsx"));
 import District, { useDistrict, districtToData } from "./wind-district.jsx";
-import Customize, { backdropCss, loadBgImage, CORNERS, CustomWidgets } from "./wind-custom.jsx";
-import { THEMES, themeCss, glassRich } from "./wind-themes.js";
-import { Switch, SwitchGlyph, SWITCH_CSS } from "./wind-switch.jsx";
+import { backdropCss, loadBgImage, CORNERS, CustomWidgets } from "./wind-custom.jsx";
+import { THEMES, themeCss, glassClasses, glassLevel, lensActive, startLens, mountWall,
+         GLASS_TINTS, GLASS_LEVEL_DEFAULT } from "./wind-themes.js";
+import { APP_VERSION } from "./wind-version.js";
+import { useAppUpdate, useUpdateCheck, VerFacts } from "./wind-update.jsx";
+import { Switch, Segments, SWITCH_CSS } from "./wind-switch.jsx";
+import { SystemHero, LedDeck, SYSTEM_CSS } from "./wind-system.jsx";
+import { AreaTab, AreaMode, AreaWind, WindCompass, SourceSwitch, AREA_CSS } from "./wind-area.jsx";
+import { ECO_AUTO, ecoOn, ECO_CSS, OFFSCREEN_CSS, watchOffscreen } from "./wind-perf.js";
+import { useMorph, MORPH_CSS } from "./wind-morph.js";
+import { Liquid, LiquidRange, LIQUID_CSS, MOTION_CSS } from "./wind-liquid.jsx";
+import { LIGHT_CSS } from "./wind-light.js";
+import { MATERIAL_THEMES, MATERIAL_ICONS, materialCss } from "./wind-material.js";
+import { mountTapHaptics, setHapticConfig, haptic, canVibrate } from "./wind-haptic.js";
+import { useDeviceBattery, deviceKind, DEVICE_NAME } from "./wind-device.js";
+import { logSample, watchFrame, prune, saveLastFrame, loadLastFrame } from "./wind-log.js";
+import { ConnectPanel, HealthPanel, EventsPanel, ZeroWizard, DesktopWidgets, RemotePanel, useEvents } from "./wind-station.jsx";
+import { useAlerts, quietNow, ALERT_DEFAULTS } from "./wind-alerts.js";
+import { pushNote, useNotifier, requestNotify, sentToday, DAY_LIMIT } from "./wind-notify.js";
+import { mountGlassScroll, GLASS_SCROLL_CSS } from "./wind-scroll.js";
+import Kiosk from "./wind-kiosk.jsx";
+import { useForecast } from "./wind-forecast.js";
 
 // Прошивка раздаёт этот дашборд сама (gzip из PROGMEM на порту 80). Если страница
 // открыта со станции — API живёт на том же хосте, настройка не нужна и localStorage
@@ -142,22 +162,6 @@ const CLOUD_PHASE_VIEW = {
 // из-за которого живые слои молча не включались бы.
 const ONLINE = true;
 
-const APP_VERSION = "BETA";
-
-// Индекс станции в подзаголовке шапки. Он локальный: настоящие индексы ИКАО
-// выдаёт национальная метеослужба, самодельная станция в этих списках не значится.
-// Формат сохранён (4 латинские буквы) просто потому, что так короче имени.
-const STATION_ID = "MWPB";
-
-// Горизонтальные линии шапки не обрываются, а гаснут к своим концам. Раньше
-// каждая кончалась ровным срезом, и на тёмных полях по бокам эти срезы читались
-// как границы страницы — ровно то, что мы и убирали затемнением.
-//
-// border-image с долей 1 красит рамку градиентом, и лишнего узла для этого не
-// нужно. Стороны, которым рамка не задана, остаются нулевой ширины и ничего не
-// рисуют, поэтому боковых и нижних линий от этого не появится.
-const FADE_LINE = `linear-gradient(to right, transparent, ${LINE} 9%, ${LINE} 91%, transparent) 1`;
-
 // ============================================================
 // ЕДИНИЦЫ СКОРОСТИ
 // ============================================================
@@ -212,6 +216,11 @@ function beaufort(speedMs) {
 
 // Возвращает уже отформатированную строку: у Бофорта своя логика (целое число
 // баллов), у остальных — множитель и заданная точность.
+// Высота окна скорости в строках сетки (ROW = 10 px) — по содержимому:
+// кольцо, балл, две карточки и полосы с подписью. Без полос внизу оставалась
+// пустая треть окна.
+const SPEED_H = 42;
+
 function convertSpeed(speedMs, unitKey, digitsOverride) {
   const u = UNITS[unitKey] ?? UNITS.ms;
   if (u.factor === null) return String(beaufort(speedMs).scale);
@@ -385,7 +394,7 @@ const OVER_SPAN = 50;   // м/с — сколько ветра заполняе�
 // выглядят уместно ровно потому, что оттуда и пришли.
 const ACCENTS = {
   bft:      { label: "по Бофорту", color: null },
-  white:    { label: "белый",      color: "#e7eef6" },
+  white:    { label: "белый",      color: "rgb(var(--ink, 231,238,246))" },
   amber:    { label: "янтарь",     color: "#f5b942" },
   phosphor: { label: "фосфор",     color: "#4ade80" },
   ice:      { label: "лёд",        color: "#67e8f9" },
@@ -414,12 +423,17 @@ const ALARM_VIEW = [
   { name: "ОПАСНО",   color: "#ef4444", text: "Штормовая сила. Ломает ветки, срывает незакреплённое. Уйти с открытого места." },
 ];
 
+// Android — и приложение (WKNative), и браузер телефона: у дока там нет места
+// на лишнюю круглую кнопку.
+const ON_ANDROID = typeof window !== "undefined" &&
+  (!!window.WKNative || /Android/i.test(navigator.userAgent || ""));
+
 const DEFAULT_SETTINGS = {
   // — вид —
   unit: "ms",
   digits: null,          // null — сколько принято для выбранной единицы
-  font: "grotesk",       // ключ из FONT_SETS
-  glow: "normal",        // off | normal | strong
+  font: "cascadia",      // ключ из FONT_SETS
+  glow: "off",           // off | normal | strong — у стекла свечения нет
   motion: "full",        // full | calm | off — развёртка, плавность цифр, появление панелей
   speedAccent: "bft",    // bft — цвет по Бофорту, white — монохром
   showCompass: true,
@@ -443,27 +457,82 @@ const DEFAULT_SETTINGS = {
   ground: "black",       // ключ из GROUNDS
   density: "normal",     // normal | compact — отступы панелей
   borders: true,         // рамки у панелей
-  showCamera: true,      // окно камеры на вкладке «Основное»
+  showCamera: true,      // окно камеры на вкладке «Метео данные»
   // — кастомизация —
   texture: "smooth",     // ключ из TEXTURES — материал подложки
-  scene: "none",         // ключ из SCENES, либо custom для своей картинки
-  bgTint: 35,            // затемнение фона, %. По умолчанию не ноль: любая
-                         // картинка под светящимся текстом требует притушения
+  scene: "liquid",       // ключ из SCENES, либо custom для своей картинки
+  bgTint: 8,             // затемнение фона, %. Для своей картинки стоит поднять:
+                         // фотография под текстом требует притушения
   customAccent: "",      // свой цвет; пусто — берётся из ACCENTS
-  theme: "instrument",   // ключ из THEMES — материал, из которого сделаны панели
-  glassBlur: true,       // размывать ли фон под стеклом; см. glassRich()
-  corners: "sharp",      // sharp | soft | round — скругление панелей
+  theme: "liquid",       // ключ из THEMES — материал, из которого сделаны панели
+  // Стекло. eco: null — решает устройство (телефон → вкл), true/false — выбор
+  // человека. glassTint — Clear/Tinted как в iOS 26.1, glassLevel — ползунок
+  // силы стекла как в iOS 27. Прежний glassFx (max/blur/off) переведён в них
+  // один раз в loadSettings().
+  eco: null,
+  skin: "glass",         // материал: glass (Liquid Glass) или material («Тональная»)
+  mdIcons: "blue",       // «Тональная»: цвет значков — blue (синие) или bg (в цвет фона)
+  glassTint: "clear",
+  glassLevel: GLASS_LEVEL_DEFAULT,
+  // Пульт управления (док с вкладками): bottom | top — горизонтально,
+  // left | right — вертикально по бокам. dockIcons: both — значки с подписью,
+  // icons — только значки.
+  dockPos: "bottom",
+  dockIcons: "both",
+  corners: "round",      // sharp | soft | round — скругление панелей
   panelFill: 0,          // заливка панелей, % — плотность фона под текстом
-  widgets: [],           // свои виджеты на вкладке «Основное»
+  widgets: [],           // свои виджеты на вкладке «Метео данные»
   layout: [],            // раскладка блоков «Основного»; пусто — как задумано
   pageWidth: "normal",   // ключ из WIDTHS — предел ширины страницы
+  uiRev: 2,              // ревизия оформления; см. loadSettings()
+  // — анализ —
+  activity: "kite",      // профиль занятия в «Анализ → Сейчас»
+  mastH: 3,              // высота мачты, м — для пересчёта ветра на высоту
+  rotorD: 1.5,           // диаметр ротора условного ветряка, м
+  // — голос и тревоги — см. wind-alerts.js
+  ...ALERT_DEFAULTS,
+  haptics: "normal",     // вибрация: off | soft | normal | strong (wind-haptic.js)
+  hapTouch: true,        // отклик на касание окна
+  hapSliders: true,      // щелчки ползунков
+  hapBoot: true,         // заставка при входе и полоса установки обновления
+  notify: false,         // уведомления Windows / Android (wind-notify.js)
+  digestHours: 3,        // сводка ветра и прогноза раз в N часов; 0 — без сводок
 };
 
 function loadSettings() {
   try {
     const raw = localStorage.getItem("wind_ui_settings");
     if (!raw) return { ...DEFAULT_SETTINGS };
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    const saved = JSON.parse(raw);
+    const s = { ...DEFAULT_SETTINGS, ...saved };
+    // Beta 0.2.1: четыре темы свелись к одной, а гарнитурой по умолчанию стала
+    // Cascadia. Сохранённые настройки старше этого переводятся один раз —
+    // иначе у всех, кто уже заходил, осталась бы тема, которой больше нет.
+    // Ревизию смотрим у сохранённого, а не у слитого: умолчания уже несут 2.
+    if (!(saved.uiRev >= 2)) {
+      Object.assign(s, { theme: "liquid", font: "cascadia", uiRev: 2 },
+                    THEMES.liquid.apply(s));
+      delete s.glassBlur;
+    }
+    // 0.2.525: три ступени стекла сменились эко-режимом и ползунком силы.
+    // «Без размытия» — это и был эко-режим, «размытие» — стекло без линзы,
+    // то есть слабое. Окна выбора ступени в доке больше нет, и без перевода
+    // выбранная когда-то ступень осталась бы навсегда.
+    if (saved.glassFx && saved.eco === undefined) {
+      if (saved.glassFx === "off") s.eco = true;
+      if (saved.glassFx === "blur") s.glassLevel = 10;
+    }
+    delete s.glassFx;
+    if (!GLASS_TINTS[s.glassTint]) s.glassTint = "clear";
+    if (!["bottom", "top", "left", "right"].includes(s.dockPos)) s.dockPos = "bottom";
+    if (s.dockIcons !== "icons") s.dockIcons = "both";
+    s.glassLevel = glassLevel(s);
+    if (!THEMES[s.theme]) s.theme = "liquid";
+    if (!MATERIAL_THEMES[s.skin]) s.skin = "glass";
+    if (!MATERIAL_ICONS[s.mdIcons]) s.mdIcons = "blue";
+    if (!["liquidDark", "plain", "light"].includes(s.scene)) s.scene = "liquid";
+    if (!FONT_SETS[s.font]) s.font = "cascadia";
+    return s;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -715,8 +784,8 @@ const ROSE_BANDS = [
 ];
 const ROSE_COLORS = ["#67e8f9", "#34d399", "#a3e635", "#facc15", "#f97316"];
 const ROSE_GRAY = [
-  "rgba(231,238,246,0.16)", "rgba(231,238,246,0.28)", "rgba(231,238,246,0.42)",
-  "rgba(231,238,246,0.60)", "rgba(231,238,246,0.85)",
+  "rgba(var(--ink, 231,238,246),0.16)", "rgba(var(--ink, 231,238,246),0.28)", "rgba(var(--ink, 231,238,246),0.42)",
+  "rgba(var(--ink, 231,238,246),0.60)", "rgba(var(--ink, 231,238,246),0.85)",
 ];
 
 function roseBand(speed) {
@@ -733,6 +802,12 @@ function roseBand(speed) {
 // стрелка и цифры должны идти непрерывно. Экспоненциальное сглаживание к цели
 // на requestAnimationFrame: цикл сам останавливается, когда значение доехало,
 // поэтому в штиль страница ничего не считает и телефон не греется.
+// Шаг сглаживания. В эко-режиме Dashboard ставит 33 мс: стрелка и цифры едут
+// 30 раз в секунду, а не 60 — каждый шаг здесь перерисовывает прибор целиком,
+// и на телефоне половина этих шагов съедала главный поток, ничего не прибавляя
+// глазу.
+let SMOOTH_MIN_MS = 0;
+
 function useSmooth(target, tau = 0.22, enabled = true) {
   const [value, setValue] = useState(target);
   const cur = useRef(target);
@@ -748,6 +823,10 @@ function useSmooth(target, tau = 0.22, enabled = true) {
     let alive = true;
     const step = (ts) => {
       if (!alive) return;
+      if (SMOOTH_MIN_MS && last.current && ts - last.current < SMOOTH_MIN_MS) {
+        raf = requestAnimationFrame(step);
+        return;
+      }
       const dt = last.current ? Math.min((ts - last.current) / 1000, 0.1) : 1 / 60;
       last.current = ts;
       const k = 1 - Math.exp(-dt / tau);
@@ -765,29 +844,13 @@ function useSmooth(target, tau = 0.22, enabled = true) {
   return value;
 }
 
-// Непрерывный угол: 355° → 5° должно быть поворотом на +10°, а не отскоком через
-// весь круг. Накапливаем развёрнутое значение, а сглаживание уже поверх него.
-function useContinuousAngle(deg) {
-  const [cont, setCont] = useState(deg ?? 0);
-  const prev = useRef(deg ?? 0);
-  useEffect(() => {
-    if (deg == null) return;
-    let d = deg - prev.current;
-    while (d > 180) d -= 360;
-    while (d < -180) d += 360;
-    prev.current = deg;
-    if (d !== 0) setCont((c) => c + d);
-  }, [deg]);
-  return cont;
-}
-
 // ============================================================
 // БАЗОВЫЕ КОМПОНЕНТЫ
 // ============================================================
 
 function Label({ children, g, size = 9 }) {
   return (
-    <div style={{
+    <div className={isCaps(children) ? "caps" : undefined} style={{
       color: DIM, fontSize: size, letterSpacing: 2.4, textTransform: "uppercase",
       textShadow: glow(g, 0.35), fontFamily: SANS, fontWeight: 500,
     }}>
@@ -821,18 +884,17 @@ function Panel({ title, meta, children, style, g, delay = 0, bodyStyle }) {
     >
       {title && (
         <header style={{
-          display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10,
-          padding: "9px 13px 8px", borderBottom: "1px solid var(--pnl-head-line)",
+          // Шапка и пометка — как у карточек «Района» (Glass в wind-area.jsx):
+          // название чуть крупнее, пометка в виде чипа-таблетки.
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+          padding: "10px 14px 9px", borderBottom: "1px solid var(--pnl-head-line)",
         }}>
-          <Label g={g}>{title}</Label>
-          {meta && (
-            <span style={{ ...NUM, fontSize: 9, color: FAINT, letterSpacing: 1, whiteSpace: "nowrap" }}>
-              {meta}
-            </span>
-          )}
+          <span style={{ fontFamily: SANS, fontSize: 9.5, letterSpacing: 2.4, textTransform: "uppercase",
+                         color: DIM, textShadow: glow(g, 0.4) }}>{title}</span>
+          {meta && <span className={isCaps(meta) ? "ar-chip caps" : "ar-chip"}>{meta}</span>}
         </header>
       )}
-      <div style={{ padding: title ? "13px" : "13px 14px", ...bodyStyle }}>{children}</div>
+      <div style={{ padding: 14, ...bodyStyle }}>{children}</div>
     </section>
   );
 }
@@ -847,12 +909,13 @@ function Stat({ label, value, unit, g, color, action, big }) {
       background: "var(--stat-bg, rgba(255,255,255,0.014))",
       boxShadow: "var(--stat-shadow, none)",
       backdropFilter: "var(--pnl-blur)", WebkitBackdropFilter: "var(--pnl-blur)",
-      padding: "10px 12px 11px", position: "relative", flex: 1, minWidth: 88,
+      padding: "12px 14px 13px", position: "relative", flex: 1, minWidth: 88,
+      display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 10,
     }}>
       <Label g={g} size={8}>{label}</Label>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 5, marginTop: 6 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
         <span style={{
-          ...NUM, color: color || TEXT, fontSize: big ? 26 : 21, fontWeight: 600,
+          ...NUM, color: color || TEXT, fontSize: big ? 32 : 28, fontWeight: 700, letterSpacing: -0.5,
           textShadow: color ? glowColor(color, g, 0.6) : glow(g, 0.8),
         }}>
           {value}
@@ -893,7 +956,7 @@ function Row({ k, v, g, mono = true }) {
 // ⚠️ `in` отвечает true и на ключ, который дашборд положил в начальное
 // состояние сам (hostname, uptime, resetReason, wifiRssi) — то есть ДО первого
 // кадра. Поэтому панели, собранные из RowMaybe, показываются только когда
-// кадр уже был: см. `frameSeen` на вкладке «Система».
+// кадр уже был: см. `frameSeen` на вкладке «Станция».
 function RowMaybe({ k, src, f, g, mono = true, fmt }) {
   if (!src || !(f in src)) return null;
   const raw = src[f];
@@ -901,11 +964,150 @@ function RowMaybe({ k, src, f, g, mono = true, fmt }) {
   return <Row k={k} v={empty ? "нет данных" : fmt ? fmt(raw) : String(raw)} g={g} mono={mono} />;
 }
 
-function Tab({ id, active, onClick, children, g }) {
+// Значки вкладок: на широком экране скрыты, на телефоне вкладки — крупные значки
+// с короткой подписью (см. @media (max-width: 560px)).
+const TAB_ORDER = ["wind", "meteo", "radar", "area", "analysis", "system"];
+const TAB_ICONS = {
+  // Значки — те же линии, что и раньше, но с одной-двумя деталями, которые
+  // делают предмет узнаваемым: засечки термометра, цель на радаре, тень под
+  // меткой. Больше нельзя: на 20 точках каждая лишняя линия сливается.
+  wind: <><path d="M3 8h11a3 3 0 1 0-3-3" /><path d="M3 12h16a3 3 0 1 1-3 3" /><path d="M3 16h8" /><path d="M6 20h6a2 2 0 1 0-1.6-3.2" /></>,
+  meteo: <><path d="M10 14.8V5a2.5 2.5 0 0 1 5 0v9.8a4 4 0 1 1-5 0z" /><circle cx="12.5" cy="17" r="1.3" fill="currentColor" /><path d="M12.5 9v6.5" /><path d="M18 6h2.5M18 9h2.5M18 12h2.5" /></>,
+  radar: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><path d="M12 12 18.5 5.5" /><path d="M12 1.5v2M12 20.5v2M1.5 12h2M20.5 12h2" /><circle cx="15.8" cy="15.6" r="1.1" fill="currentColor" /></>,
+  area: <><path d="M12 19.5s-6.5-5-6.5-9.8a6.5 6.5 0 0 1 13 0c0 4.8-6.5 9.8-6.5 9.8z" /><circle cx="12" cy="9.7" r="2.4" /><path d="M7 21.8c1.4.5 3 .7 5 .7s3.6-.2 5-.7" /></>,
+  analysis: <><rect x="4.5" y="12" width="3.4" height="7" rx=".9" /><rect x="10.3" y="5" width="3.4" height="14" rx=".9" /><rect x="16.1" y="9" width="3.4" height="10" rx=".9" /><path d="M3 21.5h18" /></>,
+  system: <><rect x="6" y="6" width="12" height="12" rx="2.2" /><rect x="9.5" y="9.5" width="5" height="5" rx="1" /><circle cx="12" cy="12" r=".7" fill="currentColor" /><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" /></>,
+};
+
+// Живой фон под стеклом — холст, который рисует mountWall() (wind-themes.js).
+// fps 0 — один кадр и тишина: эко-режим и «без движения».
+function LiquidWall({ dark, fps }) {
+  const ref = useRef(null);
+  useEffect(() => mountWall(ref.current, { dark, fps }), [dark, fps]);
+  // Параллакс: фон чуть крупнее экрана и при прокрутке уходит вверх медленнее
+  // страницы — стекло кажется висящим над ним. Только при прокрутке: панели
+  // и так перерисовывают иней на каждом её кадре, а сдвиг фона от мыши
+  // заставил бы их делать это и в покое. Догоняет с инерцией, без рывков.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !fps || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return undefined;
+    let raf = 0, cur = 0;
+    const tick = () => {
+      raf = 0;
+      const want = -Math.min(window.scrollY * 0.06, 40);
+      cur += (want - cur) * 0.1;
+      if (Math.abs(want - cur) < 0.15) cur = want; else raf = requestAnimationFrame(tick);
+      el.style.transform = `translate3d(0, ${cur.toFixed(1)}px, 0) scale(1.1)`;
+    };
+    const on = () => { if (!raf) raf = requestAnimationFrame(tick); };
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => { window.removeEventListener("scroll", on); if (raf) cancelAnimationFrame(raf); el.style.transform = ""; };
+  }, [fps]);
+  return <canvas ref={ref} className="lg-wall" aria-hidden="true" />;
+}
+
+// Сила стекла — ползунок, как в iOS 27. Пока его тянут, значение идёт прямо
+// в CSS-переменную корня: перерисовка всего дашборда и пересборка линз на
+// каждом шаге ползунка превратили бы перетаскивание в слайд-шоу. В настройки
+// оно попадает, когда рука остановилась.
+function GlassLevel({ value, onCommit, g, eco }) {
+  const [v, setV] = useState(value);
+  const pend = useRef(null);
+  const timer = useRef(0);
+  const commit = useRef(onCommit);
+  commit.current = onCommit;
+  useEffect(() => { if (pend.current == null) setV(value); }, [value]);
+  // Закрыли настройки посреди движения — значение не теряется.
+  useEffect(() => () => {
+    clearTimeout(timer.current);
+    if (pend.current != null) commit.current(pend.current);
+  }, []);
+  const move = (n) => {
+    setV(n);
+    pend.current = n;
+    document.querySelector(".app")?.style.setProperty("--lg-k", String(n / 100));
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => { const p = pend.current; pend.current = null; if (p != null) commit.current(p); }, 280);
+  };
+  const word = v < 15 ? "иней" : v < 45 ? "мягкое" : v < 80 ? "жидкое" : "прозрачное";
+  return (
+    <div style={{ marginBottom: 18 }}
+         title="Слева — молочное стекло: больше инея, плотнее тонировка, текст читается на любом фоне. Справа — прозрачная линза: меньше инея, ярче фаска, сильнее преломление у края.">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+        <Label g={g}>Сила стекла</Label>
+        <span style={{ fontFamily: MONO, fontSize: 10, color: DIM, letterSpacing: 0.6 }}>{word} · {v}</span>
+      </div>
+      {/* Цвет постоянный, а не цвет ветра: в штиль акцент почти белый, и
+          заливка сливалась бы с дорожкой. */}
+      <LiquidRange className="lg-range" min={0} max={100} step={1} value={v} color="#5cc8ff"
+                   aria-label="Сила стекла" onChange={(e) => move(Number(e.target.value))} />
+      {eco && (
+        <div style={{ fontFamily: SANS, fontSize: 10.5, color: DIM, marginTop: 4, lineHeight: 1.5 }}>
+          В эко-режиме ползунок меняет только плотность тонировки: инея и линзы нет.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Капля выбора (Liquid Glass, iOS 26): подсветка активной вкладки не появляется
+// на новом месте, а перетекает туда с прежнего — по дороге вытягивается и
+// становится ниже, как капля, которую тянут по стеклу. Прежняя кнопка ещё в
+// дереве и на своём месте, поэтому обе рамки меряются в один момент, и
+// перелёт верен при любой прокрутке и ширине окна. Анимация — один transform,
+// без единой перерисовки.
+let tabMarkFrom = null;
+
+function Tab({ id, active, onClick, children, g, short, fluid }) {
   const on = id === active;
+  const markRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!on) return;
+    const el = markRef.current;
+    const btn = el && el.parentElement;
+    if (!btn) return;
+    const prev = tabMarkFrom;
+    tabMarkFrom = btn;
+    if (!fluid || !prev || prev === btn || !prev.isConnected || !el.animate) return;
+    const a = prev.getBoundingClientRect(), b = btn.getBoundingClientRect();
+    if (!b.width || !b.height) return;
+    // Пульт управления бывает и вертикальным (по бокам экрана): тогда капля
+    // перетекает сверху вниз, а не слева направо.
+    const vert = Math.abs(a.left - b.left) < 2 && Math.abs(a.top - b.top) >= 2;
+    if (!vert && Math.abs(a.top - b.top) > b.height) return;
+    const at = (l, t, w, h) => `translate(${l - b.left}px, ${t - b.top}px) scale(${w / b.width}, ${h / b.height})`;
+    let mid, land;
+    if (vert) {
+      // Середина пути: капля накрывает обе вкладки наполовину и сужается.
+      const mh = (a.height + b.height) / 2 + Math.abs(a.top - b.top) * 0.42;
+      const mt = (a.top + b.top) / 2 + (a.height + b.height) / 4 - mh / 2;
+      const mw = b.width * 0.84;
+      mid = at(b.left + (b.width - mw) / 2, mt, mw, mh);
+      land = at(b.left, b.top - b.height * 0.03, b.width * 0.98, b.height * 1.06);
+    } else {
+      // Середина пути: капля накрывает обе вкладки наполовину и сплющивается.
+      const mw = (a.width + b.width) / 2 + Math.abs(a.left - b.left) * 0.42;
+      const ml = (a.left + b.left) / 2 + (a.width + b.width) / 4 - mw / 2;
+      const mh = b.height * 0.84;
+      mid = at(ml, b.top + (b.height - mh) / 2, mw, mh);
+      land = at(b.left - b.width * 0.03, b.top, b.width * 1.06, b.height * 0.98);
+    }
+    // В пути капля чуть размыта — как стекло, которое тянут быстро. В эко-режиме без этого.
+    const mb = document.querySelector(".app.eco") ? 0 : 1;
+    el.animate([
+      { transform: at(a.left, a.top, a.width, a.height), filter: "blur(0px)" },
+      { transform: mid, filter: `blur(${1.6 * mb}px)`, offset: 0.42 },
+      { transform: land, filter: "blur(0px)", offset: 0.78 },
+      { transform: "none", filter: "blur(0px)" },
+    ], { duration: 980, easing: "cubic-bezier(.33,.86,.3,1)" });
+  }, [on, fluid]);
   return (
     <button
+      data-tab={id}
+      className={on ? "tab-on" : undefined}
       onClick={() => onClick(id)}
+      aria-label={children} title={children}
       style={{
         position: "relative", background: "transparent", border: "none",
         borderBottom: "2px solid transparent",
@@ -913,16 +1115,18 @@ function Tab({ id, active, onClick, children, g }) {
         textShadow: on ? glow(g, 0.8) : "none",
         fontFamily: SANS, fontWeight: 600, fontSize: 10.5, letterSpacing: 2.4,
         textTransform: "uppercase", padding: "9px 2px", marginRight: 20,
-        cursor: "pointer", transition: "color .4s ease, text-shadow .4s ease",
+        cursor: "pointer", transition: "color .54s ease, text-shadow .54s ease",
       }}
     >
-      {children}
+      <svg className="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
+           strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{TAB_ICONS[id]}</svg>
+      <span className="tab-lb"><span className="lb-full">{children}</span>{short && <span className="lb-short">{short}</span>}</span>
       {/* Подчёркивание — отдельный узел, а не рамка кнопки: рамку нельзя
           раскрыть от середины, а именно это движение и показывает, что
           переключились сюда, а не просто перекрасили надпись. Key заставляет
           React создать его заново, иначе анимация проиграется лишь однажды. */}
       {on && (
-        <span key={id} className="tab-mark" style={{
+        <span key={id} ref={markRef} className="tab-mark" style={{
           position: "absolute", left: 0, right: 0, bottom: -2, height: 2, background: TEXT,
         }} />
       )}
@@ -939,7 +1143,7 @@ function SubTab({ id, active, onClick, children, g }) {
     <button
       onClick={() => onClick(id)}
       style={{
-        background: on ? "rgba(231,238,246,0.08)" : "transparent",
+        background: on ? "rgba(var(--ink, 231,238,246),0.08)" : "transparent",
         border: `1px solid ${on ? LINE_HI : "transparent"}`,
         borderBottom: on ? `1px solid ${BG}` : "1px solid transparent",
         marginBottom: -1,
@@ -947,22 +1151,13 @@ function SubTab({ id, active, onClick, children, g }) {
         textShadow: on ? glow(g, 0.6) : "none",
         fontFamily: SANS, fontWeight: 600, fontSize: 9.5, letterSpacing: 1.8,
         textTransform: "uppercase", padding: "7px 11px",
-        cursor: "pointer", transition: "color .2s ease, background .2s ease, border-color .2s ease",
+        cursor: "pointer", transition: "color .27s ease, background .27s ease, border-color .27s ease",
       }}
     >
       {children}
     </button>
   );
 }
-
-// Порядок не случаен: сначала то, что меряет сама станция, потом то, что
-// приходит извне. Карта и эфир стоят последними, потому что без интернета их
-// не будет вовсе.
-const SETTINGS_VIEWS = [
-  { id: "main",   label: "Основные" },
-  { id: "extra",  label: "Дополнительные" },
-  { id: "custom", label: "Кастомизация" },
-];
 
 // Четыре прибора, считающие один и тот же ветер, разъехались по четырём
 // вкладкам — и переключаться между ними приходилось, чтобы сложить в голове
@@ -974,44 +1169,28 @@ const RADAR_VIEWS = [
   { id: "map",  label: "Карта мира" },
   { id: "live", label: "Эфир" },
 ];
+const RADAR_OPTS = RADAR_VIEWS.map((v) => ({ value: v.id, label: v.label }));
 
 function Choice({ label, value, options, onChange, g, hint }) {
+  // Стеклянный сегмент с перетекающей каплей (wind-switch.jsx).
   return (
-    <div style={{ marginBottom: 18 }}>
+    <div style={{ marginBottom: 18 }} title={typeof hint === "string" ? hint : undefined}>
       <Label g={g}>{label}</Label>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-        {options.map((o) => {
-          const on = o.value === value;
-          return (
-            <button
-              key={String(o.value)}
-              onClick={() => onChange(o.value)}
-              style={{
-                background: on ? "rgba(231,238,246,0.10)" : "transparent",
-                border: `1px solid ${on ? "rgba(231,238,246,0.7)" : LINE}`,
-                color: on ? TEXT : DIM,
-                textShadow: on ? glow(g, 0.7) : "none",
-                fontFamily: SANS, fontSize: 11, padding: "5px 11px",
-                cursor: "pointer", transition: "all .18s ease",
-              }}
-            >
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
-      {hint && (
-        <div style={{ color: DIM, fontSize: 10.5, marginTop: 7, fontFamily: SANS, lineHeight: 1.6 }}>
-          {hint}
-        </div>
-      )}
+      <Segments value={value} options={options} onChange={onChange} ariaLabel={typeof label === "string" ? label : undefined} />
     </div>
   );
 }
 
+// Модальное окно вырастает из кнопки, которой его открыли, и уходит в неё
+// обратно (wind-morph.js). Окна, открывшиеся сами (приветствие при первом
+// запуске), кнопки не имеют и проявляются по-старому.
 function Modal({ children, onClose, g }) {
+  const bgRef = useRef(null);
+  const cardRef = useRef(null);
+  useMorph(cardRef, { wrapRef: bgRef, sel: ".modal-card" });
   return (
     <div
+      ref={bgRef}
       onClick={onClose}
       className="modal-bg"
       style={{
@@ -1022,6 +1201,7 @@ function Modal({ children, onClose, g }) {
       }}
     >
       <div
+        ref={cardRef}
         onClick={(e) => e.stopPropagation()}
         className="modal-card"
         style={{
@@ -1037,19 +1217,41 @@ function Modal({ children, onClose, g }) {
   );
 }
 
+// Всплывающее окошко у кнопки (версия, Claude): вырастает из неё и в неё же
+// уходит. Закрывается мгновенным удалением из дерева — уход доигрывает копия.
+function MorphPop({ className, anchor, children, owner }) {
+  const ref = useRef(null);
+  useMorph(ref, { anchor });
+  return <span ref={ref} className={className} data-morph-owner={owner}>{children}</span>;
+}
+
+// Подпись, набранная капителью в исходнике («НАЙТИ РЯДОМ»). Тема «Тональная»
+// пишет такие обычным предложением — классом, без правки строк.
+// Признак — первое слово из двух и больше букв целиком прописное: так ловятся
+// и «ПРЕДЕЛ 30 м/с», где единица набрана строчными.
+const isCaps = (c) => {
+  if (typeof c !== "string") return false;
+  // Латинские сокращения (NWS, NOAA, GOES) CSS не отличит от слова капителью
+  // и уронил бы в строчные — такую подпись оставляем как есть.
+  if (/[A-Z]{2,}/.test(c)) return false;
+  const w = c.match(/[А-Яа-яЁё]{2,}/);
+  return !!w && w[0] === w[0].toUpperCase();
+};
+
 function Btn({ children, onClick, primary, disabled, g, style }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      className={(primary ? "btn-pri" : "btn") + (isCaps(children) ? " caps" : "")}
       style={{
-        background: primary ? "rgba(231,238,246,0.12)" : "transparent",
-        border: `1px solid ${primary ? "rgba(231,238,246,0.75)" : LINE}`,
+        background: primary ? "rgba(var(--ink, 231,238,246),0.12)" : "transparent",
+        border: `1px solid ${primary ? "rgba(var(--ink, 231,238,246),0.75)" : LINE}`,
         color: disabled ? DIM : TEXT,
         textShadow: disabled ? "none" : glow(g, primary ? 0.8 : 0.4),
         fontFamily: SANS, fontSize: 11, letterSpacing: 1, fontWeight: 500,
         padding: "9px 14px", cursor: disabled ? "default" : "pointer",
-        opacity: disabled ? 0.5 : 1, transition: "all .18s ease",
+        opacity: disabled ? 0.5 : 1, transition: "all .24s ease",
         ...style,
       }}
     >
@@ -1062,145 +1264,10 @@ function Btn({ children, onClick, primary, disabled, g, style }) {
 // ПРИБОРЫ
 // ============================================================
 
-function SpeedGauge({ speedMs, gustMs, maxSpeed, unit, digits, accent, g, smooth, alarm = 0, motion }) {
-  // Второй круг: от 50 м/с до 100, где 100 — предел настоящего 05103.
-  // На этой отметке оба круга оказываются полными разом.
-  const over = Math.max(0, speedMs - OVER_FROM);
-  const overFrac = clamp01(over / OVER_SPAN);
-  const overload = over > 0.05;
-  const shown = useSmooth(speedMs, 0.2, smooth);
-  const shownGust = useSmooth(gustMs, 0.35, smooth);
-  const u = UNITS[unit] ?? UNITS.ms;
-  const value = convertSpeed(shown, unit, digits);
-
-  // Полный круг, а не дуга на 270°. Обрезанная дуга требует подписанных концов,
-  // подписи требуют насечки, насечка требует делений — и минимализм кончается.
-  // У кольца концов нет: ноль и предел в одной точке сверху, и объяснять нечего.
-  const R = 76, C = 2 * Math.PI * R;
-  const RO = 90, CO = 2 * Math.PI * RO;   // второй круг снаружи первого
-  const frac = clamp01(shown / maxSpeed);
-  const gustFrac = clamp01(shownGust / maxSpeed);
-
-  // Поле намеренно шире круга: пояса частиц в перегрузке лежат на радиусе
-  // до 105, а их свечение уходит ещё дальше. При viewBox 0..200 всё, что
-  // выходило за 200, срезалось краем — по бокам это было особенно заметно,
-  // потому что там пояс проходит горизонтально и обрезался длинной дугой.
-  // Поля прозрачные, поэтому в обычном режиме их не видно.
-  return (
-    <svg viewBox="-20 -20 240 240" style={INSTR_FIT}>
-      <defs>
-        <linearGradient id="overRingGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={OVER_A} />
-          <stop offset="100%" stopColor={OVER_B} />
-        </linearGradient>
-      </defs>
-
-      {/* Начало кольца — сверху, поэтому вся группа повёрнута на -90°. */}
-      <g transform="rotate(-90 100 100)">
-        <circle cx="100" cy="100" r={R} fill="none" stroke="rgba(231,238,246,0.08)" strokeWidth="9" />
-
-        {/* Порыв — призрачное кольцо позади основного */}
-        {shownGust > shown + 0.05 && (
-          <circle cx="100" cy="100" r={R} fill="none" stroke={TEXT} strokeWidth="9"
-                  strokeLinecap="round" opacity="0.15"
-                  strokeDasharray={`${C * gustFrac} ${C}`} />
-        )}
-
-        <circle cx="100" cy="100" r={R} fill="none" stroke={accent} strokeWidth="9"
-                strokeLinecap="round" strokeDasharray={`${C * frac} ${C}`}
-                className={alarm >= 2 && motion !== "off" ? "speed-alarm" : undefined}
-                style={{ filter: dropGlow(accent, g, alarm >= 2 ? 2.2 : 1.4) }} />
-
-        {/* Второй круг — снаружи первого, чтобы оба читались одновременно.
-            Появляется, только когда первый уже заполнен целиком. */}
-        {overload && (
-          <>
-            <circle cx="100" cy="100" r={RO} fill="none" stroke={OVER_A} strokeWidth="6"
-                    opacity="0.16" />
-            <circle cx="100" cy="100" r={RO} fill="none" stroke="url(#overRingGrad)" strokeWidth="6"
-                    strokeLinecap="round" strokeDasharray={`${CO * Math.max(overFrac, 0.008)} ${CO}`}
-                    className={motion === "off" ? undefined : "over-pulse"}
-                    style={{ filter: dropGlow(OVER_B, g, 2.4) }} />
-          </>
-        )}
-      </g>
-
-      {/* Частицы вокруг второго круга: три кольца на разной скорости, чтобы
-          движение читалось как вихрь, а не как вращение одной шестерёнки.
-          Все они внутри одной группы с CSS-вращением — ни одного пересчёта
-          на кадр, что при потоке 20 Гц принципиально. */}
-      {overload && motion !== "off" && [0, 1, 2, 3].map((ring) => {
-        // Плотный пояс вплотную к кольцу: четыре слоя по два-три десятка точек
-        // на каждом. Оборот за доли секунды — на такой скорости отдельные точки
-        // уже не считываются, и пояс воспринимается сплошным вихрем, чего и надо.
-        const rr = RO + 4 + ring * 3.5;
-        const n = 22 + ring * 6;
-        const dur = Math.max(0.22, 0.62 - overFrac * 0.34 + ring * 0.07).toFixed(3);
-        const col = ring % 2 ? OVER_A : OVER_B;
-        return (
-          <g key={ring} className={ring % 2 ? "orbit-ccw" : "orbit-cw"}
-             style={{ animationDuration: `${dur}s`,
-                      transformBox: "fill-box", transformOrigin: "center" }}>
-            {/* Ось вращения берётся из габаритов группы. При нечётном числе
-                частиц габариты чуть несимметричны, и центр уезжал бы на доли
-                единицы — на скорости в три оборота в секунду это заметное
-                дрожание. Невидимая окружность делает габариты строго
-                симметричными и прибивает ось к центру шкалы. */}
-            <circle cx="100" cy="100" r={rr} fill="none" stroke="none" />
-            {Array.from({ length: n }).map((_, i) => {
-              const deg = (i * 360) / n - 90;
-              const a = deg * (Math.PI / 180);
-              // Каждая четвёртая — не точка, а короткий штрих по касательной.
-              // Смазанный след читается как скорость сильнее, чем сама скорость.
-              if (i % 4 === 0) {
-                const span = 5 + ((i * 5) % 6);
-                const a2 = (deg + span) * (Math.PI / 180);
-                return (
-                  <path key={i}
-                        d={`M ${(100 + rr * Math.cos(a)).toFixed(1)} ${(100 + rr * Math.sin(a)).toFixed(1)}
-                            A ${rr} ${rr} 0 0 1 ${(100 + rr * Math.cos(a2)).toFixed(1)} ${(100 + rr * Math.sin(a2)).toFixed(1)}`}
-                        fill="none" stroke={col} strokeWidth={0.8 + ((i * 3) % 4) / 5}
-                        strokeLinecap="round" opacity={0.55 + ((i * 3) % 4) / 10}
-                        style={{ filter: dropGlow(col, g, 1.1) }} />
-                );
-              }
-              return (
-                <circle key={i}
-                        cx={100 + rr * Math.cos(a)} cy={100 + rr * Math.sin(a)}
-                        r={0.45 + ((i * 7) % 5) / 6}
-                        fill={col} opacity={0.5 + ((i * 3) % 5) / 10}
-                        style={{ filter: dropGlow(col, g, 0.9) }} />
-              );
-            })}
-          </g>
-        );
-      })}
-
-      {/* При тревоге пульсирует само число, а не только значок в шапке:
-          на шкалу смотрят, в угол — нет. */}
-      <text x="100" y="96" textAnchor="middle" fill={accent} fontSize="42" fontWeight="700"
-            fontFamily={MONO}
-            className={alarm >= 2 && motion !== "off" ? "speed-alarm" : undefined}
-            style={{ filter: dropGlow(accent, g, alarm >= 2 ? 2.2 : 1.5), fontVariantNumeric: "tabular-nums" }}>
-        {value}
-      </text>
-      <text x="100" y="116" textAnchor="middle" fill={TEXT} fontSize="10" fontFamily={SANS}
-            letterSpacing="3" opacity="0.7">
-        {u.short.toUpperCase()}
-      </text>
-
-      {/* Подпись появляется только в перегрузке — она объясняет второй круг */}
-      {overload && (
-        <text x="100" y="132" textAnchor="middle" fill={OVER_B} fontSize="7.5" fontFamily={SANS}
-              letterSpacing="2.4" fontWeight="700"
-              className={motion === "off" ? undefined : "over-pulse"}
-              style={{ filter: dropGlow(OVER_B, g, 1.4) }}>
-          {`СВЫШЕ ${convertSpeed(OVER_FROM, unit, 0)} ${u.short.toUpperCase()}`}
-        </text>
-      )}
-    </svg>
-  );
-}
+// Набор компонентов для модулей вкладок. Один объект на весь сеанс: созданный
+// внутри дашборда, он был бы новым на каждом кадре потока и снимал бы memo
+// со всего, что его получает.
+const UI = { Panel, Row, Btn, SubTab, Label, Segments };
 
 function Sparkline({ data, g, height = 54, accent }) {
   // График тянется на всю оставшуюся высоту блока, а параметр height остаётся
@@ -1230,10 +1297,10 @@ function Sparkline({ data, g, height = 54, accent }) {
       {[0.25, 0.5, 0.75].map((f) => (
         <line key={f} x1="0" y1={h * f} x2={w} y2={h * f} stroke={LINE} strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
       ))}
-      <polygon points={`0,${h} ${points} ${w},${h}`} fill="rgba(231,238,246,0.06)" />
+      <polygon points={`0,${h} ${points} ${w},${h}`} fill="rgba(var(--ink, 231,238,246),0.06)" />
       <polyline points={points} fill="none" stroke={TEXT} strokeWidth="1.2"
                 vectorEffect="non-scaling-stroke" strokeLinejoin="round"
-                style={{ filter: dropGlow("rgba(231,238,246,0.8)", g, 0.8) }} />
+                style={{ filter: dropGlow("rgba(var(--ink, 231,238,246),0.8)", g, 0.8) }} />
       <circle cx={head[0]} cy={head[1]} r="2" fill={accent} vectorEffect="non-scaling-stroke"
               style={{ filter: dropGlow(accent, g, 1) }} />
     </svg>
@@ -1278,8 +1345,8 @@ function PPIScope({ hist, direction, speed, gust, speedMax, unit, accent, g, mot
           <stop offset="100%" stopColor={accent} stopOpacity="0.30" />
         </linearGradient>
         <radialGradient id="ppibg">
-          <stop offset="0%" stopColor="rgba(231,238,246,0.05)" />
-          <stop offset="100%" stopColor="rgba(231,238,246,0)" />
+          <stop offset="0%" stopColor="rgba(var(--ink, 231,238,246),0.05)" />
+          <stop offset="100%" stopColor="rgba(var(--ink, 231,238,246),0)" />
         </radialGradient>
       </defs>
 
@@ -1479,7 +1546,7 @@ function WindRose({ rose, g, mono, motion }) {
 
       <circle cx="100" cy="100" r="15" stroke={LINE} strokeWidth="0.6" style={{ fill: BG_VAR }} />
       <text x="100" y="99" textAnchor="middle" fill={TEXT} fontSize="9" fontFamily={MONO}
-            style={{ filter: dropGlow("rgba(231,238,246,0.7)", g, 0.6) }}>
+            style={{ filter: dropGlow("rgba(var(--ink, 231,238,246),0.7)", g, 0.6) }}>
         {Math.round((rose.calm / Math.max(rose.total + rose.calm, 1)) * 100)}%
       </text>
       <text x="100" y="108" textAnchor="middle" fill={FAINT} fontSize="5.5" fontFamily={SANS} letterSpacing="1">
@@ -1505,7 +1572,7 @@ function BeaufortStrip({ speed, g, accent, motion }) {
               <div style={{
                 width: "100%",
                 height: 8 + b.scale * 2.2,
-                background: on ? accent : "rgba(231,238,246,0.10)",
+                background: on ? accent : "rgba(var(--ink, 231,238,246),0.10)",
                 boxShadow: on && g !== "off" ? `0 0 10px ${accent}` : "none",
                 transition: motion === "off" ? "none" : "background .35s ease, box-shadow .35s ease",
               }} />
@@ -1571,7 +1638,7 @@ function WelcomeModal({ g, onFindNearest, onAddStation, onDismiss, busy, message
       {message && (
         <div style={{
           border: `1px solid ${LINE}`, padding: "10px 12px", marginTop: 14,
-          fontSize: 11, lineHeight: 1.7, color: "rgba(231,238,246,0.85)",
+          fontSize: 11, lineHeight: 1.7, color: "rgba(var(--ink, 231,238,246),0.85)",
         }}>
           {message.text}
           {message.href && (
@@ -1583,6 +1650,93 @@ function WelcomeModal({ g, onFindNearest, onAddStation, onDismiss, busy, message
           )}
         </div>
       )}
+    </Modal>
+  );
+}
+
+// Окно обновления программы. Стекло — от .modal-card темы Liquid Glass, здесь
+// только содержимое. Пока идёт скачивание, закрыть окно нельзя: оборванная
+// установка оставила бы человека гадать, что именно у него теперь запущено.
+function UpdateModal({ g, accent, up, onClose }) {
+  const busy = up.status === "downloading" || up.status === "installing";
+  const failed = up.status === "error";
+  const pct = Math.round((up.progress || 0) * 100);
+  const ver = (v) => `Beta ${v}`;
+  const size = up.info.size ? `${(up.info.size / 1048576).toFixed(1)} МБ` : "";
+  // Обновляется вся программа (новый установщик / APK), а не один интерфейс:
+  // тогда «было» — версия самой программы, и перезапуск выглядит иначе.
+  const whole = up.info.kind === "shell";
+  const android = typeof window !== "undefined" && !!window.WKNative;
+  return (
+    <Modal onClose={busy ? () => {} : onClose} g={g}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+        <div className="upd-ring" style={{ color: accent }}>
+          <svg className={busy ? "spin" : ""} width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+               style={{ filter: g === "off" ? "none" : `drop-shadow(0 0 5px ${accent})` }}>
+            <path d="M20 11a8 8 0 0 0-14.9-3M4 5v4h4" />
+            <path d="M4 13a8 8 0 0 0 14.9 3M20 19v-4h-4" />
+          </svg>
+        </div>
+        <div>
+          <div style={{ fontSize: 13, letterSpacing: 3, fontWeight: 600, textShadow: glow(g, 0.9) }}>
+            {up.status === "installing" ? "УСТАНАВЛИВАЮ" : busy ? "ЗАГРУЖАЮ" : "ДОСТУПНО ОБНОВЛЕНИЕ"}
+          </div>
+          <div style={{ color: DIM, fontSize: 11, marginTop: 4, fontFamily: MONO }}>
+            {ver(whole && up.shell ? up.shell : up.current)} → <span style={{ color: TEXT }}>{ver(up.info.version)}</span>
+            {size && ` · ${size}`}
+          </div>
+        </div>
+      </div>
+
+      {up.info.notes.length > 0 && (
+        <div style={{
+          border: "1px solid var(--pnl-line)", borderRadius: "var(--pnl-corner)",
+          padding: "11px 14px", marginBottom: 16, fontSize: 11.5, lineHeight: 1.75,
+          color: "rgba(var(--ink, 231,238,246),0.85)", maxHeight: 220, overflowY: "auto",
+          background: "rgba(255,255,255,0.03)",
+        }}>
+          <div style={{ color: DIM, fontSize: 9.5, letterSpacing: 2.4, marginBottom: 6 }}>ЧТО НОВОГО</div>
+          {up.info.notes.map((n, i) => (
+            <div key={i} style={{ display: "flex", gap: 8 }}>
+              <span style={{ color: accent }}>•</span><span>{n}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {busy && (
+        <div style={{ marginBottom: 16 }}>
+          <div className="upd-track">
+            <Liquid className="upd-fill" fast busy v={(up.status === "installing" ? 100 : pct) / 100} color={accent} />
+          </div>
+          <div style={{ color: DIM, fontSize: 10.5, marginTop: 6, fontFamily: MONO }}>
+            {up.status === "installing"
+              ? (whole ? (android ? "Подтвердите «Установить» в окне Android…" : "Устанавливаю, программа перезапустится…") : "Применяю и перезапускаю окно…")
+              : `${pct} %`}
+          </div>
+        </div>
+      )}
+
+      {failed && (
+        <div style={{ color: "#fb923c", fontSize: 11, lineHeight: 1.6, marginBottom: 14 }}>
+          Не вышло: {up.error}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 9 }}>
+        <Btn primary g={g} disabled={busy} onClick={up.install} style={{ flex: 1 }}>
+          {busy ? "ПОДОЖДИТЕ…" : failed ? "ПОВТОРИТЬ" : "ОБНОВИТЬ СЕЙЧАС"}
+        </Btn>
+        {!busy && <Btn g={g} onClick={onClose}>ПОЗЖЕ</Btn>}
+      </div>
+      <div style={{ color: DIM, fontSize: 10, marginTop: 12, lineHeight: 1.6 }}>
+        {whole
+          ? (android
+              ? "Обновляется всё приложение: Android попросит нажать «Установить», потом откройте его снова. Настройки и станции сохраняются."
+              : "Обновляется вся программа: она закроется и откроется заново сама. Настройки и станции сохраняются.")
+          : "Меняется только интерфейс, окно перезагрузится само. Настройки и станции сохраняются."}
+      </div>
     </Modal>
   );
 }
@@ -1664,7 +1818,7 @@ function AddStationModal({ g, onSave, onClose, onLocate, locating, coords, testR
       {testResult && (
         <div style={{
           border: `1px solid ${LINE}`, padding: "10px 12px", marginBottom: 16,
-          fontSize: 11, lineHeight: 1.7, color: "rgba(231,238,246,0.85)",
+          fontSize: 11, lineHeight: 1.7, color: "rgba(var(--ink, 231,238,246),0.85)",
         }}>
           {testResult}
         </div>
@@ -1692,81 +1846,6 @@ function AddStationModal({ g, onSave, onClose, onLocate, locating, coords, testR
 // toggleLed нарисовал бы переключившийся светодиод, а через пять секунд
 // очередной кадр отыграл бы его назад: человек увидел бы, что плата «сама
 // вернула как было», хотя команда никуда и не уходила.
-function LEDPanel({ leds, autoMode, onToggle, onAutoToggle, g, delay, readOnly, readOnlyNote }) {
-  const items = [
-    { key: "green", label: "Батарея" },
-    { key: "yellow", label: "Жёлтый" },
-    { key: "red", label: "Красный" },
-    { key: "wifi", label: "WiFi" },
-  ];
-  const MODE_TEXT = { off: "OFF", on: "ON", blink: "МИГ" };
-
-  return (
-    <Panel title="Светодиоды" g={g} delay={delay}
-           meta={
-             /* Переключателем работает вся кнопка целиком, поэтому внутри
-                стоит не тумблер, а его вид: вложенная кнопка была бы
-                недопустимой разметкой, а клик всё равно ловил бы внешнюю. */
-             <button onClick={onAutoToggle} role="switch" aria-checked={autoMode} disabled={readOnly} style={{
-               display: "inline-flex", alignItems: "center", gap: 7,
-               background: "transparent",
-               border: `1px solid ${autoMode ? "rgba(231,238,246,0.7)" : LINE}`,
-               color: autoMode ? TEXT : DIM, textShadow: autoMode ? glow(g, 0.7) : "none",
-               fontFamily: SANS, fontSize: 9, letterSpacing: 1.5,
-               padding: "3px 8px 3px 5px", cursor: readOnly ? "default" : "pointer",
-               opacity: readOnly ? 0.5 : 1,
-             }}>
-               <SwitchGlyph on={autoMode} />
-               {autoMode ? "АВТО" : "РУЧНОЙ"}
-             </button>
-           }>
-      <div style={{ display: "flex", gap: 10, justifyContent: "space-between" }}>
-        {items.map(({ key, label }) => {
-          const mode = leds[key] ?? "off";
-          const isLit = mode === "on" || mode === "blink";
-          return (
-            <div key={key} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7, flex: 1 }}>
-              <button
-                onClick={() => !autoMode && !readOnly && onToggle(key)}
-                disabled={autoMode || readOnly}
-                style={{
-                  width: "100%", maxWidth: 58, aspectRatio: "1",
-                  border: `1px solid ${isLit ? TEXT : LINE}`,
-                  background: isLit ? "rgba(231,238,246,0.12)" : "transparent",
-                  boxShadow: isLit && g !== "off"
-                    ? "0 0 14px rgba(231,238,246,0.4), inset 0 0 14px rgba(231,238,246,0.16)"
-                    : "none",
-                  color: isLit ? TEXT : DIM,
-                  textShadow: isLit ? glow(g, 0.7) : "none",
-                  cursor: autoMode || readOnly ? "default" : "pointer",
-                  opacity: readOnly ? 0.55 : autoMode ? 0.75 : 1,
-                  fontFamily: MONO, fontSize: 9,
-                  transition: "all .3s ease",
-                  animation: mode === "blink" ? "ledBlink 1s steps(1) infinite" : undefined,
-                }}
-              >
-                {MODE_TEXT[mode] ?? "OFF"}
-              </button>
-              <span style={{ fontSize: 8, color: DIM, fontFamily: SANS, letterSpacing: 1.2, textTransform: "uppercase" }}>
-                {label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      {readOnly ? (
-        <div style={{ color: DIM, fontSize: 10.5, marginTop: 12, fontFamily: SANS, lineHeight: 1.5 }}>
-          {readOnlyNote || "Отсюда светодиодами не управлять — канал только на чтение. Показанное состояние приходит с платы."}
-        </div>
-      ) : autoMode && (
-        <div style={{ color: DIM, fontSize: 10.5, marginTop: 12, fontFamily: SANS, lineHeight: 1.5 }}>
-          В авто-режиме цвета задаёт прошивка. Переключи в «ручной», чтобы управлять вручную.
-        </div>
-      )}
-    </Panel>
-  );
-}
-
 // ============================================================
 // ГЛАВНЫЙ КОМПОНЕНТ
 // ============================================================
@@ -1778,10 +1857,36 @@ export default function WindDashboard() {
   const [tab, setTabState] = useState(() => {
     try { return localStorage.getItem("wind_ui_tab") || "wind"; } catch { return "wind"; }
   });
-  const setTab = (id) => {
+  // Переход между вкладками: старая уезжает (tab-leaving), потом монтируется
+  // новая, которая влетает с той стороны, куда указывает порядок вкладок.
+  // tab — куда идём (подсвечивается в панели сразу), view — что нарисовано.
+  const [shownTab, setShownTab] = useState(tab);
+  const [leaving, setLeaving] = useState(false);
+  const [tabDir, setTabDir] = useState(1);
+  const viewRef = useRef(tab);
+  const viewTimer = useRef(null);
+  // Стабильная ссылка: внутри только ref и сеттеры состояния, а функцию
+  // получают memo-компоненты вкладок.
+  const setTab = useCallback((id) => {
     setTabState(id);
     try { localStorage.setItem("wind_ui_tab", id); } catch { /* приватный режим */ }
-  };
+    if (id === viewRef.current && !viewTimer.current) return;
+    const dir = TAB_ORDER.indexOf(id) >= TAB_ORDER.indexOf(viewRef.current) ? 1 : -1;
+    setTabDir(dir);
+    setLeaving(true);
+    // К началу страницы — плавно, а не скачком: прыжок скролла под анимацией
+    // читался как сбой.
+    try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* старый WebView */ }
+    clearTimeout(viewTimer.current);
+    viewTimer.current = setTimeout(() => {
+      viewTimer.current = null;
+      viewRef.current = id;
+      setShownTab(id);
+      setLeaving(false);
+    }, 380);
+  }, []);
+  const goArea = useCallback(() => setTab("area"), [setTab]);
+  const goWind = useCallback(() => setTab("wind"), [setTab]);
   // Приборов на «радаре» стало шесть, и вываливать их одной простынёй нельзя:
   // страница перестаёт быть приборной панелью и становится свалкой. Выбор
   // переживает перезагрузку по той же причине, что и основная вкладка.
@@ -1798,6 +1903,49 @@ export default function WindDashboard() {
     setRadarViewState(id);
     try { localStorage.setItem("wind_ui_radar", id); } catch { /* приватный режим */ }
   };
+  // Заряд самого устройства: показывается в шапке, пока станция не на связи.
+  const deviceBat = useDeviceBattery();
+  const devKind = useMemo(deviceKind, []);
+  const [showSettings, setShowSettings] = useState(false);
+  // Обновление программы (только настольная Weathered_Kiwi, иначе null).
+  const update = useAppUpdate();
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [showClaude, setShowClaude] = useState(false);
+  // Закрытие — тоже анимация, но держать плашку в дереве ради неё не нужно:
+  // уход в кнопку доигрывает копия (MorphPop → wind-morph.js).
+  const claudeRef = useRef(null);
+  const verRef = useRef(null);
+  const toggleClaude = () => setShowClaude((v) => !v);
+  // Окошко версии: по нажатию на «Beta x.y.z». Открывается и закрывается так же,
+  // как плашка Claude — с анимацией, повторным нажатием. Внутри — ручная проверка.
+  const uc = useUpdateCheck();
+  const [verOpen, setVerOpen] = useState(false);
+  // idle | busy | latest | unreached | available | nosupport
+  // «latest» — только когда лента ДЕЙСТВИТЕЛЬНО ответила и её версия не новее
+  // установленной. Не ответила ни одна — «unreached»: это «не знаю», а не «новее нет».
+  const [verPhase, setVerPhase] = useState("idle");
+  const [verResult, setVerResult] = useState(null);   // последний ответ оболочки
+  const closeVer = () => setVerOpen(false);
+  const toggleVer = () => {
+    if (verOpen) { closeVer(); return; }
+    setVerPhase(!uc.supported ? "nosupport" : update ? "available" : "idle");
+    setVerOpen(true);
+  };
+  const runVerCheck = async () => {
+    setVerPhase("busy");
+    const st = await uc.check();
+    setVerResult(st);
+    // reached === undefined — старая оболочка, которая этого ещё не сообщает.
+    setVerPhase(st && st.info ? "available" : st && st.reached === false ? "unreached" : st ? "latest" : "unreached");
+  };
+  useEffect(() => {
+    // Обновление пришло само (push), пока окошко открыто, — сразу показываем кнопку.
+    if (verOpen && update && verPhase !== "busy" && verPhase !== "available") setVerPhase("available");
+  }, [update, verOpen, verPhase]);
+  // Плашка наверху убирается до перезапуска: в localStorage не пишется нарочно.
+  const [showBanner, setShowBanner] = useState(true);
+  const [bannerOut, setBannerOut] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
   const [setView, setSetViewState] = useState(() => {
     try { return localStorage.getItem("wind_ui_setview") || "main"; } catch { return "main"; }
   });
@@ -1828,6 +1976,16 @@ export default function WindDashboard() {
   const [rose, setRose] = useState(() => ({
     sectors: Array.from({ length: 16 }, () => [0, 0, 0, 0, 0]), calm: 0, total: 0,
   }));
+  // «Данные района» во вкладке «Метео данные»: включены — вместо приборов станции
+  // там только данные района. Работают независимо от источника в настройках
+  // (станция или демо). Выбор переживает перезагрузку.
+  const [areaOn, setAreaOnState] = useState(() => {
+    try { return localStorage.getItem("wind_ui_area_on") === "1"; } catch { return false; }
+  });
+  const setAreaOn = (v) => {
+    setAreaOnState(v);
+    try { localStorage.setItem("wind_ui_area_on", v ? "1" : "0"); } catch { /* приватный режим */ }
+  };
   // Источник данных: сама станция, модель или район вокруг дома.
   // Раньше это был булев demoMode; третье значение не влезало, а «не демо»
   // перестало означать «плата» — теперь условия спрашивают про station явно.
@@ -1855,7 +2013,7 @@ export default function WindDashboard() {
   const isStation = source === "station";
   const direct = isStation && link === "direct";
   const viaCloud = isStation && link === "cloud";
-  const district = useDistrict(source === "district");
+  const district = useDistrict(source === "district" || tab === "area" || (tab === "wind" && areaOn));
   // Картинка живёт отдельно от настроек: она весит сотни килобайт, а настройки
   // читаются и пишутся на каждый чих — держать их в одной записи значило бы
   // гонять этот килобайтный хвост туда-сюда постоянно.
@@ -1965,6 +2123,7 @@ export default function WindDashboard() {
   const [testResult, setTestResult] = useState("");
   const [testBusy, setTestBusy] = useState(false);
 
+  const ledManual = useRef({ auto: true, green: "off", yellow: "off", red: "off", wifi: "off" });
   const demoRef = useRef({ speed: 5, dir: 180, t: 0, gust: 0, battery: 4.1 });
   // Ручные значения демо-режима. Живут в state, а не в ref: их двигают
   // ползунками, и перерисовка нужна на каждое движение.
@@ -1978,6 +2137,11 @@ export default function WindDashboard() {
   // и порыв (~60 байт на пакет — метка времени и направление туда намеренно не
   // положены), а розе ветров пара «скорость + направление» нужна целиком.
   const dirRef = useRef(null);
+  // Журнал (wind-log.js): ключ станции, последний кадр и порыв — ref, потому
+  // что пишут в журнал обработчики, которые не пересоздаются на каждый рендер.
+  const logKeyRef = useRef(null);
+  const frameRef = useRef(null);
+  const lastSaveRef = useRef(0);
 
   const g = settings.glow;
   // Системная настройка «меньше движения» перекрывает выбор в дашборде: если
@@ -1986,6 +2150,293 @@ export default function WindDashboard() {
     ? window.matchMedia("(prefers-reduced-motion: reduce)").matches : false;
   const motion = reduceMotion ? "off" : settings.motion;
   const smooth = motion !== "off";
+
+  // Эко-режим: решает настройка, а пока её не трогали — устройство (ECO_AUTO).
+  // Флаг нужен и в обработчиках, которые не перевешиваются при каждом рендере
+  // (applyData), — для них ref.
+  const liquid = settings.theme === "liquid";
+  // «Тональная» — та же раскладка и движение, но без стекла: линза, свет
+  // курсора и живой фон в ней не нужны и не считаются.
+  const material = settings.skin === "material";
+  const eco = ecoOn(settings);
+  const ecoRef = useRef(eco);
+  ecoRef.current = eco;
+  SMOOTH_MIN_MS = eco ? 33 : 0;
+  // Жидкие переходы стекла: капля выбора, подсветка от касания.
+  const fluid = liquid && motion !== "off";
+
+  // Свет на стекле. Раньше координаты курсора писались ВСЕМ стеклянным блокам,
+  // а градиенты брали их в координатах окна через background-attachment:
+  // fixed. Замер показал цену: 30 мс видеокарты на кадр при движении мыши —
+  // больше, чем всё стекло вместе, — плюс перерисовка всех панелей на каждом
+  // кадре прокрутки. Вторая версия рисовала свет фоном в своих координатах
+  // блока — 17 мс на кадр: панель перерисовывалась вместе с текстом и
+  // свечением. Теперь свет — узел .lg-lit с двумя готовыми слоями (пятно по
+  // стеклу и блик по фаске), который вкладывается только в блоки в пределах
+  // REACH от курсора и едет transform'ом. Ни одного перерисованного пикселя:
+  // слой сдвигает композитор. Блок, из которого свет ушёл, гаснет переходом
+  // прозрачности, а через секунду узел убирается.
+  //
+  // На телефоне без мыши фаску ведёт наклон (Android отдаёт его без запроса
+  // разрешения; айфон — нет, и там блик стоит). В эко-режиме света нет.
+  useEffect(() => {
+    if (!liquid || material || motion === "off" || eco) return undefined;
+    const SEL = ".pnl, .stat, .tutor-box, .dock";
+    const REACH = 170;
+    let rects = null, rectsAt = 0, raf = 0, px = 0, py = 0, has = false, tgt = null, tiltEl = null;
+    // Наклон блока под курсором — параллакс глубины: блок чуть поворачивается
+    // к мыши. Переменные, а не transform: наведение (.blk:hover) уже задаёт
+    // подъём и масштаб, наклон дописывается к ним в CSS, переход сглаживает.
+    const untilt = () => { if (tiltEl) { tiltEl.style.removeProperty("--tlx"); tiltEl.style.removeProperty("--tly"); tiltEl = null; } };
+    const lights = new Map();                           // блок → { node, g, r, on, t }
+    const measure = () => {
+      rects = [];
+      const vw = window.innerWidth || 1, vh = window.innerHeight || 1;
+      for (const el of document.querySelectorAll(SEL)) {
+        const r = el.getBoundingClientRect();
+        if (!r.width) continue;
+        rects.push([el, r]);
+        // Задержка бегущего блика — от места блока на экране: полоса проходит
+        // панели слева направо, как свет по одному большому стеклу.
+        const d = `${(((r.left + r.width / 2) / vw) * 1.5 + (Math.max(0, r.top) / vh) * 0.35).toFixed(1)}s`;
+        if (el.__lgd !== d) { el.__lgd = d; el.style.setProperty("--lg-d", d); }
+      }
+      rectsAt = performance.now();
+    };
+    const light = (el) => {
+      let L = lights.get(el);
+      if (L && L.node.parentNode === el) return L;
+      const node = document.createElement("span");
+      node.className = "lg-lit";
+      node.setAttribute("aria-hidden", "true");
+      const g = document.createElement("i");
+      const rim = document.createElement("b");
+      const r = document.createElement("i");
+      rim.appendChild(r);
+      node.append(g, rim);
+      el.appendChild(node);
+      L = { node, g, r, on: false, t: 0 };
+      lights.set(el, L);
+      return L;
+    };
+    const put = () => {
+      raf = 0;
+      if (!rects || performance.now() - rectsAt > 700) measure();
+      const near = new Set();
+      const b = has && tgt?.closest ? tgt.closest(".blk") : null;
+      if (b !== tiltEl) untilt();
+      if (b) {
+        const r = b.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          tiltEl = b;
+          b.style.setProperty("--tly", `${(((px - r.left) / r.width - 0.5) * 5).toFixed(2)}deg`);
+          b.style.setProperty("--tlx", `${((0.5 - (py - r.top) / r.height) * 5).toFixed(2)}deg`);
+        }
+      }
+      if (has) {
+        for (const [el, r] of rects) {
+          if (px < r.left - REACH || px > r.right + REACH || py < r.top - REACH || py > r.bottom + REACH) continue;
+          near.add(el);
+          const L = light(el);
+          const tr = `translate3d(${Math.round(px - r.left)}px, ${Math.round(py - r.top)}px, 0)`;
+          L.g.style.transform = tr;
+          L.r.style.transform = tr;
+          if (!L.on) {
+            L.on = true; clearTimeout(L.t);
+            // Класс — на следующем кадре: узел, вставленный только что, иначе
+            // появился бы сразу, без перехода.
+            requestAnimationFrame(() => { if (L.on) L.node.classList.add("on"); });
+          }
+        }
+      }
+      for (const [el, L] of lights) {
+        if (near.has(el) || !L.on) continue;
+        L.on = false;
+        L.node.classList.remove("on");
+        L.t = setTimeout(() => { if (!L.on) { L.node.remove(); lights.delete(el); } }, 1000);
+      }
+    };
+    const queue = () => { if (!raf) raf = requestAnimationFrame(put); };
+    // Касание светит иначе — из точки нажатия (см. обработчик pointerdown);
+    // тащить свет за пальцем, который в этот момент листает страницу, незачем.
+    const onMove = (e) => { if (e.pointerType === "touch") return; px = e.clientX; py = e.clientY; tgt = e.target; has = true; queue(); };
+    const onLeave = () => { has = false; queue(); };
+    const onScroll = () => { rects = null; if (has) queue(); };
+    const onResize = () => { rects = null; queue(); };
+    // Наклон: свет обходит кромку. Не чаще 8 раз в секунду и только при
+    // заметном повороте — каждое обновление перерисовывает фаски видимых блоков.
+    let tiltA = 135, tiltAt = 0;
+    const onTilt = (e) => {
+      if (e.gamma == null || e.beta == null) return;
+      const now = performance.now();
+      if (now - tiltAt < 120) return;
+      const a = 135 + Math.max(-45, Math.min(45, e.gamma)) * 1.6 - Math.max(-40, Math.min(40, e.beta - 50)) * 0.9;
+      if (Math.abs(a - tiltA) < 5) return;
+      tiltA = a; tiltAt = now;
+      const deg = `${Math.round(a)}deg`;
+      for (const el of document.querySelectorAll(".pnl:not(.off), .stat:not(.off), .dock")) el.style.setProperty("--lg-a", deg);
+    };
+    const first = setTimeout(measure, 1400);
+    const iv = setInterval(() => { if (!document.hidden) measure(); }, 2500);
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.documentElement.addEventListener("mouseleave", onLeave);
+    window.addEventListener("blur", onLeave);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+    window.addEventListener("deviceorientation", onTilt, { passive: true });
+    return () => {
+      clearTimeout(first); clearInterval(iv);
+      window.removeEventListener("pointermove", onMove);
+      document.documentElement.removeEventListener("mouseleave", onLeave);
+      window.removeEventListener("blur", onLeave);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("deviceorientation", onTilt);
+      if (raf) cancelAnimationFrame(raf);
+      untilt();
+      for (const L of lights.values()) { clearTimeout(L.t); L.node.remove(); }
+      lights.clear();
+      for (const el of document.querySelectorAll(SEL)) {
+        el.style.removeProperty("--lg-a"); el.style.removeProperty("--lg-d");
+        el.__lgd = undefined;
+      }
+    };
+  }, [liquid, material, motion, eco]);
+
+  // Линза на плавающем стекле: у каждого элемента своя карта под его форму.
+  useEffect(() => {
+    if (material || !lensActive(settings, eco)) return undefined;
+    return startLens(glassLevel(settings));
+  }, [settings.theme, settings.glassLevel, eco, material]);
+
+  // Край прокрутки и сворачивание дока. Классы ставятся прямо на узлы, а не
+  // через состояние React: иначе каждый порог прокрутки перерисовывал бы весь
+  // дашборд ради одного класса. Док сворачивается (CSS — только на телефоне),
+  // когда листают вниз, и разворачивается, стоит повести вверх — как панель
+  // вкладок в iOS 26.
+  useEffect(() => {
+    if (!liquid) return undefined;
+    let raf = 0, lastY = window.scrollY, top = false, min = false;
+    const apply = () => {
+      raf = 0;
+      const y = window.scrollY, dy = y - lastY;
+      const nTop = y > 6;
+      if (nTop !== top) { top = nTop; document.querySelector(".lg-edge-top")?.classList.toggle("on", top); }
+      if (Math.abs(dy) > 12 || y < 60) {
+        const nMin = y > 140 && dy > 0;
+        if (nMin !== min) { min = nMin; document.querySelector(".dock-row.dock-bottom")?.classList.toggle("dock-min", min); }
+        lastY = y;
+      }
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(apply); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    apply();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+      document.querySelector(".dock-row")?.classList.remove("dock-min");
+    };
+  }, [liquid]);
+
+  // Скрытая вкладка: бесконечные анимации ставим на паузу, чтобы не жечь батарею.
+  useEffect(() => {
+    const onVis = () => document.documentElement.classList.toggle("paused", document.hidden);
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
+  // Лёгкий виброотклик на касание (wind-haptic.js) — не зависит от настройки
+  // движения: это не анимация, а ощущение нажатия.
+  useEffect(() => mountTapHaptics(), []);
+  // Настройки вибрации — в модуль: он не React и сам их не читает.
+  useEffect(() => {
+    setHapticConfig({ level: settings.haptics || "normal", touch: settings.hapTouch !== false,
+                      sliders: settings.hapSliders !== false, boot: settings.hapBoot !== false });
+  }, [settings.haptics, settings.hapTouch, settings.hapSliders, settings.hapBoot]);
+
+  // Всплеск от каждого нажатия: волна расходится от точки касания. На стекле —
+  // иначе: стекло загорается изнутри из точки касания и свет расходится по нему
+  // до кромки (interactive glass, iOS 26). Пятно вкладывается в сам элемент и
+  // обрезается его скруглением, поэтому кнопка светится кнопкой, а панель —
+  // панелью. Только transform и opacity: ни одной перерисовки.
+  useEffect(() => {
+    if (motion === "off") return undefined;
+    const TOUCH_HOST = ".dock-tabs > button, .gear-btn, .ar-btn, .ver-chip, .upd-tab, .dock, .pnl, .stat, .tutor-box";
+    const glassTouch = (e) => {
+      if (!liquid || layoutMode || !e.target.closest) return false;
+      const host = e.target.closest(TOUCH_HOST);
+      if (!host) return false;
+      const b = host.getBoundingClientRect();
+      if (!b.width) return false;
+      const sz = Math.round(Math.max(110, Math.min(540, Math.max(b.width, b.height) * 1.15)));
+      const t = document.createElement("span");
+      t.className = "lg-touch";
+      t.setAttribute("aria-hidden", "true");
+      const i = document.createElement("i");
+      i.style.cssText = `left:${Math.round(e.clientX - b.left)}px;top:${Math.round(e.clientY - b.top)}px;`
+        + `width:${sz}px;height:${sz}px;margin:${-sz / 2}px 0 0 ${-sz / 2}px`;
+      t.appendChild(i);
+      host.appendChild(t);
+      setTimeout(() => t.remove(), 1150);
+      return true;
+    };
+    const onDown = (e) => {
+      let poke = e.target.closest && e.target.closest("[data-poke]");
+      // Всё, что не кнопка и никуда не ведёт, тоже отзывается: берём ближайшую
+      // карточку или панель. Интерактивное (кнопки, ссылки, поля, карта) и
+      // режим раскладки не трогаем — там нажатие означает своё.
+      if (!poke && !layoutMode && e.target.closest) {
+        const t = e.target;
+        const live = t.closest("button, a, input, select, textarea, label, canvas, .dock-panel, .claude-pop, .modal-card")
+          || !["auto", "default", "text"].includes(getComputedStyle(t).cursor);
+        if (!live) poke = t.closest(".stat") || t.closest(".pnl");
+      }
+      if (poke) {
+        const kind = poke.dataset.poke || "banner";
+        const jelly = kind === "banner"
+          ? [{ transform: "none" }, { transform: "scale(1.03, .9)" }, { transform: "scale(.98, 1.06) rotate(-.4deg)" },
+             { transform: "scale(1.01, .98) rotate(.3deg)" }, { transform: "none" }]
+          : [{ transform: "none" }, { transform: "scale(1.35, .62) rotate(-6deg)" },
+             { transform: "scale(.78, 1.34) rotate(8deg)" }, { transform: "scale(1.16, .88) rotate(-4deg)" },
+             { transform: "scale(.94, 1.06) rotate(2deg)" }, { transform: "none" }];
+        poke.animate(jelly, { duration: kind === "banner" ? 950 : 1200, easing: "cubic-bezier(.2,.8,.3,1)" });
+      }
+      // Искры — десяток узлов поверх всего экрана на каждое касание: в
+      // эко-режиме их нет, отклик дают желе и свет в стекле.
+      if (poke && !ecoRef.current) {
+        const kind = poke.dataset.poke || "banner";
+        const b = poke.getBoundingClientRect();
+        const cx = kind === "banner" ? e.clientX : b.left + b.width / 2;
+        const cy = kind === "banner" ? e.clientY : b.top + b.height / 2;
+        const n = kind === "banner" ? 10 : 14;
+        const hue = kind === "chip" && poke.classList.contains("claude-chip") ? "255,154,60" : "170,215,255";
+        for (let i = 0; i < n; i += 1) {
+          const d = document.createElement("span");
+          d.className = "spark";
+          d.style.left = `${cx}px`;
+          d.style.top = `${cy}px`;
+          d.style.background = `rgb(${hue})`;
+          d.style.boxShadow = `0 0 8px rgb(${hue})`;
+          document.body.appendChild(d);
+          const a = (Math.PI * 2 * i) / n + Math.random() * 0.5;
+          const dist = 34 + Math.random() * 46;
+          d.animate([
+            { transform: "translate(-50%,-50%) scale(1)", opacity: 1 },
+            { transform: `translate(calc(-50% + ${Math.cos(a) * dist}px), calc(-50% + ${Math.sin(a) * dist}px)) scale(0)`, opacity: 0 },
+          ], { duration: 800 + Math.random() * 400, easing: "cubic-bezier(.1,.7,.3,1)" }).onfinish = () => d.remove();
+        }
+      }
+      if (glassTouch(e)) return;
+      const r = document.createElement("span");
+      r.className = "rip";
+      r.style.left = `${e.clientX}px`;
+      r.style.top = `${e.clientY}px`;
+      document.body.appendChild(r);
+      setTimeout(() => r.remove(), 1100);
+    };
+    window.addEventListener("pointerdown", onDown, { passive: true });
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [motion, layoutMode, liquid]);
 
   const setS = (patch) => {
     setSettings((prev) => {
@@ -2020,6 +2471,11 @@ export default function WindDashboard() {
     histRef.current = now;
     setHistory((prev) => [...prev, { s: speed, d: dir }].slice(-Math.max(histLen, 600)));
     pushRose(speed, dir);
+    const k = logKeyRef.current;
+    if (k) {
+      logSample(k, speed, frameRef.current?.gust, dir, frameRef.current);
+      if (now - lastSaveRef.current > 30000 && frameRef.current) { lastSaveRef.current = now; saveLastFrame(k, frameRef.current); }
+    }
   }, [histLen, pushRose]);
 
   // live = «кадр приехал только что». Единственный случай, когда это не так —
@@ -2036,7 +2492,17 @@ export default function WindDashboard() {
   //      врёт графику и розе, и по виду массива это потом не отличить;
   //   3. setGustAt(new Date()) — подпись «Порыв · 14:32» означала бы, что мы
   //      знаем момент пика. Значение обновляем, момент — нет.
+  const lastApplyAt = useRef(0);
   const applyData = useCallback((json, { live = true } = {}) => {
+    // Поток идёт 20 раз в секунду, а каждый кадр перерисовывает весь дашборд. В
+    // эко-режиме — пять: столько же получают дисплей в корпусе и облако, и для
+    // показаний ветра этого с запасом. Замер 2026-11-06 (процессор ×6, планшет
+    // 800×1280): перерисовка — две трети оставшейся работы главного потока.
+    if (ecoRef.current && live) {
+      const now = performance.now();
+      if (now - lastApplyAt.current < 195) return;
+      lastApplyAt.current = now;
+    }
     // Older firmware has no *Present flags — infer from the value being there.
     const normLed = (v) => (v === true ? "on" : v === false || v == null ? "off" : v);
     const norm = {
@@ -2053,6 +2519,8 @@ export default function WindDashboard() {
     };
     setData(norm);
     setConnected(true);
+    frameRef.current = norm;
+    if (live && logKeyRef.current) watchFrame(logKeyRef.current, norm);
     dirRef.current = norm.dirPresent ? json.direction : null;
     if (live) {
       setLastUpdate(new Date());
@@ -2084,6 +2552,7 @@ export default function WindDashboard() {
     if (speed == null) return;
     const gust = Number.isFinite(f.gust) ? f.gust : Number.isFinite(f.g) ? f.g : null;
     setData((prev) => (gust == null ? { ...prev, speed } : { ...prev, speed, gust }));
+    if (frameRef.current) frameRef.current = { ...frameRef.current, speed, ...(gust == null ? {} : { gust }) };
     setConnected(true);
     setLastUpdate(new Date());
     setCloudLiveAt(Date.now());
@@ -2122,10 +2591,17 @@ export default function WindDashboard() {
         // Отсюда и разное место, где загорается кольцо перегрузки.
         direction: Math.round(d.dir), dirPresent: true, speedMax: 100,
         gust: parseFloat(d.gust.toFixed(2)),
-        ledGreen: pct > 60 ? "on" : "off",
-        ledYellow: d.speed > 5 || (pct >= 30 && pct <= 60) ? "on" : "off",
-        ledRed: pct < 10 ? "blink" : d.speed > 15 || (pct >= 10 && pct < 30) ? "on" : "off",
-        ledWifi: "on", ledAuto: true,
+        // В ручном режиме светодиоды остаются такими, какими их выставил человек:
+        // иначе каждый кадр демо перебивал бы нажатие.
+        ...(ledManual.current.auto ? {
+          ledGreen: pct > 60 ? "on" : "off",
+          ledYellow: d.speed > 5 || (pct >= 30 && pct <= 60) ? "on" : "off",
+          ledRed: pct < 10 ? "blink" : d.speed > 15 || (pct >= 10 && pct < 30) ? "on" : "off",
+          ledWifi: "on", ledAuto: true,
+        } : {
+          ledGreen: ledManual.current.green, ledYellow: ledManual.current.yellow,
+          ledRed: ledManual.current.red, ledWifi: ledManual.current.wifi, ledAuto: false,
+        }),
         battery: parseFloat(d.battery.toFixed(2)), batteryPercent: pct, batteryPresent: true,
         chargeState: pct >= 99 ? "full" : "discharging",
         powerSource: pct >= 99 ? "external" : "battery",
@@ -2345,11 +2821,10 @@ export default function WindDashboard() {
   // отыграл бы назад следующим кадром — выглядело бы как «плата сама вернула
   // как было». Панель в этом режиме к тому же readOnly, так что сюда
   // попасть нельзя; проверка на всякий случай, а не вместо неё.
-  const toggleLed = async (key) => {
+  const setLed = async (key, nextValue) => {
     if (viaCloud) return;
-    const NEXT_MODE = { off: "on", on: "blink", blink: "off" };
     const k = `led${key.charAt(0).toUpperCase() + key.slice(1)}`;
-    const nextValue = NEXT_MODE[data[k]] ?? "on";
+    ledManual.current[key] = nextValue;
     setData((prev) => ({ ...prev, [k]: nextValue }));
     if (!direct) return;
     // Связь рвётся; следующий кадр опроса всё равно вернёт настоящее
@@ -2360,6 +2835,8 @@ export default function WindDashboard() {
   const toggleAuto = async () => {
     if (viaCloud) return;
     const nextValue = !data.ledAuto;
+    // Уходя в ручной режим, берём то, что горит сейчас, как исходную точку.
+    ledManual.current = { auto: nextValue, green: data.ledGreen, yellow: data.ledYellow, red: data.ledRed, wifi: data.ledWifi };
     setData((prev) => ({ ...prev, ledAuto: nextValue }));
     if (!direct) return;
     try { await fetch(`http://${esp32Host}/api/led?auto=${nextValue}`); } catch {}
@@ -2437,7 +2914,7 @@ export default function WindDashboard() {
   // экране. Пауза перед началом обязательна: иначе они полезли бы в канал
   // одновременно с первым запросом данных и замедлили бы ровно то, ради чего
   // дашборд и открывают.
-  useEffect(() => warmUp([Meteorology, WorldMap, Tutor, LiveWatch, Permissions]), []);
+  useEffect(() => warmUp([Meteorology, WorldMap, LiveWatch]), []);
 
   // ---------- станции ----------
   const dismissWelcome = () => {
@@ -2650,6 +3127,30 @@ export default function WindDashboard() {
   const ageSec = lastUpdate ? Math.round((time - lastUpdate) / 1000) : null;
   const lastUpdateStr = ageSec == null ? "—" : `${ageSec}с`;
 
+  // ---------- виджеты Android ----------
+  // Пока приложение открыто, виджет на рабочем столе получает последнее показание
+  // отсюда (WKNative.widget → WindWidget.java), раз в 5 секунд. Без приложения он
+  // ходит на плату сам по host — поэтому вместе с кадром уезжают адрес и тип связи.
+  // Интервал, а не эффект на data: кадры идут 20 раз в секунду, а «нет связи»
+  // кадров не шлёт вовсе — виджет должен узнать и об этом.
+  const widgetRef = useRef(null);
+  widgetRef.current = { d: data, c: connected, src: source, unit: settings.unit, host: esp32Host, link };
+  useEffect(() => {
+    // Тот же кадр уходит и виджетам Windows (window.wkWidget, desktop/widgets.js).
+    const n = typeof window !== "undefined" ? window.WKNative : null;
+    const w = typeof window !== "undefined" ? window.wkWidget : null;
+    const nOk = n && typeof n.widget === "function";
+    if (!nOk && !w) return;
+    const push = () => {
+      const j = JSON.stringify(widgetRef.current);
+      try { if (nOk) n.widget(j); } catch { /* мост занят — следующий раз */ }
+      try { if (w) w.push(j); } catch { /* оболочка без виджетов */ }
+    };
+    const first = setTimeout(push, 1500);
+    const id = setInterval(push, 5000);
+    return () => { clearTimeout(first); clearInterval(id); };
+  }, []);
+
   // ---------- место станции ----------
   // Три источника, и каждый подписывается явно. Выдавать введённое человеком
   // за телеметрию нельзя: координаты из каталога он вбил руками и мог
@@ -2674,6 +3175,41 @@ export default function WindDashboard() {
   // siteLat/siteLon приходят в кадре и по прямому каналу, если /api/site
   // на этой сборке прошивки ещё нет. Написать там «из облака» значило бы
   // соврать про то, откуда взялась цифра.
+  // ---------- журнал, прогноз, тревоги, киоск ----------
+  // Журнал ведётся только у настоящей станции, ключ — её запись в каталоге
+  // (облачный id или адрес): у двух мачт разные журналы.
+  const logKey = isStation ? (stationKey(activeStation) || esp32Host) : null;
+  logKeyRef.current = logKey;
+  useEffect(() => { prune(); }, []);
+  const events = useEvents(logKey);
+  const coords = siteInfo && !(siteInfo.lat === 0 && siteInfo.lon === 0)
+    ? { lat: siteInfo.lat, lon: siteInfo.lon }
+    : district.coords || null;
+  const fc = useForecast(coords);
+  const fcNow = useMemo(() => {
+    if (!fc || !fc.length) return null;
+    const now = Date.now();
+    return fc.reduce((a, b) => (Math.abs(b.t - now) < Math.abs(a.t - now) ? b : a)).s;
+  }, [fc]);
+  useAlerts({ settings, data, history, connected: connected && !demoMode, desc: bf.desc, logKey, fc });
+  useNotifier({ settings, data, connected: connected && !demoMode, desc: bf.desc, fc, isStation });
+  // Полоса прокрутки — жидкое стекло и плавная прокрутка колесом (wind-scroll.js).
+  useEffect(() => mountGlassScroll(), []);
+  const [kiosk, setKiosk] = useState(false);
+  // Последнее показание, пока станция молчит: в строке над приборами вместо
+  // голого «не отвечает» — что и когда было в последний раз.
+  const lastSeen = useMemo(() => (logKey && !connected ? loadLastFrame(logKey) : null), [logKey, connected]);
+  // Облачная проверка для блока «Подключение» — возвращает текст, а не пишет в state.
+  const cloudProbeText = async (id) => {
+    if (!cloudAvail) return "В эту сборку дашборда учётка зрителя не попала — читать облако отсюда нечем. Идентификатор всё равно сохранится.";
+    try {
+      const mod = await loadCloud();
+      if (!mod || !mod.CLOUD_CONFIGURED) throw new Error("нет модуля");
+      const r = await mod.probeStatus({ ...cloudOpts(id), timeoutMs: 10000 });
+      if (!r || !r.ok) return `Брокер не подтвердил станцию «${id}»${r && r.error ? `: ${r.error}` : ""}.`;
+      return r.online ? `Станция «${id}» на связи через облако.` : `Станция «${id}» известна брокеру, но сейчас офлайн.`;
+    } catch { return "Не вышло спросить брокер. Есть ли у этого устройства интернет?"; }
+  };
   const SITE_FROM = {
     api: "ИЗ /API/SITE",
     frame: viaCloud ? "ИЗ ОБЛАКА" : "ИЗ КАДРА",
@@ -2730,11 +3266,11 @@ export default function WindDashboard() {
 
   // Тревога по ветру. Считается от того же, что видит человек на шкале, —
   // от текущей скорости и порыва, а не от статистики за окно.
-  // Непрерывный угол для стрелки и для модели анемометра. Считается здесь,
-  // а не внутри компаса: тот же угол нужен второму прибору, а два независимых
-  // накопителя разошлись бы на переходе через север.
-  const dirCont = useContinuousAngle(hasDir ? data.direction : null);
-  const dirAngle = useSmooth(dirCont, 0.3, smooth);
+  // Непрерывного и сглаженного угла здесь больше нет (0.2.525). Когда-то их
+  // считали тут для двух приборов сразу, но приборы давно получают сырое
+  // направление (WindCompass разворачивает и сглаживает его сам), а угол
+  // остался — и перерисовывал весь дашборд: лишний рендер на каждый кадр
+  // данных и ещё по одному на каждый кадр экрана, пока направление менялось.
 
   // Тот же порог, что и у второго круга: 50 м/с — граница мощного урагана.
   const overWind = Math.max(0, data.speed - OVER_FROM);
@@ -2766,25 +3302,108 @@ export default function WindDashboard() {
     const on = !!(analysis && analysis.squall);
     const rising = on && !squallWasOn.current;
     squallWasOn.current = on;
-    if (!rising || !settings.notifySquall) return;
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    try {
-      new Notification("Шквал", {
-        body: `Рост ${analysis.rise.toFixed(1)} м/с, пик ${analysis.peak.toFixed(1)} м/с — критерий ВМО выполнен.`,
-        tag: "windprobe-squall",
-      });
-    } catch { /* часть браузеров требует сервис-воркер — тогда просто тихо */ }
+    if (!rising || !settings.notifySquall || quietNow(settings)) return;
+    // Через общие ворота: на Android — родное уведомление, везде — лимит 33 в сутки.
+    pushNote("Шквал", `Рост ${analysis.rise.toFixed(1)} м/с, пик ${analysis.peak.toFixed(1)} м/с — критерий ВМО выполнен.`,
+             "wind-squall", { every: 15 * 60000, urgent: true });
   }, [analysis, settings.notifySquall]);
 
+  // Всё, что за краем экрана, — на паузу: анимации за кадром не видны, но считаются.
+  useEffect(() => {
+    return watchOffscreen();
+  }, []);
+
+  // Что показывает раздвинутая панель внизу. dockView держится ещё на время
+  // закрытия, чтобы содержимое не пропало раньше, чем панель сомкнётся.
+  // Сама панель стоит в дереве всегда (закрытая, 0fr), поэтому у перехода
+  // есть «до» и без отложенного старта.
+  const dockWant = showSettings ? "settings" : (demoMode && showDemo ? "demo" : null);
+  const dockPos = ["top", "left", "right"].includes(settings.dockPos) ? settings.dockPos : "bottom";
+  const [dockView, setDockView] = useState(null);
+  const [dockOpen, setDockOpen] = useState(false);
+  // Закрытие — такая же анимация, как открытие, только обратная: панель
+  // сначала медленно трогается, потом сходится, и капсула оседает. Раньше
+  // сворачивание шло той же пружинной кривой, что раскрытие, а у неё почти
+  // всё движение — в первые 150 мс: панель захлопывалась.
+  const [dockClosing, setDockClosing] = useState(false);
+  const dockWas = useRef(false);
+  useEffect(() => {
+    if (dockWant) {
+      setDockView(dockWant);
+      setDockOpen(true);
+      setDockClosing(false);
+      dockWas.current = true;
+      return undefined;
+    }
+    setDockOpen(false);
+    if (!dockWas.current) return undefined;
+    dockWas.current = false;
+    setDockClosing(true);
+    // Содержимое убирается, когда панель РЕАЛЬНО сомкнулась (transitionend), а не по
+    // таймеру: длительности анимаций меняются (в 0.4.11 они выросли на треть, а
+    // таймер остался прежним), и последние ~25 px высоты — поля прокручиваемого
+    // блока — схлопывались рывком в момент, когда содержимое уходило из дерева.
+    // Таймер остался запасным — на случай, если событие не придёт (движение выключено).
+    const done = () => { setDockView(null); setDockClosing(false); };
+    const panel = document.querySelector(".dock-panel");
+    const onEnd = (e) => { if (e.target === panel && /^grid-template/.test(e.propertyName)) { clearTimeout(t); done(); } };
+    const t = setTimeout(() => { if (panel) panel.removeEventListener("transitionend", onEnd); done(); }, 2200);
+    if (panel) panel.addEventListener("transitionend", onEnd);
+    return () => { clearTimeout(t); if (panel) panel.removeEventListener("transitionend", onEnd); };
+  }, [dockWant]);
+  const toggleSettings = () => { setShowDemo(false); setShowSettings((v) => !v); };
+  const toggleDemo = () => { setShowSettings(false); setShowDemo((v) => !v); };
+
   const TABS = [
-    { id: "wind", label: "Основное" },
-    { id: "meteo", label: "Метеорология" },
+    { id: "wind", label: "Метео данные" },
+    { id: "meteo", label: "Метеорология", short: "Метео" },
     { id: "radar", label: "Радар" },
-    { id: "system", label: "Система" },
-    { id: "settings", label: "Настройки" },
+    { id: "area", label: "Район" },
+    { id: "analysis", label: "Анализ" },
+    { id: "system", label: "Станция" },
   ];
 
+  // Стрелки влево/вправо переключают вкладки; на краю останавливаются.
+  // Не мешаем вводу (поля, ползунки, списки) и окнам поверх страницы.
+  const tabKeyRef = useRef(null);
+  tabKeyRef.current = { tab, TABS, blocked: showSettings || showUpdate || layoutMode };
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      const el = e.target;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      const { tab: cur, TABS: list, blocked } = tabKeyRef.current;
+      if (blocked) return;
+      const i = list.findIndex((t) => t.id === cur);
+      const next = list[i + (e.key === "ArrowRight" ? 1 : -1)];
+      if (next) { e.preventDefault(); setTab(next.id); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const utc = `${String(time.getUTCHours()).padStart(2, "0")}:${String(time.getUTCMinutes()).padStart(2, "0")}:${String(time.getUTCSeconds()).padStart(2, "0")}`;
+
+  // Полосы под кольцом скорости: последние 10 минут (или сколько есть) на
+  // 12 отрезков; яркая — средняя за отрезок, бледная — максимум. История
+  // пишется раз в секунду, поэтому столбики меняются тоже не чаще.
+  const speedBars = useMemo(() => {
+    const n = Math.min(history.length, 600);
+    // Пока истории нет, столбики всё равно стоят — пустыми: окно одной и той
+    // же высоты, есть данные или нет, и место под полосы не зияет пустотой.
+    if (n < 24) return { bars: Array.from({ length: 12 }, () => ({ wind: 0, gust: 0, t: "данных пока нет" })),
+      legend: "ветер станции за последние минуты — появится вместе с данными" };
+    const part = history.slice(-n), per = n / 12, out = [];
+    for (let i = 0; i < 12; i++) {
+      const seg = part.slice(Math.round(i * per), Math.round((i + 1) * per)).map((x) => x.s).filter(Number.isFinite);
+      if (!seg.length) continue;
+      const avg = seg.reduce((a, b) => a + b, 0) / seg.length, max = Math.max(...seg);
+      out.push({ wind: avg, gust: max, t: `средняя ${convertSpeed(avg, settings.unit, 1)} · максимум ${convertSpeed(max, settings.unit, 1)} ${unit.short}` });
+    }
+    const min = Math.max(1, Math.round(n / 60));
+    return { bars: out, legend: `ветер станции за последние ${min} мин (яркий — средняя, бледный — максимум)` };
+  }, [history, settings.unit, unit.short]);
 
   // ---------- блоки главной вкладки ----------
   // Разметка больше не решает, где что лежит. Она лишь объявляет, какие блоки
@@ -2796,22 +3415,17 @@ export default function WindDashboard() {
   // должна помнить место того, чего нет. Отсутствующий блок просто не попадает
   // в список, и его строка в настройке спокойно дожидается своего датчика.
   const windBlocks = [
-    { id: "speed", h: 42, title: "Скорость ветра", node: (
-      <Panel g={g} delay={0} title="Скорость ветра"
-                           meta={`ПРЕДЕЛ ${convertSpeed(data.speedMax ?? 30, settings.unit, 0)} ${unit.short}`}>
-                      <div style={INSTR_BOX}>
-                        <SpeedGauge
-                          speedMs={data.speed} gustMs={data.gust} maxSpeed={data.speedMax ?? 30}
-                          unit={settings.unit} digits={settings.digits} accent={accent} g={g} smooth={smooth}
-                          alarm={alarmLevel} motion={motion}
-                        />
-                      </div>
-                      <div style={{
-                        textAlign: "center", marginTop: 4, fontSize: 11, letterSpacing: 2.5,
-                        fontWeight: 600, color: TEXT, textShadow: glow(g, 0.6),
-                      }}>
-                        {bf.desc.toUpperCase()} · {bf.scale} БАЛЛОВ
-                      </div></Panel>
+    { id: "speed", h: SPEED_H, title: "Скорость ветра", node: (
+      // Окно один в один из «Района» (AreaWind в wind-area.jsx): те же кольцо,
+      // подписи, карточки и полосы снизу. У района полосы — прогноз, у
+      // станции — её собственный ветер за последние минуты. Данные — станции,
+      // единицы — из настроек.
+      <AreaWind g={g} speed={data.speed} gust={data.gust}
+                forecast={speedBars.bars} legend={speedBars.legend}
+                chip={`ПРЕДЕЛ ${convertSpeed(data.speedMax ?? 30, settings.unit, 0)} ${unit.short}`}
+                scaleMax={data.speedMax ?? 30} unit={unit.short}
+                shown={convertSpeed(data.speed, settings.unit, settings.digits)}
+                gustShown={gustText} kmh={settings.unit !== "kmh"} />
     ) },
     { id: "stats", h: 14, title: "Порыв · средняя · аптайм", node: (
       <div style={{ display: "flex", gap: 10 }}>
@@ -2848,17 +3462,6 @@ export default function WindDashboard() {
                           {chill != null && (
                             <Stat label="Ощущается как · расчёт" unit="°C" g={g} value={chill.toFixed(1)} />
                           )}
-                        </div>
-                        <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 10 }}>
-                          {demoMode
-                            ? "Это демо-режим: атмосферных датчиков на станции нет, и все значения здесь смоделированы. Связаны они не случайно — влажность выведена из температуры при почти постоянной точке росы, а давление проседает на усилении ветра, как оно и бывает."
-                            : source === "district"
-                            ? "Это режим «район»: значения не с мачты, а из модели Open-Meteo для точки, которую ты указал. Давления, осадков и освещённости на плате нет вовсе — здесь они настоящие и потому появились."
-                            : "Показания приходят с датчиков станции; карточка появляется только для тех, чьё присутствие подтвердила прошивка."}
-                          {" "}
-                          Точка росы и «ощущается как» не измеряются — они считаются: первая по формуле
-                          Магнуса из температуры и влажности, вторая по формуле службы погоды США и только
-                          в холод при ощутимом ветре. Вне этих условий величина не определена, и её тут нет.
                         </div></Panel>
     ) },
     { id: "speedhist", h: 20, title: "График скорости", node: (
@@ -2870,31 +3473,20 @@ export default function WindDashboard() {
       <Panel title="Камера" g={g} delay={95}
                              meta={data.cameraPresent && data.cameraUrl ? "ПОТОК" : "НЕ ПОДКЛЮЧЕНА"}>
                         <CameraWindow url={data.cameraPresent ? data.cameraUrl : null}
-                                      accent={accent} g={g} motion={motion} speedMs={data.speed}
-                                      site={siteInfo} now={time} />
-                        <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 8 }}>
-                          {data.cameraPresent && data.cameraUrl
-                            ? "Поток с камеры станции."
-                            : "Камеры на станции нет — здесь рисунок, а не съёмка. Подойдёт ESP32-CAM: она отдаёт MJPEG по HTTP, и браузер играет его сам. Экшн-камеры так не подключить: они отдают RTSP или RTMP, чего не умеет ни один браузер, а перепаковывать поток ESP32 нечем."}
-                        </div></Panel>
+                                      accent={accent} g={g} motion={eco ? "off" : motion} speedMs={data.speed}
+                                      site={siteInfo} now={time} /></Panel>
     ) },
     (settings.widgets || []).length > 0 && { id: "widgets", h: 22, title: "Свои виджеты", node: (
       <CustomWidgets widgets={settings.widgets} g={g} accent={accent} Panel={Panel} />
     ) },
     hasDir && settings.showCompass && { id: "dir", h: 42, title: "Направление", node: (
-      <Panel title="Направление" meta={degToDir(data.direction).full.toUpperCase()} g={g} delay={40}>
-                          <div style={INSTR_BOX}>
-                            <Compass direction={data.direction} angle={dirAngle} accent={accent} g={g} />
-                          </div></Panel>
+      <WindCompass windFrom={data.direction} speed={data.speed} gust={data.gust}
+                   source={degToDir(data.direction).full.toUpperCase()} accent={accent} g={g} />
     ) },
     hasDir && settings.showCompass && { id: "dirhist", h: 20, title: "График направления", node: (
       <Panel title={`Направление · ${settings.histMinutes} мин`} g={g} delay={120}
                                meta={analysis ? `РАЗБРОС ${Math.round(analysis.spread)}°` : undefined}>
                           <Sparkline data={dirSeries} g={g} accent={accent} /></Panel>
-    ) },
-    demoMode && { id: "demo", h: 30, title: "Ручное управление", node: (
-      <Panel title="Ручное управление" g={g} delay={140} meta="ТОЛЬКО ДЕМО">
-                          <DemoControls demo={demo} setDemo={setDemo} g={g} accent={accent} alarmLevel={alarmLevel} /></Panel>
     ) },
     source === "district" && { id: "district", h: 44, title: "Район", node: (
       <Panel title="Район" g={g} delay={140} meta="ИЗ ИНТЕРНЕТА">
@@ -2910,15 +3502,1013 @@ export default function WindDashboard() {
   const drag = useDrag(lay);
   const resize = useResize(lay, gridRef, tracks);
   const shownRows = layoutRows.filter((r) => layoutMode || !r.hidden);
+  // Вся таблица стилей страницы — около 150 КБ текста. Собирать её заново
+  // с каждым кадром потока (20 Гц) значило бы три мегабайта мусора в секунду
+  // для сборщика памяти; меняется же она только вместе с оформлением.
+  const pageCss = useMemo(() => `${SWITCH_CSS}${GLASS_SCROLL_CSS}${themeCss(settings.theme)}
+        /* Гарнитура — через переменные: оформление здесь инлайновое, и таскать
+           выбранный шрифт пропсами через полсотни компонентов было бы адом. */
+        :root { --ui-sans: ${FONT_SETS[settings.font]?.sans || FONT_SETS.cascadia.sans};
+                --ui-mono: ${FONT_SETS[settings.font]?.mono || FONT_SETS.cascadia.mono};
+                --ui-bg: ${(GROUNDS[settings.ground] || GROUNDS.black).bg};
+                --ui-corner: ${CORNERS[settings.corners] ?? 0}px;
+                --ui-fill: ${(settings.panelFill || 0) / 100}; }
+        /* Вид панели по умолчанию — «приборная» тема. Всё, что тема меняет,
+           она меняет здесь: подставляет свои значения этих же переменных. */
+        :root { --pnl-line: rgba(var(--rule, 160,180,200),0.15);
+                --pnl-head-line: rgba(var(--rule, 160,180,200),0.15);
+                --pnl-bg: linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.008)),
+                          rgba(255,255,255,var(--ui-fill, 0));
+                --pnl-shadow: none;
+                --pnl-blur: none;
+                /* Скругление панели отдельной переменной от --ui-corner:
+                   у стекла фаска на прямом углу читается как скол, и теме
+                   нужно уметь прибавить своё, не отменяя выбор человека. */
+                --pnl-corner: var(--ui-corner, 0px); }
+        /* Две кривые на весь дашборд. Первая тормозит к концу, вторая
+           переваливает за цель и возвращается — от неё движение и кажется
+           живым. Держим их переменными, чтобы «сделать медленнее» не
+           превращалось в правку полусотни мест. */
+        :root { --ease-out: cubic-bezier(.16,.84,.28,1);
+                --ease-back: cubic-bezier(.34,1.42,.44,1); }
+        * { -webkit-tap-highlight-color: transparent; }
+        /* Лигатуры Cascadia Code (=>, !=, ->) — часть того, за что её берут. */
+        body { font-feature-settings: "calt" 1, "liga" 1; }
+
+        /* Значок версии в шапке. Вне темы — тонкая рамка, в Liquid Glass его
+           переодевает тема. */
+        .ver-chip {
+          display: inline-block; vertical-align: 2px; margin-left: 9px;
+          padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(var(--ink, 231,238,246),0.22);
+          font-family: var(--ui-mono); font-size: 9px; font-weight: 600; letter-spacing: 0.8px;
+          color: rgba(var(--ink, 231,238,246),0.78); text-shadow: none; white-space: nowrap;
+        }
+        .bat-glass { display: flex; align-items: center; flex-shrink: 0; padding: 7px 10px;
+          border-radius: 14px; border: 1px solid var(--pnl-line); background: var(--pnl-bg);
+          box-shadow: var(--pnl-shadow); -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); }
+        .bat-body { position: relative; width: 38px; height: 18px; border-radius: 6px; padding: 2px; box-sizing: border-box;
+          border: 1.5px solid var(--bat); }
+        .bat-fill { display: block; height: 100%; border-radius: 3px; background: rgba(var(--rule, 255,255,255),0.06); box-shadow: none }
+        .bat-fill .liq-f { box-shadow: 0 0 10px var(--bat) }
+        .bat-ico { margin-right: 7px; color: rgba(var(--ink, 231,238,246),0.7); flex: none }
+        .bat-bolt { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; line-height: 1; color: #04070a; text-shadow: none }
+        .bat-cap { width: 3px; height: 8px; margin-left: 2px; border-radius: 0 2px 2px 0; background: var(--bat); }
+        .claude-chip {
+          display: inline-flex; align-items: center; gap: 5px; vertical-align: 2px;
+          padding: 2px 9px; border-radius: 999px; font-family: var(--ui-mono);
+          font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px; white-space: nowrap;
+          color: #ff9a3c; border: 1px solid rgba(255,154,60,0.5);
+          background: rgba(255,154,60,0.10); text-shadow: 0 0 8px rgba(255,154,60,0.45);
+        }
+        .dock-row {
+          position: fixed; left: 18px; bottom: 18px; z-index: 90;
+          display: flex; align-items: flex-end; gap: 12px; max-width: calc(100vw - 36px);
+        }
+        /* Капсула: внизу полоса вкладок, над ней — раздвигающаяся панель.
+           Раскрытие — пружина (кривая с перелётом), сама капсула при этом
+           ещё и «дышит» (dockBounce), а содержимое выезжает из размытия. */
+        .dock {
+          display: flex; flex-direction: column; align-items: stretch; width: fit-content; min-width: 0;
+          max-width: calc(100vw - 36px); border-radius: 30px; transform-origin: 0 100%;
+          border: 1px solid var(--pnl-line); background: var(--pnl-bg); box-shadow: var(--pnl-shadow);
+          -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5);
+          transition: min-width .89s cubic-bezier(.6,0,.22,1), box-shadow .81s ease;
+        }
+        .dock.dock-open { min-width: min(380px, calc(100vw - 36px)); animation: dockBounce 1.08s var(--ease-back);
+          transition: min-width 1.01s cubic-bezier(.2,1.15,.3,1), box-shadow .81s ease }
+        @keyframes dockBounce {
+          0% { transform: scale(1) } 28% { transform: scale(1.018, .985) }
+          58% { transform: scale(.996, 1.01) } 100% { transform: scale(1) }
+        }
+        /* Раскрытие — пружина с перелётом; закрытие — плавный разгон и мягкая
+           посадка (ease-in-out): обратное движение без отскока внутрь. */
+        .dock-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .89s cubic-bezier(.6,0,.22,1) }
+        .dock-open .dock-panel { grid-template-rows: 1fr; transition: grid-template-rows 1.08s cubic-bezier(.22,1.18,.3,1) }
+        .dock.dock-closing { animation: dockSettle .97s cubic-bezier(.3,.7,.35,1) }
+        @keyframes dockSettle {
+          0% { transform: scale(1) } 55% { transform: scale(.994, 1.006) }
+          82% { transform: scale(1.004, .997) } 100% { transform: scale(1) }
+        }
+        .mo-off .dock.dock-closing { animation: none }
+        .dock-clip { min-height: 0; overflow: hidden }
+        .dock-scroll {
+          max-height: calc(100vh - 150px); overflow-y: auto; padding: 18px 18px 6px; box-sizing: border-box;
+          opacity: 0; transform: translateY(26px) scale(.94); filter: blur(calc(var(--mb, 1) * 10px)); transform-origin: 50% 100%;
+          transition: opacity .57s ease .1s, transform .84s cubic-bezier(.55,0,.3,1), filter .68s ease .05s;
+        }
+        .dock-open .dock-scroll {
+          opacity: 1; transform: none; filter: none;
+          transition: opacity .68s ease .14s, transform 1.15s var(--ease-spring) .1s, filter .68s ease .12s;
+        }
+        .dock-content > * { animation: rowSlide .81s var(--ease-spring) backwards }
+        .dock-demo > div > * { animation: rowSlide .81s var(--ease-spring) backwards }
+        .dock-content > *:nth-child(2), .dock-demo > div > *:nth-child(2) { animation-delay: .1s }
+        .dock-content > *:nth-child(3), .dock-demo > div > *:nth-child(3) { animation-delay: .16s }
+        .dock-content > *:nth-child(4), .dock-demo > div > *:nth-child(4) { animation-delay: .22s }
+        .dock-content > *:nth-child(5), .dock-demo > div > *:nth-child(5) { animation-delay: .28s }
+        .dock-content > *:nth-child(6), .dock-demo > div > *:nth-child(6) { animation-delay: .34s }
+        .dock-content > *:nth-child(7), .dock-demo > div > *:nth-child(7) { animation-delay: .40s }
+        .dock-content > *:nth-child(n+8), .dock-demo > div > *:nth-child(n+8) { animation-delay: .46s }
+        .dock-bar { display: flex; align-items: center; gap: 2px; padding: 4px 6px 4px 8px;
+          border-top: 1px solid transparent; transition: border-color .68s ease }
+        .dock-open .dock-bar { border-top-color: transparent }
+        /* Тема Liquid Glass красит любой nav как отдельную капсулу в потоке
+           страницы (margin: auto, перенос строк, свой фон) — полосе внутри нашей
+           капсулы всё это лишнее. */
+        .th-liquid nav.dock-bar { margin: 0 !important; flex-wrap: nowrap; width: auto; max-width: 100%;
+          justify-content: flex-start; padding: 4px 6px 4px 8px; border-radius: 0;
+          background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+          border-top: 1px solid transparent !important }
+        .th-liquid .dock-open nav.dock-bar { border-top-color: transparent !important }
+        .dock-tabs { display: flex; align-items: center; gap: 2px; overflow-x: auto; scrollbar-width: none; min-width: 0 }
+        .dock-tabs::-webkit-scrollbar { display: none }
+        .dock-tabs > button { white-space: nowrap; flex: none }
+        .dock-gear, .demo-fab { position: relative !important; right: auto !important; bottom: auto !important; left: auto !important; flex: none }
+        .th-liquid nav .dock-gear { padding: 0 !important }
+        .dock-gear { width: 40px; height: 40px; border: none; background: transparent; box-shadow: none;
+          -webkit-backdrop-filter: none; backdrop-filter: none }
+        /* Шестерёнка — та же капля стекла, что выбранная вкладка: выпуклая,
+           с бликом сверху и отражением снизу. Пока настройки открыты, капля
+           загорается — видно, чья это панель. */
+        .th-liquid .dock-gear {
+          background: radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,0.28), rgba(255,255,255,0) 62%),
+                      linear-gradient(180deg, rgba(255,255,255,0.17), rgba(255,255,255,0.05)) !important;
+          box-shadow: inset 0 1px 0.5px rgba(255,255,255,0.6), inset 0 -1px 0.5px rgba(255,255,255,0.16),
+                      inset 0 0 12px rgba(255,255,255,0.07), 0 0 0 0.5px rgba(0,0,0,0.35),
+                      0 4px 14px -6px rgba(0,0,0,0.6) !important;
+          transition: transform .68s var(--ease-spring), box-shadow .61s ease, background .61s ease !important }
+        .th-liquid .dock-gear:hover { box-shadow: inset 0 1px 0.5px rgba(255,255,255,0.75), inset 0 -1px 0.5px rgba(255,255,255,0.2),
+                      inset 0 0 14px rgba(255,255,255,0.12), 0 0 0 0.5px rgba(0,0,0,0.35), 0 6px 18px -6px rgba(0,0,0,0.6) !important }
+        .th-liquid .dock-open .dock-gear {
+          background: radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,0.4), rgba(255,255,255,0) 62%),
+                      radial-gradient(90% 90% at 50% 100%, rgba(125,211,252,0.28), rgba(125,211,252,0) 70%),
+                      linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.08)) !important;
+          box-shadow: inset 0 1px 0.5px rgba(255,255,255,0.8), inset 0 -1px 0.5px rgba(160,220,255,0.4),
+                      inset 0 0 14px rgba(125,211,252,0.18), 0 0 0 0.5px rgba(0,0,0,0.35),
+                      0 0 18px -4px rgba(125,211,252,0.45) !important }
+        /* Ноутбук и компьютер: вкладки дока крупнее — на телефоне они и так
+           на всю ширину. Шрифт задан у кнопки инлайном, отсюда !important. */
+        @media (min-width: 561px) {
+          .app .dock-row { --bar-h: 66px }
+          .th-liquid nav .dock-tabs > button, .dock-tabs > button {
+            padding: 12px 20px !important; font-size: 11.5px !important; gap: 10px !important }
+          .dock-tabs > button .tab-ic { width: 22px; height: 22px }
+          .dock-gear { width: 46px; height: 46px }
+          .dock-gear svg { width: 22px; height: 22px }
+          /* Пульт снизу и сверху — по центру экрана, как и колонка панелей.
+             Круглые кнопки справа от него уравновешивает пустой распор слева
+             той же ширины (.dock-spacer), поэтому по центру стоит сам пульт,
+             а не пульт вместе с кнопками. Ряд на всю ширину клики не ловит —
+             только его дети. */
+          .dock-row:not(.dock-left):not(.dock-right) { left: 18px; right: 18px; max-width: none; justify-content: center; pointer-events: none }
+          .dock-row:not(.dock-left):not(.dock-right) > * { pointer-events: auto }
+          .dock-row:not(.dock-left):not(.dock-right) .dock { transform-origin: 50% 100% }
+          .dock-row.dock-top .dock { transform-origin: 50% 0 }
+        }
+        .dock-spacer { flex: none; pointer-events: none !important; visibility: hidden }
+        .dock-row:is(.dock-left, .dock-right) .dock-spacer { display: none }
+        /* Подвкладки и ряды фильтров: на узком экране не переносятся «лесенкой»,
+           а едут одной строкой; кнопки делят ширину поровну, пока помещаются. */
+        .sub-row > button, .chip-row > button { white-space: nowrap }
+        .stat > :first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+        /* Шапка панели — одной высоты, есть в ней чип или кнопка или нет: иначе
+           у соседних панелей в ряду заголовки и линии под ними стоят вразнобой. */
+        .pnl > header { min-height: 38px; box-sizing: border-box }
+        .gear-btn {
+          position: fixed; right: 18px; bottom: 18px; z-index: 90;
+          width: 48px; height: 48px; border-radius: 50%; cursor: pointer; padding: 0;
+          display: flex; align-items: center; justify-content: center;
+          color: rgba(240,246,252,0.92);
+          border: 1px solid var(--pnl-line); background: var(--pnl-bg); box-shadow: var(--pnl-shadow);
+          -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5);
+          transition: transform .47s cubic-bezier(.2,.9,.25,1.2), color .27s;
+        }
+        .gear-btn:active { transform: scale(.92) }
+        .gear-btn:hover { transform: rotate(60deg) scale(1.06); color: #fff; }
+        .set-scrim { position: fixed; inset: 0; z-index: 89; background: rgba(0,0,0,0.18); animation: setFade .41s ease both }
+        .set-scrim.set-scrim-out { animation: setFadeOut .81s ease forwards; pointer-events: none }
+        @keyframes setFadeOut { from { opacity: 1 } to { opacity: 0 } }
+        @keyframes setPop { from { opacity: 0; transform: translateY(18px) scale(.92); filter: blur(calc(var(--mb, 1) * 8px)) } to { opacity: 1; transform: none; filter: none } }
+        @keyframes setFade { from { opacity: 0 } to { opacity: 1 } }
+        .set-x { background: none; border: 0; color: rgba(var(--ink, 231,238,246),0.6); cursor: pointer; font-size: 13px; }
+        /* «More soon» рядом с единственной темой: пунктирная пилюля с бегущим
+           бликом — место под будущую тему, а не кнопка. */
+        @keyframes moreSoon { from { background-position: 180% 0 } to { background-position: -80% 0 } }
+        .more-soon {
+          font-family: var(--ui-mono); font-size: 9.5px; letter-spacing: 1.2px;
+          padding: 5px 11px; border-radius: 999px; border: 1px dashed rgba(var(--ink, 231,238,246),0.22);
+          color: transparent; -webkit-background-clip: text; background-clip: text;
+          background-image: linear-gradient(100deg, rgba(var(--ink, 231,238,246),0.38) 35%,
+                            rgba(var(--ink, 231,238,246),0.95) 50%, rgba(var(--ink, 231,238,246),0.38) 65%);
+          background-size: 250% 100%; animation: moreSoon 3.84s linear infinite;
+          user-select: none;
+        }
+        .mo-off .more-soon { animation: none; color: rgba(var(--ink, 231,238,246),0.45); background: none }
+
+        /* ---------- запуск ---------- */
+        @keyframes bootIn   { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes bootOut  { to { opacity: 0; transform: scale(1.06) } }
+        @keyframes bootArc  { to { stroke-dashoffset: 0 } }
+        @keyframes bootSpin { to { transform: rotate(360deg) } }
+        @keyframes bootBar  { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+        @keyframes bootName { from { opacity: 0; letter-spacing: 16px }
+                              to   { opacity: 1; letter-spacing: 5px } }
+        .boot {
+          position: fixed; inset: 0; z-index: 900;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 18px; background: var(--ui-bg, #04070a);
+          animation: bootIn .27s ease both, bootOut .68s ease-in 3.35s both;
+        }
+        .boot-mark { animation: bootSpin 2.4s linear infinite; transform-origin: 50% 50% }
+        .boot-arc  { animation: bootArc 4.05s cubic-bezier(.45,.05,.2,1) both }
+        .boot-dot  { animation: bootIn .81s ease .6s both }
+        .boot-name { font-family: var(--ui-mono); font-size: 13px; color: rgb(var(--ink, 231,238,246));
+                     animation: bootName 2.16s var(--ease-out) .35s both }
+        .boot-bar  { width: 190px; height: 2px; background: rgba(var(--rule, 160,180,200),0.18) }
+        .boot-bar i { display: block; height: 100%; background: rgb(var(--ink, 231,238,246));
+                      transform-origin: 0 50%;
+                      animation: bootBar 4.19s cubic-bezier(.45,.05,.2,1) both }
+        .boot-note { font-family: var(--ui-mono); font-size: 9.5px; letter-spacing: 2px;
+                     color: rgba(var(--ink, 231,238,246),0.46); text-transform: uppercase;
+                     animation: bootIn 1.62s ease 1.1s both }
+
+        /* ---------- ожидание ---------- */
+        /* Мерцание вместо крутящегося кружка: кружок одинаков и на полсекунды,
+           и на полминуты, а бегущий по блоку блик показывает, что чего-то ждут
+           именно здесь, на месте будущего содержимого. */
+        @keyframes shimmer { from { background-position: -160% 0 } to { background-position: 260% 0 } }
+        .shimmer {
+          background-image: linear-gradient(100deg,
+            rgba(var(--ink, 231,238,246),0.03) 30%, rgba(var(--ink, 231,238,246),0.11) 48%, rgba(var(--ink, 231,238,246),0.03) 66%);
+          background-size: 220% 100%;
+          animation: shimmer 2.88s linear infinite;
+        }
+        @keyframes waitBar { 0% { transform: translateX(-100%) } 100% { transform: translateX(320%) } }
+        .wait-bar { position: relative; height: 2px; overflow: hidden;
+                    background: rgba(var(--rule, 160,180,200),0.14) }
+        .wait-bar i { position: absolute; inset: 0 auto 0 0; width: 32%;
+                      background: currentColor; animation: waitBar 2.28s var(--ease-out) infinite }
+
+        /* Подложка задаётся переменной во всех трёх местах сразу: инлайновый
+           фон корневого div перекрыл бы выбор, а прозрачный body показал бы
+           фон хоста. */
+        body, html { background: var(--ui-bg, #04070a); margin: 0 }
+        /* Подложка кастомизации ложится слоями на body. Когда она есть,
+           корневые обёртки обязаны стать прозрачными — иначе своя заливка
+           перекрыла бы её целиком и выбор не дал бы никакого эффекта. */
+        body { ${backdrop} }
+        #root, .app { background: ${backdrop ? "transparent" : "var(--ui-bg, #04070a)"} }
+        button:focus-visible, input:focus-visible { outline: 1px solid rgba(var(--ink, 231,238,246),0.6); outline-offset: 1px; }
+
+        @keyframes pulse   { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
+        @keyframes ledBlink{ 0%, 49% { filter: none } 50%, 100% { filter: brightness(0.3) } }
+        /* Развёртка кругового обзора. transform-origin задан инлайном в SVG:
+           у вложенных <g> проценты считаются от bbox, а не от вьюбокса. */
+        @keyframes ppiSweep{ to { transform: rotate(360deg) } }
+        @keyframes echoPing{ 0% { r: 3; opacity: .75 } 100% { r: 15; opacity: 0 } }
+        @keyframes vortex  { to { transform: rotate(-360deg) } }
+        @keyframes rise {
+          0%   { opacity: 0; transform: translateY(30px) scale(.95) }
+          62%  { opacity: 1; transform: translateY(-5px) scale(1.008) }
+          100% { opacity: 1; transform: none }
+        }
+        /* Курсор подсказчика мигает как в восьмибитных играх — жёсткими шагами,
+           без плавного затухания: плавность выдаёт CSS и убивает весь эффект. */
+        @keyframes caretBlink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
+        .tutor-caret { animation: caretBlink 1s steps(1) infinite }
+
+        /* Перегрузка шкалы. Второй круг дышит, кольца частиц вокруг него
+           крутятся в разные стороны — так движение читается вихрем, а не
+           вращением одной шестерёнки. */
+        @keyframes overPulse { 0%, 100% { opacity: 1 } 50% { opacity: .55 } }
+        @keyframes orbitCW  { to { transform: rotate(360deg) } }
+        @keyframes orbitCCW { to { transform: rotate(-360deg) } }
+        .over-pulse { animation: overPulse 1.6s ease-in-out infinite }
+        .orbit-cw   { animation: orbitCW 2.88s linear infinite }
+        .orbit-ccw  { animation: orbitCCW 2.88s linear infinite }
+
+        /* Частицы по экрану летят справа налево со сносом по вертикали.
+           Только transform и opacity — свойства, которые браузер считает
+           на видеокарте, не трогая вёрстку. */
+        @keyframes stormFly {
+          from { transform: translate3d(102vw, 0, 0) scale(1); opacity: 0 }
+          8%   { opacity: .9 }
+          88%  { opacity: .9 }
+          to   { transform: translate3d(-6vw, var(--drift, 0), 0) scale(.6); opacity: 0 }
+        }
+        .storm-bit {
+          position: absolute; left: 0; border-radius: 50%;
+          will-change: transform, opacity;
+          animation: stormFly 2.4s linear infinite;
+        }
+
+        /* Тревога добралась до самой шкалы: пульсирует число и кольцо.
+           Не мигание в ноль, а именно пульс — резкое исчезновение цифры
+           мешало бы её прочитать, а прочитать её в этот момент важнее всего. */
+        @keyframes speedAlarm { 0%, 100% { opacity: 1 } 50% { opacity: .45 } }
+        .speed-alarm { animation: speedAlarm 1.9s ease-in-out infinite }
+
+        /* Винт Young 05103. Вращение задаётся длительностью из JS —
+           она обратно пропорциональна скорости ветра. */
+        @keyframes youngSpin { to { transform: rotate(360deg) } }
+        .young-spin { animation: youngSpin 1.8s linear infinite; transform-box: view-box }
+
+        /* Воронка качается целиком, обломки летают по орбите вокруг неё. */
+        @keyframes tornadoSway {
+          0%, 100% { transform: rotate(-2.2deg) }
+          50%      { transform: rotate(2.2deg) }
+        }
+        @keyframes debrisOrbit {
+          from { transform: rotate(0deg) translateX(var(--orbit, 20px)) scaleX(1) }
+          50%  { transform: rotate(180deg) translateX(var(--orbit, 20px)) scaleX(.35) }
+          to   { transform: rotate(360deg) translateX(var(--orbit, 20px)) scaleX(1) }
+        }
+        @keyframes recBlink { 0%, 55% { opacity: 1 } 56%, 100% { opacity: .15 } }
+        /* Полосы конденсации бегут по воронке — так глаз считывает вращение.
+           Бегущий штрих вместо пересчёта геометрии: ноль работы на кадр. */
+        @keyframes funnelBand { to { stroke-dashoffset: var(--fb, -40) } }
+        /* Молния редкая и короткая, как в жизни: две вспышки за двенадцать
+           секунд. Постоянно сверкающая гроза выглядит гирляндой. */
+        @keyframes lightning {
+          0%, 5.6%, 100% { opacity: 0 }
+          5.8% { opacity: 1 } 6.4% { opacity: .15 } 6.9% { opacity: .9 } 7.6% { opacity: 0 }
+        }
+        .funnel-band { animation: funnelBand 3.6s linear infinite }
+        .lightning { animation: lightning 12s linear infinite; opacity: 0 }
+        /* Ночью воронку выхватывает только вспышка. Кадры те же, что у молнии,
+           поэтому подсветка синхронна с ней сама собой — без единой строки JS. */
+        @keyframes flashLit {
+          0%, 5.6%, 100% { opacity: .06 }
+          5.8% { opacity: .95 } 6.4% { opacity: .3 } 6.9% { opacity: .85 } 7.6% { opacity: .06 }
+        }
+        .flash-lit { animation: flashLit 12s linear infinite }
+        .tornado-sway { animation: tornadoSway 8.4s ease-in-out infinite; transform-box: view-box }
+        .tornado-debris { animation: debrisOrbit 4.08s linear infinite; transform-box: view-box }
+        .rec-blink { animation: recBlink 1.6s steps(1) infinite }
+
+        /* Блок сетки и панель внутри него. Высота у блока задана человеком,
+           поэтому панель обязана занять её целиком, а её тело — стать
+           колонкой: только тогда прибор внутри может растянуться на остаток.
+           Правило нарочно привязано к .blk — вне сетки (радар, окна, другие
+           вкладки) высота по-прежнему от содержимого. */
+        .blk { min-width: 0; min-height: 0 }
+        .blk > *, .blk .pnl { height: 100% }
+        .pnl { display: flex; flex-direction: column }
+        .pnl > div:last-child { display: flex; flex-direction: column; min-height: 0 }
+        .blk .pnl > div:last-child { flex: 1 1 auto; overflow: auto }
+        /* Полоса прокрутки внутри панели — тонкая и без стрелок: панель это
+           прибор, а не документ. */
+        .blk .pnl > div:last-child::-webkit-scrollbar { width: 6px; height: 6px }
+        .blk .pnl > div:last-child::-webkit-scrollbar-thumb {
+          background: rgba(var(--rule, 160,180,200),0.25) }
+
+        /* Плотность, рамки и контраст — классами на корне, чтобы не тащить
+           их пропсами в каждый компонент. */
+        .dens-compact .pnl > div { padding: 8px 9px }
+        .dens-compact .pnl > header { padding: 6px 9px 5px }
+        /* Раньше это правило пыталось перебить инлайновый border панели и
+           проигрывало — настройка молча ничего не делала. Теперь и рамка, и
+           фон живут в переменных, и снять их достаточно один раз. */
+        .noborders { --pnl-line: transparent; --pnl-bg: none; --pnl-shadow: none;
+                     --pnl-head-line: rgba(var(--rule, 160,180,200),0.12) }
+
+        /* Тревога дышит рамкой, а не мигает целиком: мигающий блок в углу
+           экрана раздражает и его начинают игнорировать. */
+        @keyframes alarmPulse {
+          0%, 100% { box-shadow: 0 0 0 rgba(239,68,68,0) }
+          50%      { box-shadow: 0 0 16px rgba(239,68,68,0.35) }
+        }
+        .alarm-hot { animation: alarmPulse 3s ease-in-out infinite }
+
+        /* Переходы. Раньше двигались только панели при появлении, и от этого
+           смена вкладки выглядела как подмена картинки. Теперь у содержимого
+           есть вход, у подвкладок — своя, более короткая версия, а у строк
+           списка — собственная: список станций иначе прыгает при удалении. */
+/* Кривая с перелётом: значение переваливает за единицу и возвращается.
+           Именно она отличает «съехало» от «прилетело и встало» — без неё
+           движение читается как перерисовка, сколько его ни удлиняй. */
+        @keyframes tabfade {
+          from { opacity: 0; transform: translateY(26px) scale(.965) }
+          to   { opacity: 1; transform: none }
+        }
+        @keyframes rowin {
+          from { opacity: 0; transform: translateX(-22px); filter: blur(calc(var(--mb, 1) * 6px)) }
+          to   { opacity: 1; transform: none; filter: none }
+        }
+        .tabfade { animation: tabfade .84s var(--ease-out) both }
+        .rowin   { animation: rowin .59s var(--ease-out) both }
+
+        /* Полоса вкладок: под выбранной проезжает подчёркивание, а не просто
+           меняется цвет. Движение показывает, откуда и куда переключились. */
+        @keyframes tabmark { from { transform: scaleX(0); opacity: 0 } to { transform: scaleX(1); opacity: 1 } }
+        .tab-mark { animation: tabmark .68s var(--ease-out) both; transform-origin: 50% 50% }
+        /* Растр отражаемости проявляется, а не выскакивает: подмена готового
+           кадра иначе читается как мигание. */
+        @keyframes radarFade { from { opacity: 0 } to { opacity: .78 } }
+        .radar-fade { animation: radarFade 1.22s ease-out both }
+
+        /* Кнопки и тумблеры: нажатие должно чувствоваться, иначе на телефоне
+           непонятно, сработало ли касание. */
+        button { transition: background-color .43s ease, border-color .43s ease,
+                             color .32s ease, transform .22s var(--ease-spring),
+                             box-shadow .32s ease }
+        button:not(:disabled):active { transform: scale(.93) }
+        @media (hover: hover) {
+          button:not(:disabled):hover { border-color: rgba(var(--rule, 160,180,200),0.42) }
+          a:hover { border-color: rgba(var(--rule, 160,180,200),0.42) }
+        }
+        @keyframes grow { from { opacity: 0; transform: scale(.86); filter: blur(calc(var(--mb, 1) * 8px)) } to { opacity: 1; transform: none; filter: none } }
+
+        /* Карта: пинг вокруг активного предупреждения и вокруг EF5 в архиве.
+           Радиус анимируется через CSS-геометрию; там, где браузер её не умеет,
+           кольцо остаётся статичным — оно и в этом виде читается. */
+        @keyframes mapPing { 0% { r: 5; opacity: .7 } 100% { r: 22; opacity: 0 } }
+        /* Единственная анимация в дашборде, которая специально тревожит.
+           Полсекунды гашения из полутора — заметно, но не мельтешит. */
+        @keyframes warnBlink { 0%, 62% { opacity: 1 } 63%, 100% { opacity: .18 } }
+        @keyframes alarmEdge {
+          0%, 100% { box-shadow: 0 0 0 rgba(255,45,45,0) }
+          50%      { box-shadow: 0 0 22px rgba(255,45,45,0.30) }
+        }
+
+        .map-ping { animation: mapPing 4s ease-out infinite }
+        .map-ping.slow { animation-duration: 8.78s }
+        .warn-blink { animation: warnBlink 1.5s steps(1) infinite }
+        .detail-extreme { animation: alarmEdge 2.2s ease-in-out infinite }
+
+        .ppi-sweep { animation: ppiSweep 6.5s linear infinite }
+        .ppi-sweep.slow { animation-duration: 18.9s }
+        .ping { animation: echoPing 3.6s ease-out infinite }
+        .vortex { animation: vortex 6.6s linear infinite }
+        .grow { animation: grow 1.15s var(--ease-spring) both; transform-origin: 50% 50% }
+        /* Панели въезжают снизу при смене вкладки — движение подсказывает, что
+           содержимое сменилось целиком, а не обновилось одно число. */
+        /* Панели въезжают по очереди, а не разом: волна слева направо читается
+           как «прибор собирается», а одновременный въезд — как рывок экрана.
+           Порядковый номер приходит переменной --i прямо из раскладки. */
+        .pnl { animation: rise .94s var(--ease-out) both }
+        /* Внутри сетки едет сама ячейка, а не панель в ней. Иначе движение
+           идёт дважды: панель поднимается внутри ячейки, ячейка стоит, и вместо
+           одного въезда получается дёрганье содержимого в неподвижной рамке. */
+        .blk { animation: rise .94s var(--ease-out) both;
+               animation-delay: calc(var(--i, 0) * 65ms) }
+        .blk .pnl, .blk > * { animation: none }
+        .modal-card { animation: pop .68s var(--ease-spring) both }
+        /* Вкладка «Обновление»: точка дышит, пока есть что ставить. */
+        .upd-tab {
+          position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 95;
+          display: flex; align-items: center; padding: 13px 26px; border-radius: 999px; cursor: pointer;
+          font-weight: 700; font-size: 13.5px; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap;
+          border: 1px solid var(--pnl-line); background: var(--pnl-bg); box-shadow: var(--pnl-shadow);
+          -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5);
+          animation: updIn .81s var(--ease-spring) both;
+        }
+        .upd-tab:hover { transform: translateX(-50%) scale(1.05) }
+        .upd-tab:active { transform: translateX(-50%) scale(.95) }
+        .upd-tab .upd-dot { width: 9px; height: 9px; margin-right: 11px; vertical-align: 0 }
+        @keyframes updIn { from { opacity: 0; transform: translate(-50%, -30px) scale(.8); filter: blur(calc(var(--mb, 1) * 8px)) } to { opacity: 1; transform: translateX(-50%); filter: none } }
+        .mo-off .upd-tab { animation: none }
+        .upd-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+                   margin-right: 8px; vertical-align: 1px; animation: updpulse 1.9s ease-in-out infinite }
+        @keyframes updpulse { 0%,100% { opacity: .45; box-shadow: 0 0 0 0 currentColor }
+                              50% { opacity: 1; box-shadow: 0 0 9px 1px currentColor } }
+        .mo-off .upd-dot { animation: none }
+        /* Окно обновления. Стекло даёт .modal-card темы; здесь только содержимое. */
+        .upd-ring { width: 46px; height: 46px; border-radius: 15px; flex: none; display: grid; place-items: center;
+                    background: linear-gradient(160deg, rgba(255,255,255,0.22), rgba(255,255,255,0.05));
+                    box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.55), inset 0 -6px 12px rgba(255,255,255,0.04),
+                                0 6px 18px -6px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.14) }
+        .upd-ring svg.spin { animation: updspin 1.1s linear infinite }
+        @keyframes updspin { to { transform: rotate(360deg) } }
+        .mo-off .upd-ring svg.spin { animation: none }
+        .upd-track { height: 8px; border-radius: 99px; overflow: hidden; position: relative;
+                     background: rgba(255,255,255,0.07);
+                     box-shadow: inset 0 1px 2px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,255,255,0.10) }
+        .upd-fill { height: 100%; border-radius: 99px; transition: width .34s ease;
+                    background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.12)) , var(--upd-c, #67e8f9);
+                    background-blend-mode: overlay;
+                    box-shadow: 0 0 12px var(--upd-c, #67e8f9) }
+        @keyframes pop {
+          from { opacity: 0; transform: translateY(18px) scale(.94); filter: blur(calc(var(--mb, 1) * 8px)) }
+          to   { opacity: 1; transform: none; filter: none }
+        }
+
+        .mo-off .pnl, .mo-off .modal-card, .mo-off .grow { animation: none }
+        .mo-off .ppi-sweep, .mo-off .ping, .mo-off .vortex { animation: none }
+        .mo-off .map-ping, .mo-off .warn-blink, .mo-off .detail-extreme { animation: none }
+        .mo-off .tutor-caret { animation: none }
+        .mo-off .tabfade, .mo-off .rowin, .mo-off .radar-fade { animation: none }
+        .mo-off .blk, .mo-off .shimmer, .mo-off .wait-bar i { animation: none }
+        .mo-off .tab-mark { animation: none }
+        .mo-off .alarm-hot, .mo-off .speed-alarm { animation: none }
+        .mo-calm .pnl, .mo-calm .blk, .mo-calm .tabfade { animation-duration: .46s }
+        .mo-calm .blk { animation-delay: calc(var(--i, 0) * 28ms) }
+        .mo-off .over-pulse, .mo-off .orbit-cw, .mo-off .orbit-ccw,
+        .mo-off .storm-bit { animation: none }
+        .mo-off .young-spin, .mo-off .tornado-sway, .mo-off .tornado-debris,
+        .mo-off .rec-blink, .mo-off .funnel-band, .mo-off .lightning,
+        .mo-off .flash-lit { animation: none }
+        .mo-off button:not(:disabled):active { transform: none }
+        .mo-calm .tabfade { animation-duration: .27s }
+        .mo-calm .pnl { animation-duration: .34s }
+        .mo-calm .warn-blink { animation-duration: 3.24s }
+        /* ===== ДИНАМИКА 0.2.404 ===== */
+        /* Блоки въезжают пружиной с объёмом и расфокусом. fill-mode backwards,
+           а не both: иначе финальный transform: none держал бы блок и глушил
+           наведение. */
+        @keyframes rise {
+          0%   { opacity: 0; transform: perspective(900px) translateY(70px) rotateX(-14deg) scale(.82); filter: blur(calc(var(--mb, 1) * 10px)) }
+          55%  { opacity: 1; transform: perspective(900px) translateY(-9px) rotateX(2deg) scale(1.025); filter: none }
+          78%  { transform: perspective(900px) translateY(3px) scale(.994) }
+          100% { opacity: 1; transform: none }
+        }
+        .blk { animation: rise 1.15s var(--ease-back) backwards; animation-delay: calc(var(--i, 0) * 70ms);
+               transition: transform .51s var(--ease-spring) }
+        .blk:hover { transform: translateY(-5px) scale(1.012); z-index: 2 }
+        .blk:active { transform: translateY(-1px) scale(.992); transition-duration: .16s }
+
+        @keyframes tabfade {
+          0%   { opacity: 0; transform: translateX(46px) scale(.96); filter: blur(calc(var(--mb, 1) * 7px)) }
+          60%  { opacity: 1; transform: translateX(-6px) scale(1.006); filter: none }
+          100% { opacity: 1; transform: none }
+        }
+        .tabfade { animation: tabfade .81s var(--ease-back) backwards }
+
+        @keyframes rowSlide { from { opacity: 0; transform: translateX(-18px); filter: blur(calc(var(--mb, 1) * 6px)) } to { opacity: 1; transform: none; filter: none } }
+        .rowin { animation: rowSlide .68s var(--ease-spring) backwards }
+
+        /* Шапка */
+        @keyframes kiwiBob { 0%,100% { transform: translateY(0) rotate(-4deg) } 50% { transform: translateY(-4px) rotate(5deg) } }
+        header > div:first-child > div:first-child > :first-child { animation: kiwiBob 4.08s ease-in-out infinite; transform-origin: 50% 80% }
+        header h1 { animation: titleIn 1.22s var(--ease-spring) backwards }
+        @keyframes titleIn { from { opacity: 0; transform: translateX(-30px); letter-spacing: 10px; filter: blur(calc(var(--mb, 1) * 8px)) } to { opacity: 1; transform: none; filter: none } }
+        @keyframes chipPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,154,60,0.45) } 50% { box-shadow: 0 0 0 7px rgba(255,154,60,0) } }
+        .claude-chip { position: relative }
+        .claude-chip::after { content: ""; position: absolute; inset: -1px; border-radius: inherit;
+          border: 1px solid rgba(255,154,60,0.7); pointer-events: none; animation: chipRing 2.64s ease-out infinite }
+        @keyframes chipRing { from { transform: scale(1); opacity: .8 } to { transform: scale(1.35, 1.9); opacity: 0 } }
+        .claude-chip svg { animation: spinSlow 9s linear infinite }
+        @keyframes spinSlow { to { transform: rotate(360deg) } }
+        .ver-chip { transition: transform .41s var(--ease-spring) }
+        .ver-chip:hover { transform: scale(1.12) rotate(-3deg) }
+
+        /* Вкладки */
+        nav button { transition: transform .6s var(--ease-spring), color .6s ease, text-shadow .6s ease }
+        nav button:hover { transform: translateY(-3px) scale(1.06) }
+
+        /* Батарея */
+        .bat-glass { animation: batIn 1.08s var(--ease-spring) .2s backwards; transition: transform .41s var(--ease-spring) }
+        .bat-glass:hover { transform: scale(1.12) rotate(-2deg) }
+        @keyframes batIn { from { opacity: 0; transform: translateY(-24px) scale(.5); filter: blur(calc(var(--mb, 1) * 6px)) } to { opacity: 1; transform: none; filter: none } }
+        @keyframes batGlow { 0%,100% { filter: brightness(1) } 50% { filter: brightness(1.35) } }
+        .bat-low .bat-body { animation: batAlert .8s steps(2, jump-none) infinite }
+        @keyframes batAlert { 0% { opacity: 1 } 100% { opacity: .25 } }
+
+        /* Кнопки: отдача и всплеск */
+        button { transition: transform .3s var(--ease-spring), background .27s, border-color .27s, color .27s }
+        button:not(:disabled):hover { transform: translateY(-2px) scale(1.04) }
+        button:not(:disabled):active { transform: scale(.93) }
+        .gear-btn svg { animation: spinSlow 14s linear infinite }
+        .gear-btn:hover svg { animation-duration: 1.89s }
+        .gear-btn::before { content: ""; position: absolute; inset: -6px; border-radius: 50%;
+          border: 1px solid rgba(180,215,255,0.5); animation: gearRing 3.36s ease-out infinite; pointer-events: none }
+        @keyframes gearRing { from { transform: scale(.85); opacity: .8 } to { transform: scale(1.5); opacity: 0 } }
+        .gear-btn { animation: gearIn 1.08s var(--ease-back) .5s backwards }
+        /* Капсула из двух кнопок (демо-режим): ручное управление | во весь экран.
+           Сама капсула — .gear-btn (стекло, линза, подсветка касания), половинки
+           прозрачны; шов — тонкий светящийся штрих между ними. */
+        .gear-btn.fab-pill { width: auto; height: 48px; border-radius: 999px; padding: 0; gap: 0; overflow: visible; position: relative }
+        .gear-btn.fab-pill:hover { transform: scale(1.04) }
+        .gear-btn.fab-pill::before { border-radius: 999px }
+        .fab-pill svg, .fab-pill:hover svg { animation: none !important }
+        .fab-pill .fab-half, .th-liquid .fab-pill .fab-half { position: relative; width: 52px; height: 48px; padding: 0; border: none !important;
+          background: transparent !important; box-shadow: none !important; color: inherit; cursor: pointer;
+          display: flex; align-items: center; justify-content: center; border-radius: 999px !important;
+          -webkit-backdrop-filter: none !important; backdrop-filter: none !important }
+        .fab-pill .fab-half + .fab-half::before { content: ""; position: absolute; left: 0; top: 11px; bottom: 11px; width: 1px;
+          background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.45), rgba(255,255,255,0)) }
+        .fab-pill .fab-half:hover { transform: none; color: #fff }
+        .fab-pill .fab-half:active { transform: scale(.88) }
+        .fab-pill .fab-half svg { transition: transform .5s var(--ease-liq) }
+        .fab-pill .fab-half:hover svg { transform: scale(1.15) }
+        /* Включённое ручное управление — капля стекла, как шестерёнка при открытых настройках. */
+        .fab-pill .fab-half.is-on, .th-liquid .fab-pill .fab-half.is-on {
+          background: radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,0.4), rgba(255,255,255,0) 62%),
+                      radial-gradient(90% 90% at 50% 100%, rgba(125,211,252,0.28), rgba(125,211,252,0) 70%),
+                      linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.08)) !important;
+          box-shadow: inset 0 1px 0.5px rgba(255,255,255,0.8), inset 0 -1px 0.5px rgba(160,220,255,0.4),
+                      inset 0 0 14px rgba(125,211,252,0.18), 0 0 14px -4px rgba(125,211,252,0.5) !important;
+          color: #fff }
+        .dock-row:is(.dock-left, .dock-right) .gear-btn.fab-pill { flex-direction: column; width: 48px; height: auto }
+        .dock-row:is(.dock-left, .dock-right) .fab-pill .fab-half { width: 48px; height: 52px }
+        .dock-row:is(.dock-left, .dock-right) .fab-pill .fab-half + .fab-half::before { left: 11px; right: 11px; top: 0; bottom: auto; width: auto; height: 1px;
+          background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.45), rgba(255,255,255,0)) }
+        @keyframes gearIn { from { opacity: 0; transform: scale(0) rotate(-240deg); filter: blur(calc(var(--mb, 1) * 8px)) } to { opacity: 1; transform: none; filter: none } }
+        .gear-btn:hover { transform: scale(1.12) }
+
+        /* Окно настроек: пружина, дети по очереди */
+        @keyframes setPop {
+          0% { opacity: 0; transform: translateY(40px) scale(.7) rotate(3deg); filter: blur(8px) }
+          60% { opacity: 1; transform: translateY(-6px) scale(1.03) rotate(-.5deg); filter: blur(0) }
+          100% { opacity: 1; transform: none; filter: none }
+        }
+
+        /* Кнопка демо — по вертикали вровень с серединой полосы вкладок, а не с низом капсулы. */
+        .dock-row { --bar-h: 58px }
+        .demo-fab { animation: gearIn .81s var(--ease-back) both; margin-bottom: calc((var(--bar-h) - 48px) / 2) }
+        .demo-chip { background: rgba(255,255,255,0.06); border: 1px solid var(--chip, rgba(var(--ink, 231,238,246),0.2));
+          color: rgba(var(--ink, 231,238,246),0.85); font-family: var(--ui-mono); font-size: 10px; padding: 4px 10px;
+          border-radius: 999px; cursor: pointer }
+        .banner-out { animation: bannerOut .61s cubic-bezier(.5,0,.8,.4) forwards !important; pointer-events: none }
+        @keyframes bannerOut {
+          0% { opacity: 1; transform: none; filter: none }
+          30% { transform: scale(1.04) translateY(4px) }
+          100% { opacity: 0; transform: translateY(-40px) scale(.8) rotate(-2deg); filter: blur(10px) }
+        }
+        .mo-off .dock.dock-open, .mo-off .dock-content > *, .mo-off .dock-demo > div > * { animation: none }
+        .mo-off .dock-panel, .mo-off .dock-scroll, .mo-off .dock { transition: none }
+        .paused *, .paused *::before, .paused *::after { animation-play-state: paused !important }
+        /* Значок, на который никто не смотрит, не должен крутиться */
+        .gear-btn::before { will-change: transform, opacity }
+        .gear-btn svg, .claude-chip svg, .bat-fill .liq-in::before { will-change: transform }
+        /* Ползунки: круглая стеклянная ручка с пружиной, закруглённая дорожка
+           с живой заливкой. Перебивают прежний строгий вид выше. */
+        /* Заготовки демо — стеклянные капли: блик сверху, кромка, под пальцем
+           приседают и пружинят назад с расходящимся кольцом. */
+        .demo-chip { position: relative; isolation: isolate;
+          background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04)) !important;
+          border: 0.5px solid var(--chip, rgba(255,255,255,0.28)) !important; padding: 5px 12px !important;
+          box-shadow: inset 0 1px 0.5px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(255,255,255,0.12),
+                      0 3px 10px -4px rgba(0,0,0,0.55) !important;
+          transition: transform .7s var(--ease-spring), background .4s ease, box-shadow .4s ease, color .4s ease !important }
+        .demo-chip:hover { background: linear-gradient(180deg, rgba(255,255,255,0.26), rgba(255,255,255,0.08)) !important;
+          color: #fff; transform: translateY(-2px) scale(1.06) !important }
+        .demo-chip:active { transform: scale(.86, .8) !important; transition-duration: .14s !important }
+        .demo-chip::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+          border: 1px solid var(--chip, rgba(140,210,255,0.8)); opacity: 0 }
+        .demo-chip:active::after { animation: swRing .8s var(--ease-out) }
+        .mo-off .demo-chip:active::after { animation: none }
+
+        /* Пустышки, на которые можно нажать: отклик вместо тишины */
+        [data-poke] { cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent }
+        .spark { position: fixed; width: 6px; height: 6px; border-radius: 50%; pointer-events: none; z-index: 310 }
+        .ver-wrap { position: relative; display: inline-flex }
+        .ver-pop {
+          position: absolute; top: calc(100% + 12px); left: 0; z-index: 120; width: 236px; box-sizing: border-box;
+          display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 22px;
+          font-family: var(--ui-mono); letter-spacing: .4px; font-weight: 500; text-transform: none;
+          border: 1px solid var(--pnl-line); background: var(--pnl-bg); box-shadow: var(--pnl-shadow);
+          -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
+          transform-origin: 24px -6px; animation: claudePop .74s cubic-bezier(.34,1.56,.5,1) both;
+        }
+        .ver-pop.ver-out { animation: claudeOut .54s cubic-bezier(.5,0,.8,.4) forwards; pointer-events: none }
+        .ver-pop-t { font-size: 9.5px; letter-spacing: 2px; text-transform: uppercase; color: rgba(var(--ink, 231,238,246),0.5) }
+        .ver-pop-v { font-size: 15px; font-weight: 700; color: rgb(var(--ink, 231,238,246)); margin-top: -6px }
+        .ver-state { display: flex; align-items: center; gap: 9px; font-size: 11px; line-height: 1.45; color: rgba(var(--ink, 231,238,246),0.85) }
+        .ver-ok { color: #8be28b; text-shadow: 0 0 10px rgba(120,230,120,0.4) }
+        .ver-bad { color: #ffb36b }
+        .ver-facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 10.5px; color: rgba(var(--ink, 231,238,246),0.6) }
+        .ver-facts b { font-family: var(--ui-mono); font-weight: 600; color: rgba(var(--ink, 231,238,246),0.9) }
+        .ver-spin { width: 14px; height: 14px; border-radius: 50%; flex: none; border: 2px solid rgba(var(--ink, 231,238,246),0.25);
+                    border-top-color: rgb(var(--ink, 231,238,246)); animation: bootSpin .8s linear infinite }
+        .ver-again { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; font-size: 10px;
+                     color: rgba(var(--ink, 231,238,246),0.5); font-family: inherit; text-decoration: underline; text-underline-offset: 3px }
+        .mo-off .ver-pop { animation: none }
+        @media (max-width: 560px) {
+          .ver-wrap { position: static }
+          .ver-pop { position: fixed; left: 12px; right: 12px; top: 78px; width: auto; transform-origin: 30% -6px }
+        }
+        /* Запуск после обновления: полоса-ползунок вместо обычной заставки */
+        .boot-up .boot-mark { animation: none }
+        .boot-slide { position: relative; width: min(300px, 72vw); height: 6px; border-radius: 999px;
+                      background: rgba(var(--rule, 160,180,200),0.18); margin-top: 6px }
+        .boot-slide .boot-liq { position: absolute; inset: 0; border-radius: 999px; background: none; box-shadow: none }
+        .boot-slide .liq-f { box-shadow: 0 0 14px rgba(125,211,252,0.6) }
+        .boot-slide b { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%;
+                        background: #fff; box-shadow: 0 0 14px rgba(167,139,250,0.95), 0 0 0 4px rgba(167,139,250,0.22) }
+        .boot-pct { font-family: var(--ui-mono); font-size: 13px; font-weight: 700; color: rgb(var(--ink, 231,238,246)); letter-spacing: 2px }
+        .boot-stage { font-family: var(--ui-mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+                      color: rgba(var(--ink, 231,238,246),0.6); min-height: 14px }
+        .claude-wrap { position: relative; display: inline-flex }
+        .claude-pop {
+          position: absolute; top: calc(100% + 12px); left: 0; z-index: 120; white-space: nowrap;
+          padding: 9px 14px; border-radius: 14px; letter-spacing: .5px;
+          font-family: var(--ui-mono); font-size: 11px; font-weight: 600; color: #ff9a3c;
+          border: 1.5px solid #ff9a3c; background: rgba(40,22,8,0.55);
+          -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5);
+          box-shadow: 0 0 22px rgba(255,154,60,0.35), inset 0 1px 0 rgba(255,200,140,0.35);
+          text-shadow: 0 0 10px rgba(255,154,60,0.6); transform-origin: 20px -6px;
+          animation: claudePop .74s cubic-bezier(.34,1.56,.5,1) both;
+        }
+        .claude-pop::before { content: ""; position: absolute; top: -6px; left: 18px; width: 10px; height: 10px;
+          background: rgba(40,22,8,0.9); border-left: 1.5px solid #ff9a3c; border-top: 1.5px solid #ff9a3c;
+          transform: rotate(45deg) }
+        @keyframes claudePop { from { opacity: 0; transform: translateY(-14px) scale(.4) rotate(-6deg); filter: blur(calc(var(--mb, 1) * 8px)) } to { opacity: 1; transform: none; filter: none } }
+        .claude-pop.claude-out { animation: claudeOut .54s cubic-bezier(.5,0,.8,.4) forwards; pointer-events: none }
+        @keyframes claudeOut {
+          0% { opacity: 1; transform: none; filter: none }
+          30% { transform: translateY(3px) scale(1.06) }
+          100% { opacity: 0; transform: translateY(-16px) scale(.35) rotate(7deg); filter: blur(6px) }
+        }
+        .mo-off .claude-pop { animation: none }
+
+        /* Всплеск от нажатия */
+        .rip { position: fixed; width: 280px; height: 280px; margin: -140px 0 0 -140px; border-radius: 50%;
+          pointer-events: none; z-index: 300; transform: scale(.05); will-change: transform, opacity;
+          background: radial-gradient(circle, rgba(255,255,255,0.45), rgba(150,200,255,0.18) 50%, transparent 70%);
+          animation: ripple 1.01s cubic-bezier(.1,.7,.3,1) forwards }
+        @keyframes ripple { to { transform: scale(1); opacity: 0 } }
+
+        .mo-off .blk, .mo-off .tabfade, .mo-off .rowin, .mo-off header h1, .mo-off .dock-content, .mo-off .bat-glass, .mo-off .bat-fill, .mo-off .bat-fill::after,
+        .mo-off .gear-btn, .mo-off .gear-btn svg, .mo-off .gear-btn::before, .mo-off .claude-chip,
+        .mo-off .claude-chip svg, .mo-off .claude-chip::after, .mo-off header > div:first-child > div:first-child > :first-child { animation: none }
+        .mo-off .blk:hover, .mo-off button:not(:disabled):hover { transform: none }
+        @media (prefers-reduced-motion: reduce) { .rip { display: none } }
+
+
+        /* Системная просьба убрать движение сильнее любой настройки дашборда. */
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after { animation: none !important; transition-duration: 0ms !important }
+        }
+
+        /* Телефон портретом: обе колонки в столбик, нижние карточки 2x2.
+           Инлайн-стили перекрываются только с !important. */
+        .lb-short { display: none }
+        /* Значок рядом с подписью и на компьютере; на телефоне подпись уходит, значок крупнее. */
+        .tab-ic { display: block; width: 20px; height: 20px; flex: none }
+        .dock-tabs > button { display: inline-flex; align-items: center; gap: 9px }
+        /* ---------- телефон ----------
+           Нижняя панель на всю ширину: четыре крупных значка с короткой подписью
+           и шестерёнка — всё помещается в один ряд, и ничего не мельчает. */
+        @media (max-width: 560px) {
+          .dock-row { --bar-h: 70px; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); max-width: none; gap: 10px }
+          .dock { flex: 1; width: auto; max-width: none; min-width: 0 }
+          .dock.dock-open { min-width: 0 }
+          .dock-bar, .th-liquid nav.dock-bar { padding: 6px 6px 6px 8px !important; justify-content: space-between }
+          .dock-tabs { flex: 1; overflow: visible; justify-content: space-around; gap: 0 }
+          .th-liquid nav .dock-tabs > button, .dock-tabs > button {
+            flex: 1 1 0 !important; display: flex !important; flex-direction: column; align-items: center; gap: 3px;
+            padding: 12px 0 !important; min-width: 0; letter-spacing: 0 !important }
+          /* Только значки, без подписей: минимализм. Подпись остаётся в aria-label
+             и в подсказке, так что читалки экрана и долгое нажатие её видят. */
+          .tab-ic { display: block; width: 32px; height: 32px; flex: none }
+          .tab-lb { display: none }
+          .th-liquid nav .tab-mark { border-radius: 20px }
+          .dock-gear { width: 48px; height: 48px }
+          header h1 { font-size: 14px !important }
+          header { padding: 14px 12px 0 !important }
+          /* Шапка — одной строкой: слева знак и название (версия под ним),
+             справа батарея, обе половины по центру по вертикали. */
+          header > div { padding: 0 !important; flex-wrap: nowrap !important }
+          header > div > div:first-child { flex: 1 1 auto }
+          header > div > :last-child { flex: none }
+          .dock-spacer { display: none }
+          .sub-row, .chip-row { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none }
+          .sub-row::-webkit-scrollbar, .chip-row::-webkit-scrollbar { display: none }
+          .sub-row > button, .chip-row > button { flex: 1 0 auto }
+          .stat > :first-child { letter-spacing: 1px !important }
+          main { padding-left: 12px !important; padding-right: 12px !important; padding-bottom: 110px !important }
+          .upd-tab { top: calc(10px + env(safe-area-inset-top, 0px)); padding: 11px 20px; font-size: 12.5px }
+          .dock-scroll { max-height: calc(100vh - 170px) }
+        }
+        @media (max-width: 820px) {
+          /* .wind-grid здесь больше нет: число колонок считает columnsFor(),
+             и правило с !important спорило бы с ним за один и тот же стиль. */
+          .stat-row  { grid-template-columns: 1fr 1fr !important }
+          .live-grid { grid-template-columns: 1fr !important }
+          .demo-grid { grid-template-columns: 1fr !important }
+        }
+        ${SYSTEM_CSS}
+        ${AREA_CSS}
+        /* ---------- деловой вид приборов ---------- */
+        /* Метка у заголовка панели и линия-акцент у плитки: ровный ритм вместо россыпи. */
+        .pnl > header > :first-child::before { content: ""; display: inline-block; width: 3px; height: 11px; margin-right: 9px;
+          border-radius: 2px; vertical-align: -1px; background: linear-gradient(180deg, #7dd3fc, #a78bfa) }
+        .stat::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 0; height: 2px; border-radius: 2px;
+          background: linear-gradient(90deg, rgba(125,211,252,0.7), rgba(167,139,250,0.4), transparent); opacity: .7 }
+        .stat { min-height: 88px }
+        ${OFFSCREEN_CSS}
+        /* Сцена «По умолчанию» — чёрный фон без цветных пятен: переключатель «Станция / Район»
+           там белый. На Liquid Glass остаётся стеклянный голубо-фиолетовый. */
+        .app.sc-plain .seg-big .seg-drop i {
+          background: linear-gradient(180deg, rgba(255,255,255,0.32), rgba(255,255,255,0.14));
+          box-shadow: 0 0 0 0.5px rgba(255,255,255,0.4), inset 0 1px .5px rgba(255,255,255,0.7), 0 0 18px -4px rgba(255,255,255,0.55) }
+        /* ---------- переход между вкладками ---------- */
+        /* Горизонтальный вылет контента не должен расширять страницу: иначе на
+           телефоне окно на миг растягивается, и нижняя панель «уезжает» вниз. */
+        html, body { overflow-x: clip }
+        .app { overflow-x: clip }
+        @keyframes tabIn {
+          0%   { opacity: 0; transform: translateX(calc(var(--tdir, 1) * 80px)) scale(.94); filter: blur(calc(var(--mb, 1) * 9px)) }
+          55%  { opacity: 1; transform: translateX(calc(var(--tdir, 1) * -9px)) scale(1.01); filter: blur(0) }
+          100% { opacity: 1; transform: none; filter: none }
+        }
+        @keyframes tabOut {
+          0%   { opacity: 1; transform: none }
+          100% { opacity: 0; transform: translateX(calc(var(--tdir, 1) * -64px)) scale(.965); filter: blur(calc(var(--mb, 1) * 7px)) }
+        }
+        .app:not(.mo-off) .tabfade { animation: tabIn 1.08s cubic-bezier(.22,1.2,.3,1) both }
+        .app:not(.mo-off) main.tab-leaving .tabfade { animation: tabOut .38s cubic-bezier(.5,0,.8,.4) both }
+        .app.mo-calm .tabfade { animation-duration: .68s }
+        .eco-auto { background: none !important; border: none !important; box-shadow: none !important;
+          padding: 0 !important; margin: 0; font: inherit; color: #7dd3fc; cursor: pointer;
+          text-decoration: underline dotted; text-underline-offset: 3px; border-radius: 4px !important }
+        .eco-auto:hover { color: #bae6fd }
+        /* Свет от касания вкладывается в элемент — ему нужна точка отсчёта. */
+        .th-liquid .ar-btn { position: relative }
+        /* Док сворачивается, пока листают вниз, и разворачивается, стоит повести
+           вверх (класс ставит дашборд). Только на телефоне: там он занимает
+           всю ширину и закрывает цифры, на компьютере — угол. Раскрытый док
+           (настройки) не сворачивается никогда. */
+        @media (max-width: 560px) {
+          .th-liquid .dock-row { transform-origin: 50% 100%; transition: transform .81s var(--ease-spring) }
+          .th-liquid .dock-row.dock-min:not(:has(.dock-open)) { transform: translateY(10px) scale(.82) }
+          .mo-off .dock-row { transition: none }
+        }
+
+        /* ---------- пульт управления ----------
+           --mb — множитель размытия в анимациях: в эко-режиме ноль, движение
+           остаётся, а дорогой фильтр уходит. */
+        .app { --mb: 1 }
+        .app.eco { --mb: 0 }
+
+        /* Сверху: полоса вкладок над панелью, настройки раскрываются вниз. */
+        .dock-row.dock-top { top: calc(18px + env(safe-area-inset-top, 0px)); bottom: auto; align-items: flex-start }
+        .dock-top .dock { flex-direction: column-reverse; transform-origin: 0 0 }
+        .dock-top .dock-scroll { transform-origin: 50% 0; transform: translateY(-26px) scale(.94); padding: 6px 18px 18px }
+        .dock-top .dock.dock-open .dock-scroll { transform: none }
+        .dock-top .demo-fab { margin-bottom: 0; margin-top: calc((var(--bar-h) - 48px) / 2) }
+        .app.dockpos-top > header { margin-top: 84px }
+        .app.dockpos-top main { padding-bottom: 40px !important }
+
+        /* По бокам: пульт вертикальный, настройки выезжают вбок, к экрану. */
+        .dock-row:is(.dock-left, .dock-right) { top: 18px; bottom: 18px; max-width: none; flex-direction: column;
+          justify-content: center; gap: 10px }
+        .dock-row.dock-left { left: 18px; right: auto; align-items: flex-start }
+        .dock-row.dock-right { right: 18px; left: auto; align-items: flex-end }
+        .dock-left .dock { flex-direction: row-reverse; transform-origin: 0 50% }
+        .dock-right .dock { flex-direction: row; transform-origin: 100% 50% }
+        .dock-row:is(.dock-left, .dock-right) .dock { flex: none; width: auto; max-width: calc(100vw - 36px); max-height: calc(100% - 58px); min-width: 0 }
+        .dock-row:is(.dock-left, .dock-right) .dock.dock-open { min-width: 0 }
+        /* Сбоку панель раскрывается сразу в ширину и в высоту — от середины
+           полосы. Раньше росла только ширина, а высота пульта в конце закрытия
+           схлопывалась разом: рывок, и значки прыгали вслед за ней. Полоса
+           вкладок и панель стоят по центру пульта, а пульт — по центру края
+           экрана, поэтому значки не двигаются вовсе, что бы ни раскрывалось. */
+        .dock-row:is(.dock-left, .dock-right) .dock { align-items: center }
+        .dock-row:is(.dock-left, .dock-right) .dock-bar { align-self: center }
+        .dock-row:is(.dock-left, .dock-right) .dock-panel { align-self: center; grid-template-rows: 0fr; grid-template-columns: 0fr;
+          transition: grid-template-columns 1.05s cubic-bezier(.4,0,.2,1), grid-template-rows 1.16s cubic-bezier(.4,0,.2,1) }
+        .dock-row:is(.dock-left, .dock-right) .dock-open .dock-panel { grid-template-rows: 1fr; grid-template-columns: 1fr;
+          transition: grid-template-columns 1.08s cubic-bezier(.22,1.18,.3,1), grid-template-rows 1.08s cubic-bezier(.22,1.1,.3,1) }
+        .dock-row:is(.dock-left, .dock-right) .dock-clip { min-height: 0 }
+        .dock-row:is(.dock-left, .dock-right) .dock-clip { min-width: 0 }
+        .dock-row:is(.dock-left, .dock-right) .dock-scroll { width: min(380px, calc(100vw - 130px)); max-height: calc(100vh - 110px) }
+        .dock-left .dock-scroll { transform: translateX(-26px) scale(.94); transform-origin: 0 50% }
+        .dock-right .dock-scroll { transform: translateX(26px) scale(.94); transform-origin: 100% 50% }
+        .dock-row:is(.dock-left, .dock-right) .dock.dock-open .dock-scroll { transform: none }
+        .dock-row:is(.dock-left, .dock-right) .dock-bar,
+        .th-liquid .dock-row:is(.dock-left, .dock-right) nav.dock-bar {
+          flex-direction: column; justify-content: flex-start; gap: 6px; padding: 8px 5px !important; max-height: 100% }
+        .dock-row:is(.dock-left, .dock-right) .dock-tabs { flex: 0 1 auto; flex-direction: column; overflow-x: visible;
+          overflow-y: auto; gap: 3px; justify-content: flex-start }
+        .th-liquid .dock-row:is(.dock-left, .dock-right) nav .dock-tabs > button,
+        .dock-row:is(.dock-left, .dock-right) .dock-tabs > button {
+          flex: none !important; display: flex !important; flex-direction: column !important; align-items: center;
+          gap: 4px !important; width: 76px; padding: 11px 4px !important; white-space: normal;
+          font-size: 8.5px !important; letter-spacing: .6px !important; line-height: 1.15 }
+        .dock-row:is(.dock-left, .dock-right) .tab-lb { display: block; text-align: center }
+        .dock-row:is(.dock-left, .dock-right) .tab-ic { width: 24px; height: 24px }
+        .dock-row:is(.dock-left, .dock-right) .demo-fab { margin: 0 4px }
+        .app.dockpos-left, .app.dockpos-right { box-sizing: border-box }
+        .app.dockpos-left { padding-left: 104px } .app.dockpos-right { padding-right: 104px }
+
+        /* Только значки. */
+        .dock-ic-only .tab-lb { display: none !important }
+        /* Компьютер, только значки: капсула раньше была втрое уже обычной и
+           терялась внизу экрана. Значки крупнее, кнопки шире — пульт сопоставим
+           по весу с обычным. Ширину раскрытой панели настроек он и задаёт, так
+           что настройки теперь не уже и не шире самого пульта: при раскрытии
+           сверху и снизу min-width снят, ширина не меняется ни на миллиметр. */
+        @media (min-width: 561px) {
+          .app .dock-row.dock-ic-only { --bar-h: 72px }
+          .th-liquid .dock-ic-only:not(.dock-left):not(.dock-right) nav .dock-tabs > button,
+          .dock-ic-only:not(.dock-left):not(.dock-right) .dock-tabs > button { padding: 15px 28px !important }
+          .dock-ic-only:not(.dock-left):not(.dock-right) .dock-tabs > button .tab-ic { width: 28px; height: 28px }
+          .dock-ic-only:not(.dock-left):not(.dock-right) .dock-gear { width: 54px; height: 54px }
+          .dock-ic-only:not(.dock-left):not(.dock-right) .dock-gear svg { width: 26px; height: 26px }
+          .dock-row:not(.dock-left):not(.dock-right) .dock.dock-open { min-width: 0 }
+        }
+        .th-liquid .dock-ic-only nav .dock-tabs > button, .dock-ic-only .dock-tabs > button { padding: 12px 14px !important; gap: 0 !important }
+        .th-liquid .dock-row.dock-ic-only:is(.dock-left, .dock-right) nav .dock-tabs > button,
+        .dock-row.dock-ic-only:is(.dock-left, .dock-right) .dock-tabs > button { width: 54px; padding: 13px 0 !important }
+        .app.dockpos-left:has(.dock-ic-only) { padding-left: 82px } .app.dockpos-right:has(.dock-ic-only) { padding-right: 82px }
+
+        @media (max-width: 560px) {
+          .dock-row.dock-top { top: calc(10px + env(safe-area-inset-top, 0px)) }
+          .app.dockpos-top > header { margin-top: 92px }
+          .dock-row:is(.dock-left, .dock-right) { top: calc(10px + env(safe-area-inset-top, 0px)); bottom: calc(10px + env(safe-area-inset-bottom, 0px)) }
+          .dock-row.dock-left { left: 8px } .dock-row.dock-right { right: 8px }
+          .th-liquid .dock-row:is(.dock-left, .dock-right) nav .dock-tabs > button,
+          .dock-row:is(.dock-left, .dock-right) .dock-tabs > button { width: 62px; padding: 10px 2px !important }
+          .app.dockpos-left { padding-left: 76px } .app.dockpos-right { padding-right: 76px }
+          .app.dockpos-left:has(.dock-ic-only) { padding-left: 66px } .app.dockpos-right:has(.dock-ic-only) { padding-right: 66px }
+          .dock-row:is(.dock-left, .dock-right) .dock-scroll { width: calc(100vw - 96px) }
+        }
+
+        /* ---------- шов между вкладками и настройками ----------
+           Не линия, а свет: при раскрытии шов вырастает от шестерёнки с
+           пружиной, и по нему пробегает капля блика — панель «отливается»
+           из пульта. Закрывается — шов втягивается обратно в шестерёнку. */
+        .dock-bar { position: relative }
+        .dock-bar::before, .dock-bar::after { content: ""; position: absolute; pointer-events: none;
+          left: 16px; right: 16px; top: -1px; height: 2px; border-radius: 2px }
+        .dock-bar::before {
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45) 16%, rgba(190,230,255,0.95) 58%, rgba(167,139,250,0.75) 84%, transparent);
+          box-shadow: 0 0 calc(var(--mb, 1) * 12px) 1px rgba(125,211,252,0.45);
+          transform: scaleX(0); transform-origin: 100% 50%; opacity: 0;
+          transition: transform .61s cubic-bezier(.6,0,.3,1), opacity .47s ease .1s }
+        .dock-open .dock-bar::before { transform: scaleX(1); opacity: .9;
+          transition: transform 1.28s cubic-bezier(.2,1.25,.3,1) .08s, opacity .34s ease .05s }
+        .dock-bar::after { top: -7px; height: 14px; opacity: 0;
+          background: radial-gradient(closest-side, rgba(228,246,255,0.95), rgba(125,211,252,0.35) 55%, transparent) no-repeat;
+          background-size: 90px 14px; background-position: 100% 50% }
+        .dock-open .dock-bar::after { animation: seamBead 1.55s cubic-bezier(.45,0,.2,1) .12s both }
+        @keyframes seamBead { 0% { opacity: 0; background-position: 100% 50% } 18% { opacity: 1 } 80% { opacity: .9 }
+                              100% { opacity: 0; background-position: 0% 50% } }
+        .dock-top .dock-bar::before { top: auto; bottom: -1px } .dock-top .dock-bar::after { top: auto; bottom: -7px }
+        .dock-row:is(.dock-left, .dock-right) .dock-bar::before, .dock-row:is(.dock-left, .dock-right) .dock-bar::after {
+          left: auto; right: auto; top: 16px; bottom: 16px; width: 2px; height: auto }
+        .dock-row.dock-left .dock-bar::before { right: -1px } .dock-row.dock-right .dock-bar::before { left: -1px }
+        .dock-row:is(.dock-left, .dock-right) .dock-bar::before {
+          background: linear-gradient(0deg, transparent, rgba(255,255,255,0.45) 16%, rgba(190,230,255,0.95) 58%, rgba(167,139,250,0.75) 84%, transparent);
+          transform: scaleY(0); transform-origin: 50% 100% }
+        .dock-row:is(.dock-left, .dock-right) .dock-open .dock-bar::before { transform: scaleY(1) }
+        .dock-row.dock-left .dock-bar::after { right: -7px; width: 14px } .dock-row.dock-right .dock-bar::after { left: -7px; width: 14px }
+        .dock-row:is(.dock-left, .dock-right) .dock-bar::after { background-size: 14px 90px; background-position: 50% 100% }
+        .dock-row:is(.dock-left, .dock-right) .dock-open .dock-bar::after { animation-name: seamBeadV }
+        @keyframes seamBeadV { 0% { opacity: 0; background-position: 50% 100% } 18% { opacity: 1 } 80% { opacity: .9 }
+                               100% { opacity: 0; background-position: 50% 0% } }
+        .mo-off .dock-bar::before { transition: none } .mo-off .dock-open .dock-bar::after { animation: none }
+        .mo-off .dock-row .dock-panel { transition: none !important }
+        /* «Дыхание» пульта при раскрытии и закрытии — только поперёк полосы
+           значков. Общая анимация растягивала капсулу и вдоль, и значки с
+           шестерёнкой гуляли на 20 с лишним пикселей. Снизу и сверху высота
+           меняется на ~660 px против ~250 у бокового — поэтому и сворачивание
+           здесь мягче и дольше: прежняя кривая с разгоном к концу давала
+           90 px за кадр в последний миг. */
+        @keyframes dockBounceH { 0% { transform: none } 28% { transform: scale(1, .985) } 58% { transform: scale(1, 1.01) } 100% { transform: none } }
+        @keyframes dockSettleH { 0% { transform: none } 55% { transform: scale(1, 1.006) } 82% { transform: scale(1, .997) } 100% { transform: none } }
+        @keyframes dockBounceV { 0% { transform: none } 28% { transform: scale(.985, 1) } 58% { transform: scale(1.01, 1) } 100% { transform: none } }
+        @keyframes dockSettleV { 0% { transform: none } 55% { transform: scale(1.006, 1) } 82% { transform: scale(.997, 1) } 100% { transform: none } }
+        .dock-row:is(.dock-bottom, .dock-top) .dock.dock-open { animation-name: dockBounceH }
+        .dock-row:is(.dock-bottom, .dock-top) .dock.dock-closing { animation-name: dockSettleH }
+        .dock-row:is(.dock-left, .dock-right) .dock.dock-open { animation-name: dockBounceV }
+        .dock-row:is(.dock-left, .dock-right) .dock.dock-closing { animation-name: dockSettleV }
+        .dock-row:is(.dock-bottom, .dock-top) .dock-panel { transition: grid-template-rows 1.22s cubic-bezier(.4,0,.2,1) }
+        .dock-row:is(.dock-bottom, .dock-top) .dock-open .dock-panel { transition: grid-template-rows 1.22s cubic-bezier(.25,1.1,.3,1) }
+        .mo-off .dock-row .dock.dock-open, .mo-off .dock-row .dock.dock-closing { animation: none !important }
+
+        /* ---------- обводка значков пульта ----------
+           Стеклянное кольцо с градиентом по кромке: блик сверху-слева,
+           голубой отсвет снизу-справа. У невыбранных оно едва видно,
+           от наведения проявляется, у выбранной горит. Значок при наведении
+           приподнимается на пружине, у выбранной — светится. */
+        .dock-tabs > button::before { content: ""; position: absolute; inset: 1px; z-index: 1; pointer-events: none;
+          border-radius: inherit; padding: 1px;
+          background: linear-gradient(145deg, rgba(255,255,255,0.75), rgba(255,255,255,0.10) 36%, rgba(255,255,255,0) 56%, rgba(125,211,252,0.55));
+          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          -webkit-mask-composite: xor; mask-composite: exclude;
+          opacity: .2; transform: scale(.94); transition: opacity .8s ease, transform 1.05s var(--ease-spring) }
+        .dock-tabs > button:hover::before { opacity: .6; transform: none }
+        .dock-tabs > button.tab-on::before { opacity: 1; transform: none;
+          background: linear-gradient(145deg, rgba(255,255,255,0.95), rgba(190,230,255,0.30) 34%, rgba(255,255,255,0) 56%, rgba(167,139,250,0.85)) }
+        .dock-tabs > button .tab-ic { stroke-width: 1.85; transition: transform 1.05s var(--ease-spring), filter .8s ease, color .8s ease }
+        .dock-tabs > button:hover .tab-ic { transform: translateY(-1.5px) scale(1.1) }
+        .dock-tabs > button.tab-on .tab-ic { transform: scale(1.06);
+          filter: drop-shadow(0 0 calc(var(--mb, 1) * 5px) rgba(160,220,255,0.7)) }
+        .noborders .dock-tabs > button::before { opacity: 0 }
+        .noborders .dock-tabs > button.tab-on::before { opacity: .8 }
+        ${LIQUID_CSS}
+        .upd-fill { position: absolute; inset: 0; border-radius: inherit; background: none; box-shadow: none }
+        ${MOTION_CSS}
+        ${ECO_CSS}
+        ${MORPH_CSS}
+        ${settings.skin === "material" ? materialCss(settings.scene === "light", settings.mdIcons) : settings.scene === "light" ? LIGHT_CSS : ""}
+      `,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [settings.theme, settings.font, settings.ground, settings.corners, settings.panelFill, backdrop, settings.scene, settings.skin, settings.mdIcons]);
   return (
     <div
-      className={`app mo-${motion} dens-${settings.density} th-${settings.theme}`
-        + `${settings.borders ? "" : " noborders"}`
-        // Размытие под стеклом стоит кадров, а видно его далеко не
-        // всегда — класс появляется, только когда под панелью есть что
-        // размывать. Решение целиком в glassRich().
-        + `${glassRich(settings, !!bgImage) ? " gl-deep" : ""}`}
+      className={`app mo-${motion} dens-${settings.density} th-${settings.theme} sc-${settings.scene || "none"}${material ? " sk-material" : ""}`
+        + `${settings.borders ? "" : " noborders"}` + ` dockpos-${dockPos}`
+        // Что из стекла реально действует: эко, тонировка, линза (только
+        // в Chromium) — решение целиком в glassClasses().
+        + glassClasses(settings, { eco })}
       style={{
+        // Сила стекла (ползунок): из неё тема выводит прозрачность, иней и фаску.
+        "--lg-k": glassLevel(settings) / 100,
         // Прозрачно, когда фон рисуется слоями на body: инлайновая заливка
         // сильнее любого правила и перекрыла бы их целиком.
         minHeight: "100vh", background: backdrop ? "transparent" : BG,
@@ -2926,151 +4516,127 @@ export default function WindDashboard() {
         padding: "0 0 40px", boxSizing: "border-box",
       }}
     >
-      {/* ============ ШАПКА-БЛАНК ============ */}
-      <header style={{
-        borderBottom: `1px solid ${LINE}`, borderImage: FADE_LINE,
-        padding: "16px 22px 0",
-      }}>
+      {/* ============ ШАПКА ============ */}
+      <header style={{ padding: "18px 22px 0" }}>
         <div style={{
-          ...pageWide, margin: "0 auto",
-          display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap",
+          ...pageWide, margin: "0 auto", padding: "0 22px", boxSizing: "border-box",
+          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap",
         }}>
-          {/* Левый угол — знак, под ним подсказчик. Он именно отдельный блок,
-              а не реплика киви: логотип ничего не говорит, он логотип. */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0, flex: "1 1 320px" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-              {/* Знак станции — киви вполоборота, как на эмодзи: половинка,
-                  срезанная под углом. Единственное цветное пятно в интерфейсе,
-                  и это осознанно — одноцветный силуэт киви от любого другого
-                  фрукта в разрезе не отличить. */}
-              <KiwiMark size={40} g={g} />
-              <div>
-                <h1 style={{
-                  // Разрядка меньше прежней: она ставилась под сплошные
-                  // прописные, а в смешанном начертании растаскивает слово.
-                  margin: 0, fontSize: 16, fontWeight: 700, letterSpacing: 1.6,
-                  fontFamily: SANS, color: TEXT, textShadow: glow(g, 1),
-                }}>
-                  Weathered_Kiwi
-                </h1>
-                <div style={{ color: DIM, fontSize: 9, letterSpacing: 1.8, marginTop: 4, textTransform: "uppercase" }}>
-                  Автоматическая ветроизмерительная станция · {STATION_ID} · {APP_VERSION}
-                </div>
-              </div>
-            </div>
-
-            <Tutor g={g} motion={motion} accent={accent} />
-          </div>
-
-          <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <div style={{ ...NUM, fontSize: 20, fontWeight: 600, letterSpacing: 1, textShadow: glow(g, 0.8) }}>
-              {time.toLocaleTimeString("uk-UA")}
-            </div>
-            {/* Дата и UTC — чтобы засечённый порыв можно было к чему-то привязать:
-                одно «14:28:51» через сутки уже ничего не значит. */}
-            <div style={{ ...NUM, fontSize: 9.5, color: DIM, letterSpacing: 1, marginTop: 3 }}>
-              {time.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" })}
-              {" · "}
-              {time.toLocaleDateString("ru-RU", { weekday: "short" })}
-            </div>
-            <div style={{ ...NUM, fontSize: 9, color: FAINT, letterSpacing: 1.5, marginTop: 2 }}>
-              {utc} UTC
-            </div>
-
-            {/* Тревога — прямо под часами, как просили. Появляется только когда
-                есть о чём тревожить: постоянно висящая плашка перестаёт
-                читаться на второй день. */}
-            {alarm && (
-              <div className={`alarm ${alarmLevel > 1 && motion !== "off" ? "alarm-hot" : ""}`}
-                   style={{
-                     marginTop: 8, display: "inline-flex", alignItems: "center", gap: 7,
-                     border: `1px solid ${alarm.color}`, borderLeft: `3px solid ${alarm.color}`,
-                     padding: "5px 9px", textAlign: "left",
-                   }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" style={{ display: "block", flexShrink: 0 }}
-                     className={alarmLevel > 1 && motion !== "off" ? "warn-blink" : undefined}>
-                  <path d="M12 2 L23 21 H1 Z" fill="none" stroke={alarm.color} strokeWidth="2.4" strokeLinejoin="round" />
-                  <path d="M12 9 V15" stroke={alarm.color} strokeWidth="2.6" strokeLinecap="round" />
-                  <circle cx="12" cy="18.4" r="1.4" fill={alarm.color} />
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            <span data-poke="kiwi" style={{ display: "inline-flex", cursor: "pointer" }}><KiwiMark size={36} g={g} /></span>
+            <h1 style={{
+              margin: 0, fontSize: 16, fontWeight: 700, letterSpacing: 1.2,
+              fontFamily: SANS, color: TEXT, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 9,
+            }}>
+              <span data-poke="chip" style={{ display: "inline-block" }}>Weathered_Kiwi</span>
+              <span className="ver-wrap">
+                <span ref={verRef} className="ver-chip" data-poke="chip" role="button" tabIndex={0} onClick={toggleVer}
+                      style={{ margin: 0, cursor: "pointer" }}>{APP_VERSION}</span>
+                {verOpen && (
+                  <MorphPop className="ver-pop" anchor={verRef} owner=".ver-chip">
+                    <span className="ver-pop-t">Версия</span>
+                    <span className="ver-pop-v">{APP_VERSION}</span>
+                    {verPhase === "idle" && (
+                      <Btn primary g={g} onClick={runVerCheck} style={{ width: "100%", borderRadius: 999 }}>Найти обновление</Btn>
+                    )}
+                    {verPhase === "busy" && (
+                      <span className="ver-state"><i className="ver-spin" />Сверяю версию с сервером обновлений…</span>
+                    )}
+                    {verPhase === "latest" && (
+                      <>
+                        <span className="ver-state ver-ok">✓ Установлена последняя версия</span>
+                        <VerFacts r={verResult} />
+                        <button className="ver-again" onClick={runVerCheck}>проверить ещё раз</button>
+                      </>
+                    )}
+                    {verPhase === "unreached" && (
+                      <>
+                        <span className="ver-state ver-bad">Сервер обновлений не ответил — есть ли версия новее, неизвестно. Проверьте интернет.</span>
+                        <VerFacts r={verResult} />
+                        <button className="ver-again" onClick={runVerCheck}>проверить ещё раз</button>
+                      </>
+                    )}
+                    {verPhase === "available" && update && (
+                      <Btn primary g={g} onClick={() => { closeVer(); setShowUpdate(true); }}
+                           style={{ width: "100%", borderRadius: 999, color: accent }}>
+                        Обновление · {update.info.version}
+                      </Btn>
+                    )}
+                    {verPhase === "nosupport" && (
+                      <span className="ver-state">Проверка обновлений есть в программе для Windows и в приложении для Android.</span>
+                    )}
+                  </MorphPop>
+                )}
+              </span>
+              <span className="claude-wrap">
+              <span ref={claudeRef} className="claude-chip" data-poke="chip" role="button" tabIndex={0}
+                    onClick={toggleClaude} style={{ cursor: "pointer" }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                  {[0, 30, 60, 90, 120, 150].map((a) => (
+                    <line key={a} x1="12" y1="2.5" x2="12" y2="21.5" transform={`rotate(${a} 12 12)`} />
+                  ))}
                 </svg>
-                <span style={{
-                  fontFamily: SANS, fontSize: 10, fontWeight: 700, letterSpacing: 2,
-                  color: alarm.color, textShadow: glowColor(alarm.color, g, 0.7),
-                }}>
-                  {alarm.name}
-                </span>
-                <span style={{ ...NUM, fontSize: 10, color: TEXT }}>
-                  {convertSpeed(Math.max(data.speed, data.gust), settings.unit, settings.digits)} {unit.short}
-                </span>
-              </div>
-            )}
+                Claude
+              </span>
+              {showClaude && <MorphPop className="claude-pop" anchor={claudeRef}>Сделано с помощью Claude</MorphPop>}
+            </span>
+            </h1>
           </div>
+
+          {/* Справа — только значок батареи, без подписей. Станция на связи и у неё есть
+              батарея — заряд станции; иначе — заряд самого устройства, чтобы значок не горел пустым. */}
+          {(() => {
+            const stationBat = connected && hasBattery;
+            const dev = !stationBat && deviceBat ? deviceBat : null;
+            const pct = stationBat ? Math.max(0, Math.min(100, data.batteryPercent))
+              : dev ? dev.pct : null;
+            const charging = stationBat ? data.chargeState === "charging" : !!(dev && dev.charging);
+            const col = pct == null ? "rgba(var(--ink, 231,238,246),0.55)"
+              : pct >= 80 ? "#34d399" : pct >= 60 ? "#facc15" : pct >= 20 ? "#fb923c" : "#ef4444";
+            const title = pct == null ? "Питание"
+              : `${stationBat ? "Батарея станции" : `Батарея ${DEVICE_NAME[devKind]}`}: ${pct}%${charging ? ", заряжается" : ""}`;
+            return (
+              <div data-poke="chip" className={`bat-glass${pct != null && pct < 20 ? " bat-low" : ""}${dev ? " bat-dev" : ""}`}
+                   title={title} style={{ "--bat": col }}>
+                {dev && (
+                  <svg className="bat-ico" width="16" height="14" viewBox="0 0 24 20" fill="none" stroke="currentColor"
+                       strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    {devKind === "phone" && <><rect x="8" y="1" width="8" height="18" rx="2" /><line x1="11" y1="16.2" x2="13" y2="16.2" /></>}
+                    {devKind === "tablet" && <><rect x="3.5" y="2" width="17" height="16" rx="2" /><circle cx="18.2" cy="10" r="0.7" fill="currentColor" /></>}
+                    {devKind === "laptop" && <><rect x="4" y="3" width="16" height="10.5" rx="1.5" /><path d="M1.5 16.5h21l-1.6 1.8H3.1z" /></>}
+                  </svg>
+                )}
+                <div className="bat-body">
+                  <Liquid className="bat-fill" busy={charging} color="var(--bat)"
+                          v={(pct == null ? (data.powerSource === "external" ? 100 : 0) : pct) / 100} />
+                  {charging && <span className="bat-bolt" aria-hidden="true">⚡</span>}
+                </div>
+                <b className="bat-cap" />
+              </div>
+            );
+          })()}
         </div>
 
-        {/* Строка состояния: канал, свежесть кадра, питание, сигнал */}
-        <div style={{
-          ...pageWide, margin: "12px auto 0",
-          display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0,
-          borderTop: `1px solid ${LINE}`, borderImage: FADE_LINE,
-          fontSize: 9.5, letterSpacing: 1.4,
-        }}>
-          <StatusCell g={g} first>
-            <span style={{
-              width: 6, height: 6, borderRadius: "50%", display: "inline-block", marginRight: 7,
-              background: linkView.live ? (isStation ? accent : DIM) : "rgba(231,238,246,0.3)",
-              boxShadow: linkView.live && g !== "off" ? `0 0 8px ${isStation ? accent : DIM}` : "none",
-              // Пульсация — это «идёт процесс», а не «сломалось»: под ней
-              // теперь и подключение к облаку, а не только обрыв.
-              animation: linkView.live ? undefined : "pulse 1.4s infinite",
-              verticalAlign: "middle",
-            }} />
-            {linkView.text}
-          </StatusCell>
-          <StatusCell g={g}>
-            {/* Адрес брокера здесь не нужен: человек выбирал станцию, а не транспорт. */}
-            ИСТОЧНИК · {demoMode ? "МОДЕЛЬ"
-              : source === "district" ? "OPEN-METEO"
-              : viaCloud ? `ОБЛАКО · ${(cloudId || "—").toUpperCase()}`
-              : esp32Host}
-          </StatusCell>
-          <StatusCell g={g}>КАДР · {lastUpdateStr}</StatusCell>
-          <StatusCell g={g}>
-            ПИТАНИЕ · {hasBattery ? `${data.batteryPercent}%` : data.powerSource === "external" ? "СЕТЬ" : "—"}
-          </StatusCell>
-          <StatusCell g={g}>СИГНАЛ · {data.wifiRssi ? `${data.wifiRssi} dBm` : "—"}</StatusCell>
-          {analysis && (
-            <StatusCell g={g} color={analysis.level > 1 ? lvl.color : undefined}>
-              РЕЖИМ · {lvl.name}
-            </StatusCell>
-          )}
-        </div>
-
-        {/* Вкладки */}
-        <nav style={{
-          ...pageWide, margin: "0 auto",
-          borderTop: `1px solid ${LINE}`, borderImage: FADE_LINE,
-        }}>
-          {TABS.map((t) => (
-            <Tab key={t.id} id={t.id} active={tab} onClick={setTab} g={g}>{t.label}</Tab>
-          ))}
-        </nav>
       </header>
 
-      <main style={{ ...pageWide, margin: "0 auto", padding: "22px 22px 0" }}>
+      <main className={leaving ? "tab-leaving" : undefined} style={{ ...pageWide, margin: "0 auto", padding: "22px 22px 90px", "--tdir": tabDir }}>
         {/* Плашка наверху публичной копии. Состояний теперь четыре, и это не
             украшение: раньше здесь стоял один текст «живого ветра здесь нет»,
             и он стал бы неправдой ровно в тот момент, когда ветер пошёл.
             Порядок веток — от частного к общему. */}
-        {(PUBLIC_COPY || viaCloud) && (
-          <div className="pnl" style={{
+        {(PUBLIC_COPY || viaCloud) && showBanner && (
+          <div className={`pnl${bannerOut ? " banner-out" : ""}`} data-poke="banner" style={{
             // Через те же переменные, что и настоящие панели: класс .pnl на
             // этой плашке был, а вид был прошит инлайном — и в стеклянной теме
             // она одна оставалась картонной.
             border: "1px solid var(--pnl-line)", borderLeft: `2px solid ${accent}`,
             borderRadius: "var(--pnl-corner)", background: "var(--pnl-bg)",
             boxShadow: "var(--pnl-shadow)", padding: "11px 14px",
-            marginBottom: 20, fontSize: 11, lineHeight: 1.7, color: "rgba(231,238,246,0.78)",
+            marginBottom: 20, fontSize: 11, lineHeight: 1.7, color: "rgba(var(--ink, 231,238,246),0.78)",
           }}>
+            <button className="set-x" aria-label="Убрать" title="Убрать до перезапуска"
+                    style={{ float: "right", marginLeft: 12 }}
+                    onClick={() => { setBannerOut(true); setTimeout(() => setShowBanner(false), 680); /* bannerOut — .61 с; прежние 450 мс убирали плашку, пока она ещё была видна */ }}>✕</button>
             {demoMode && fellBack ? (
               /* (г) упали в демо: сказать почему и дать вернуться. */
               <>
@@ -3100,8 +4666,8 @@ export default function WindDashboard() {
                 <span style={{ color: TEXT, letterSpacing: 2, fontWeight: 600, textShadow: glow(g, 0.6) }}>ЧЕРЕЗ ОБЛАКО</span>
                 {" — показания настоящие: станция сама выходит наружу и публикует их на брокер. "}
                 Запаздывание около секунды — это очередь на плате, а не сеть.
-                Управление (светодиоды, сброс порыва, калибровка нуля) отсюда недоступно:
-                команды идут только по прямому каналу из сети станции.
+                Управление — во вкладке «Станция»: подписанные команды с ключом оператора
+                (сброс порыва, перезагрузка, светодиоды в авто).
               </>
             ) : (
               /* (а) облака нет — прежний текст, слово в слово. */
@@ -3119,13 +4685,23 @@ export default function WindDashboard() {
         )}
 
         {/* ---------------- ВЕТЕР ---------------- */}
-        {tab === "wind" && (
+        {shownTab === "wind" && (
           <div key="wind" className="tabfade">
+            {/* Источник вкладки: приборы станции или данные района */}
+            {!layoutMode && (
+              <SourceSwitch on={areaOn} setOn={setAreaOn} coords={district.coords} place={district.place} g={g}
+                            status={isStation ? (connected ? "Показаны приборы станции"
+                              : lastSeen ? `Станция не отвечает · последнее ${Number(lastSeen.f.speed).toFixed(1)} м/с в ${new Date(lastSeen.at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`
+                              : "Станция не отвечает") : "Показаны приборы"} />
+            )}
             {layoutMode && (
               <LayoutBar g={g} accent={accent}
                          onDone={() => setLayoutMode(false)}
                          onReset={() => setS({ layout: [] })} />
             )}
+            {areaOn && !layoutMode ? (
+              <AreaMode g={g} accent={accent} district={district} onGoArea={goArea} />
+            ) : (
             <div ref={gridRef} className="wind-grid" style={{
               display: "grid",
               gridTemplateColumns: `repeat(${tracks}, minmax(0, 1fr))`,
@@ -3134,6 +4710,10 @@ export default function WindDashboard() {
               // уходит на новую строку. Без неё свободный размер оставлял бы
               // пустоты везде, где соседи разной ширины.
               gridAutoFlow: "row dense",
+              // Зазор между блоками — поля по GAP/2 у каждого блока, значит и у
+              // крайних тоже. Отрицательное поле сетки их снимает: внешние края
+              // панелей встают вровень с шапкой и переключателем над ними.
+              margin: -GAP / 2,
             }}
               onPointerMove={(e) => { drag.move(e); resize.move(e); }}
               onPointerUp={() => { drag.end(); resize.end(); }}
@@ -3156,27 +4736,25 @@ export default function WindDashboard() {
                 );
               })}
             </div>
+            )}
           </div>
         )}
 
         {/* ---------------- МЕТЕОРОЛОГИЯ ---------------- */}
-        {tab === "meteo" && (
+        {shownTab === "meteo" && (
           <div key="meteo" className="tabfade">
             <Meteorology g={g} accent={accent} motion={motion} />
           </div>
         )}
 
         {/* ---------------- РАДАР ---------------- */}
-        {tab === "radar" && (
+        {shownTab === "radar" && (
           <div key="radar" className="tabfade" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Приборов стало шесть, и показывать их одной простынёй нельзя:
                 приборная панель превращается в свалку. Каждый прибор — свой экран. */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 3, borderBottom: `1px solid ${LINE}` }}>
-              {RADAR_VIEWS.map((v) => (
-                <SubTab key={v.id} id={v.id} active={radarView} onClick={setRadarView} g={g}>
-                  {v.label}
-                </SubTab>
-              ))}
+            <div className="sub-row" style={{ display: "flex" }}>
+              <Segments variant="tabs" ariaLabel="Прибор" value={radarView} onChange={setRadarView}
+                        options={RADAR_OPTS} />
             </div>
 
             {radarView === "conv" && (
@@ -3221,12 +4799,6 @@ export default function WindDashboard() {
                   <Row k="Критерий шквала ВМО" v={analysis && analysis.squall ? "ВЫПОЛНЕН" : "не выполнен"} g={g} mono={false} />
                   <Row k="Признаки вращения" v={analysis && analysis.rotation ? "ЕСТЬ" : "нет"} g={g} mono={false} />
                 </div>
-                <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 10 }}>
-                  Всё считается по показаниям анемометра. Шквал определяется по критерию ВМО
-                  (рост ≥ 8 м/с, пик ≥ 11 м/с). Вращение — это признак завихрения в точке
-                  измерения, а не обнаружение смерча: смерч видит доплеровский локатор, одна
-                  мачта на такое неспособна. Гроза, град и осадки станции недоступны — датчиков нет.
-                </div>
               </Panel>
             )}
 
@@ -3265,10 +4837,6 @@ export default function WindDashboard() {
             {radarView === "conv" && (
               <Panel title="Состояние по шкале Бофорта" g={g} delay={210} meta="ПРИЗНАКИ ВМО">
                 <BeaufortStrip speed={data.speed} g={g} accent={accent} motion={motion} />
-                <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 12 }}>
-                  Единственный прибор здесь, который проверяется глазами: если вокруг ломает ветки,
-                  а шкала показывает «лёгкий», врёт анемометр, а не погода.
-                </div>
               </Panel>
             )}
 
@@ -3291,33 +4859,43 @@ export default function WindDashboard() {
           </div>
         )}
         {/* ---------------- СИСТЕМА ---------------- */}
-        {tab === "system" && (
-          <div key="system" className="tabfade" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div className="stat-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
-              <Stat
-                label={hasBattery ? `Батарея${data.powerSource ? " · " + POWER_VIEW[data.powerSource] : ""}` : "Батарея · нет"}
-                value={hasBattery ? data.battery.toFixed(2) : "—"} unit={hasBattery ? "V" : ""} g={g}
-              />
-              <Stat
-                label={hasBattery && CHARGE_VIEW[data.chargeState] ? `Заряд · ${CHARGE_VIEW[data.chargeState]}` : "Заряд"}
-                value={hasBattery ? data.batteryPercent : "—"} unit={hasBattery ? "%" : ""} g={g}
-              />
-              <Stat label={`Сигнал · ${rssi.label}`} value={data.wifiRssi || "—"} unit={data.wifiRssi ? "dBm" : ""} g={g} />
-              <Stat
-                label={data.adcError ? "ADC · ОШИБКА" : "Обновлено"}
-                value={data.adcError ? "ERR" : lastUpdateStr} g={g}
-              />
-            </div>
+        {/* ---------------- РАЙОН ---------------- */}
+        {shownTab === "area" && (
+          <div key="area" className="tabfade">
+            <AreaTab g={g} district={district} onGoWeather={goWind} />
+          </div>
+        )}
 
-            <LEDPanel
+        {/* ---------------- АНАЛИЗ ---------------- */}
+        {shownTab === "analysis" && (
+          <div key="analysis" className="tabfade">
+            <AnalysisTab ui={UI} g={g} accent={accent} logKey={logKey} history={history} data={data}
+                         coords={coords} settings={settings} setS={setS} isStation={isStation} connected={connected} />
+          </div>
+        )}
+
+        {/* ---------------- СТАНЦИЯ ---------------- */}
+        {shownTab === "system" && (
+          <div key="system" className="tabfade" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <ConnectPanel ui={UI} g={g} accent={accent} stations={stations}
+                          activeId={activeStation ? activeStation.id : null}
+                          connected={isStation && connected} publicCopy={PUBLIC_COPY} cloudAvail={cloudAvail}
+                          servedFromStation={SERVED_FROM_STATION}
+                          onSelect={selectStation} onRemove={removeStation} onSave={saveStation}
+                          onTestCloud={cloudProbeText} />
+
+            <SystemHero data={data} hasBattery={hasBattery} rssi={rssi} ageSec={ageSec}
+                        chargeView={CHARGE_VIEW} powerView={POWER_VIEW} g={g} />
+
+            <LedDeck
               leds={{ green: data.ledGreen, yellow: data.ledYellow, red: data.ledRed, wifi: data.ledWifi }}
-              autoMode={data.ledAuto} onToggle={toggleLed} onAutoToggle={toggleAuto} g={g} delay={60}
+              autoMode={data.ledAuto} onSet={setLed} onAutoToggle={toggleAuto} g={g} delay={60}
               readOnly={viaCloud}
               readOnlyNote="Через облако светодиодами не управлять: команда обязана быть подписанной и уходит только по прямому каналу из сети станции. Показанное состояние настоящее — оно приходит в кадре с платы."
             />
 
             {/* ---- Место станции ---- */}
-            {/* Место — вкладка «Система», а не блок главной страницы. Блоки
+            {/* Место — вкладка «Станция», а не блок главной страницы. Блоки
                 главной адресуются по id, а id блока это ключ СОХРАНЁННОЙ
                 раскладки: новый блок появился бы видимым у всех и сдвинул
                 чужую сетку. Плюс соседство по смыслу: точка доступа,
@@ -3327,9 +4905,7 @@ export default function WindDashboard() {
                      meta={siteInfo ? SITE_FROM[siteInfo.from] : "НЕ НАСТРОЕНО"}>
                 {!siteInfo ? (
                   <div style={{ color: DIM, fontSize: 11, lineHeight: 1.6 }}>
-                    Станция своих координат не сообщила. Прямой канал спрашивает их
-                    у <span style={{ ...NUM, fontSize: 10.5 }}>/api/site</span>, облачный берёт из кадра;
-                    если нет ни того ни другого — их можно вписать вручную у станции в каталоге.
+                    Координаты не заданы — их можно вписать у станции в каталоге.
                   </div>
                 ) : siteUnset ? (
                   <div style={{ color: DIM, fontSize: 11, lineHeight: 1.6 }}>
@@ -3350,11 +4926,6 @@ export default function WindDashboard() {
                          style={{ color: DIM, fontSize: 10.5, fontFamily: SANS }}>
                         открыть в картах ↗
                       </a>
-                    </div>
-                    <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 11 }}>
-                      {siteInfo.from === "catalog"
-                        ? "Эти координаты введены вручную при добавлении станции — это не телеметрия, и ошибиться в них можно как в любом рукописном поле. На карте они подписаны так же."
-                        : "Координаты приходят с самой станции: это константы из secrets.h, и геолокация браузера для метки на карте не нужна вовсе. На экране они округлены до трёх знаков — около ста метров; полная точность здесь и есть домашний адрес."}
                     </div>
                   </>
                 )}
@@ -3391,21 +4962,8 @@ export default function WindDashboard() {
                 {viaCloud && cloudSession && (
                   <div style={{ marginTop: 11, paddingTop: 10, borderTop: `1px solid ${LINE}` }}>
                     <Row k="Нонс загрузки" v={String(cloudSession)} g={g} />
-                    <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 7 }}>
-                      Через облако это единственный способ заметить, что плата перезагрузилась:
-                      нонс перевыпускается на каждую загрузку. Аптайм на такой вопрос не отвечает —
-                      кадр может быть и часовой давности.
-                    </div>
                   </div>
                 )}
-                <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 11 }}>
-                  loopMax — самый долгий проход основного цикла с прошлой строки телеметрии;
-                  больше нескольких миллисекунд означает, что что-то голодает опрос датчика.
-                  Стоимость самой строки телеметрии (12–13 мс на 115200) из него вычтена и
-                  показана отдельно: пока их не разделили, loopMax показывал длину собственной
-                  диагностики. Строки нет вовсе, если поля нет в кадре — старая прошивка их
-                  не отдаёт.
-                </div>
               </Panel>
             )}
 
@@ -3432,15 +4990,6 @@ export default function WindDashboard() {
                 <RowMaybe k="В буфере сейчас" f="buffered" src={cloudStats} g={g} />
                 <RowMaybe k="Запас буфера" f="budgetMs" src={cloudStats} g={g}
                           fmt={(v) => `${Math.round(v)} мс`} />
-                <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 11 }}>
-                  Это счётчики ЭТОЙ страницы, а не прошивки. Свои у станции тоже есть
-                  (<span style={{ ...NUM, fontSize: 10 }}>pubDrop</span>,{" "}
-                  <span style={{ ...NUM, fontSize: 10 }}>errors</span> в{" "}
-                  <span style={{ ...NUM, fontSize: 10 }}>/api/cloud</span>), но складывать их с
-                  этими нельзя: измеряются разные концы одного канала. Потери считаются по
-                  разрывам в счётчике пакетов — живые кадры идут без ретрансмиссий намеренно,
-                  опоздавший отсчёт хуже непришедшего.
-                </div>
               </Panel>
             ) : direct && (modem || cloudApi) ? (
               <Panel title="Модем и облако" g={g} delay={210}
@@ -3497,17 +5046,17 @@ export default function WindDashboard() {
                   <Btn g={g} disabled={!!sysBusy || !modem} onClick={() => askModem("probe")}>ПРОБА TCP</Btn>
                   <Btn g={g} disabled={!!sysBusy || !modem} onClick={() => askModem("ntp")}>ВРЕМЯ NTP</Btn>
                 </div>
-                <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 10 }}>
-                  «Обновить» — дёшево: только факты уровня сетевого интерфейса, модему при этом
-                  не говорят ни слова. «Радио» — четыре запроса к модему по AT; плата на это
-                  время притормозит опрос датчика, и цифра loopMax выше как раз это и покажет.
-                  «Проба TCP» и «время NTP» открывают соединение с сокета, привязанного к
-                  модему: без привязки дома всё ушло бы через WiFi и отрапортовало успех за
-                  чужой интерфейс. Именно поэтому эти запросы тут кнопками, а не таймером —
-                  регулярный опрос испортил бы ту самую метрику, ради которой сюда смотрят.
-                </div>
               </Panel>
             ) : null}
+
+            {isStation && <HealthPanel ui={UI} g={g} accent={accent} logKey={logKey} data={data} fcNow={fcNow} events={events} />}
+            {isStation && <EventsPanel ui={UI} g={g} events={events} />}
+            {direct && <ZeroWizard ui={UI} g={g} host={esp32Host} logKey={logKey} />}
+            {viaCloud && cloudAvail && (
+              <RemotePanel ui={UI} g={g} sessionId={cloudSession} loadCloud={loadCloud}
+                           stationId={activeStation && activeStation.cloudId} logKey={logKey} />
+            )}
+            <DesktopWidgets ui={UI} g={g} />
 
             {/* Условие тут про ДОСТУП, а не про источник: /api/wifi живёт на
                 плате и не отдаёт даже CORS, поэтому через облако он недостижим
@@ -3554,318 +5103,338 @@ export default function WindDashboard() {
               ) : (
                 <div style={{ color: DIM, fontSize: 11 }}>Станция не ответила на /api/wifi.</div>
               )}
-              <div style={{ color: FAINT, fontSize: 10, marginTop: 12, lineHeight: 1.6 }}>
-                Своя точка поднята всегда — по ней плату видно, даже когда домашней сети нет
-                и заливать больше некуда. Подключение к домашней сети идёт фоном и на раздачу
-                своей не влияет: обе работают одновременно.
-              </div>
             </Panel>
           </div>
         )}
 
-        {/* ---------------- НАСТРОЙКИ ---------------- */}
-        {tab === "settings" && (
-          <div key="settings" className="tabfade" style={{ maxWidth: 620 }}>
-            {/* Настроек стало столько, что одной простынёй они не читаются.
-                Деление не по алфавиту, а по вопросу «это про то, как выглядит,
-                или про то, как работает». */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 3, borderBottom: `1px solid ${LINE}`, marginBottom: 20 }}>
-              {SETTINGS_VIEWS.map((v) => (
-                <SubTab key={v.id} id={v.id} active={setView} onClick={setSetView} g={g}>
-                  {v.label}
-                </SubTab>
-              ))}
+      </main>
+
+      {/* Нижняя панель слева: вкладки и настройки в одной стеклянной капсуле,
+          кнопка ручного управления демо — отдельно, правее неё. */}
+      {/* Появляется, только когда есть что ставить, — как значок обновления
+          на телефоне. Сверху по центру, чтобы его нельзя было не заметить. */}
+      {update && (
+        <button className="upd-tab" onClick={() => setShowUpdate(true)}
+                title={`Доступна версия ${update.info.version}`}
+                style={{ color: accent, textShadow: glow(g, 0.8), fontFamily: SANS }}>
+          <i className="upd-dot" style={{ background: accent }} />
+          Обновление
+        </button>
+      )}
+
+      {/* Затемнение под настройками уходит вместе с панелью, а не исчезает разом. */}
+      {(showSettings || (dockClosing && dockView === "settings")) && (
+        <div className={showSettings ? "set-scrim" : "set-scrim set-scrim-out"} onClick={() => setShowSettings(false)} />
+      )}
+
+      {/* Нижняя панель слева. Настройки и ручное управление демо не открываются
+          отдельным окном: сама капсула с вкладками раздвигается вверх, и они
+          появляются внутри неё. Кнопка демо — отдельно, правее капсулы. */}
+      <div className={`dock-row dock-${dockPos}${settings.dockIcons === "icons" ? " dock-ic-only" : ""}`}>
+        {/* Распор под круглые кнопки справа: 48 px кнопка + 12 px зазор на каждую. */}
+        {(() => { const fabs = (demoMode ? 1 : 0) + (ON_ANDROID ? 0 : 1);
+          return fabs > 0 && <span className="dock-spacer" aria-hidden="true" style={{ width: fabs === 2 ? 104 : 48 }} />; })()}
+        <div className={dockOpen ? "dock dock-open" : dockClosing ? "dock dock-closing" : "dock"}>
+          <div className="dock-panel" aria-hidden={!dockOpen}>
+            <div className="dock-clip">
+              <div className="dock-scroll">
+                {dockView === "settings" && (
+                  <div className="dock-content" key="settings">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <Label g={g}>Настройки</Label>
+            <button className="set-x" onClick={() => setShowSettings(false)} aria-label="Закрыть">✕</button>
+          </div>
+
+          {/* Станции переехали во вкладку «Станция» — там подключение целиком.
+              Здесь осталась только строка: какая выбрана и куда идти. */}
+          <div style={{ marginBottom: 18 }}>
+            <Label g={g}>Станция</Label>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 9 }}>
+              <span style={{ fontSize: 12, color: activeStation ? TEXT : DIM }}>{activeStation ? activeStation.name : "не подключена"}</span>
+              <Btn g={g} onClick={() => { setShowSettings(false); setTab("system"); }} style={{ padding: "3px 10px" }}>
+                {stations.length ? "УПРАВЛЯТЬ" : "ПОДКЛЮЧИТЬ"}
+              </Btn>
             </div>
+          </div>
 
-            {setView === "main" && (
-              <div key="s-main" className="tabfade">
-                <div style={{ marginBottom: 22 }}>
-                  <Label g={g}>Станции</Label>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 9 }}>
-                    {stations.length === 0 && (
-                      <div style={{ color: DIM, fontSize: 10.5, lineHeight: 1.6 }}>
-                        Пока ни одной. Список хранится только в этом браузере и никуда не отправляется —
-                        общего каталога станций не существует.
-                      </div>
-                    )}
-                    {stations.map((st) => {
-                      // По id, а не по адресу: DEFAULT_HOST одинаков у любой
-                      // станции в режиме точки доступа, и две разные мачты
-                      // подсвечивались бы обе.
-                      const active = activeStation ? st.id === activeStation.id : st.host === esp32Host;
-                      return (
-                        <div key={st.id} className="rowin" style={{
-                          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
-                          border: `1px solid ${active ? LINE_HI : LINE}`,
-                          borderLeft: active ? `2px solid ${accent}` : `1px solid ${LINE}`,
-                          padding: "8px 10px",
-                        }}>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 12, textShadow: active ? glow(g, 0.6) : "none" }}>{st.name}</div>
-                            <div style={{ ...NUM, color: DIM, fontSize: 10, wordBreak: "break-all" }}>
-                              {st.host} · {st.cloudId ? `облако: ${st.cloudId}` : "только своя сеть"}
-                              {" · "}{st.lat != null ? "с координатами" : "без координат"}
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                            {!active && <Btn g={g} onClick={() => selectStation(st)} style={{ padding: "4px 9px" }}>выбрать</Btn>}
-                            <Btn g={g} onClick={() => removeStation(st.id)} style={{ padding: "4px 9px" }}>✕</Btn>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-                    <Btn g={g} onClick={() => { setTestResult(""); setNewCoords(null); setShowAdd(true); }}>
-                      + ПОДКЛЮЧИТЬ СТАНЦИЮ
-                    </Btn>
-                    <Btn g={g} disabled={!GEO_AVAILABLE} onClick={() => { setWelcomeMsg(null); setShowWelcome(true); }}>
-                      НАЙТИ БЛИЖАЙШУЮ
-                    </Btn>
-                  </div>
-                  {!GEO_AVAILABLE && (
-                    <div style={{ color: DIM, fontSize: 10.5, marginTop: 8, lineHeight: 1.6 }}>
-                      Поиск ближайшей недоступен: координаты браузер отдаёт только защищённым страницам,
-                      а эта копия открыта по HTTP. Своё место при этом можно поставить вручную —
-                      на карте мира есть кнопка. А где стоит сама станция, дашборд знает и так:
-                      это её собственные координаты, а не геолокация браузера.
-                    </div>
-                  )}
+          <div style={{ marginBottom: 18 }}>
+            <Btn g={g} onClick={() => { setShowSettings(false); setLayoutMode(true); setTab("wind"); }}>
+              КАСТОМИЗИРОВАТЬ РАСКЛАДКУ
+            </Btn>
+          </div>
+          <Choice
+            label="Единицы скорости" g={g} value={settings.unit}
+            options={UNIT_KEYS.map((k) => ({ value: k, label: UNITS[k].label }))}
+            onChange={(v) => setS({ unit: v, digits: null })}
+          />
+          {/* Источник — станция или демо. Района здесь нет: данные района
+              включаются над приборами («Станция / Район») и во вкладке «Район»
+              и работают при любом положении этого тумблера. */}
+          <Switch
+            label="Демо-режим" g={g} accent={accent}
+            value={demoMode ? "on" : "off"}
+            off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+            onChange={(v) => setSource(v === "on" ? "demo" : "station")}
+            hint="Выключен — показаны приборы станции. Включён — выдуманный ветер для знакомства с дашбордом; ручки — кнопкой рядом с доком."
+          />
+          {isStation && cloudAvail && (
+            <Choice
+              label="Канал" g={g} value={link}
+              options={[{ value: "direct", label: "напрямую" }, { value: "cloud", label: "облако" }]}
+              onChange={(v) => setLink(v)}
+            />
+          )}
+          <Choice
+            label="Тема" g={g} value={settings.skin === "material" ? "material" : "glass"}
+            options={Object.entries(MATERIAL_THEMES).map(([value, t]) => ({ value, label: t.label }))}
+            onChange={(v) => setS({ skin: v })}
+            hint="Liquid Glass — стекло, блики и линзы, как в iOS 26. «Тональная» — плоские цветные поверхности, крупные скругления и пилюли, как в приложениях на Android. Анимации у обеих одни и те же. Светлая или тёмная — по «Фону»."
+          />
+          {settings.skin === "material" && (
+            <Choice
+              label="Цвет значков" g={g} value={settings.mdIcons === "bg" ? "bg" : "blue"}
+              options={Object.entries(MATERIAL_ICONS).map(([value, t]) => ({ value, label: t.label }))}
+              onChange={(v) => setS({ mdIcons: v })}
+              hint="Шестерёнка, кнопки справа от пульта и выбранная вкладка. «Синие» — тон primary; «в цвет фона» — нейтральные, тем же тоном, что поверхности вокруг."
+            />
+          )}
+          <Choice
+            label="Фон" g={g}
+            value={["liquidDark", "plain", "light"].includes(settings.scene) ? settings.scene : "liquid"}
+            options={[
+              { value: "light", label: "По умолчанию" },
+              { value: "plain", label: "Тёмная по умолчанию" },
+              { value: "liquid", label: "Liquid Glass" },
+              { value: "liquidDark", label: "Тёмный Liquid Glass" },
+            ]}
+            onChange={(v) => setS({ scene: v })}
+          />
+          <Switch
+            label="Эко-режим" g={g} accent={accent}
+            value={eco ? "on" : "off"}
+            off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+            onChange={(v) => setS({ eco: v === "on" })}
+            hint="Для телефонов. Стекло остаётся стеклом — тонировка, фаска, блик, подсветка от касания, — но без инея под панелями, без линзы, без бегущего блика и света от курсора; фон стоит, сцена камеры замирает, поток рисуется 5 раз в секунду вместо 20. Показания от этого не меняются."
+          />
+          <div style={{ margin: "-12px 0 18px", fontFamily: SANS, fontSize: 10.5, color: DIM, lineHeight: 1.5 }}>
+            {settings.eco == null
+              ? <>Сейчас решает устройство: {ECO_AUTO ? "похоже на телефон — включён" : "компьютер — выключен"}.</>
+              : <button type="button" className="eco-auto" onClick={() => setS({ eco: null })}>
+                  вернуть автовыбор ({ECO_AUTO ? "здесь — вкл" : "здесь — выкл"})
+                </button>}
+          </div>
+          {!material && <><Choice
+            label="Стекло" g={g} value={settings.glassTint === "tinted" ? "tinted" : "clear"}
+            options={Object.entries(GLASS_TINTS).map(([value, t]) => ({ value, label: t.label }))}
+            onChange={(v) => setS({ glassTint: v })}
+            hint="Clear — прозрачное стекло, как в iOS 26. Tinted — плотнее и контрастнее, текст читается на любом фоне (iOS 26.1)."
+          />
+          <GlassLevel g={g} value={glassLevel(settings)} eco={eco}
+                      onCommit={(v) => setS({ glassLevel: v })} /></>}
+
+          <div style={{ marginTop: 18 }} />
+          <Choice
+            label="Пульт управления" g={g} value={dockPos}
+            options={[{ value: "bottom", label: "Снизу" }, { value: "top", label: "Сверху" },
+                      { value: "left", label: "Слева" }, { value: "right", label: "Справа" }]}
+            onChange={(v) => setS({ dockPos: v })}
+            hint="Сверху и снизу пульт горизонтальный, по бокам — вертикальный. Настройки раскрываются из него в сторону экрана."
+          />
+          <Choice
+            label="Значки пульта" g={g} value={settings.dockIcons === "icons" ? "icons" : "both"}
+            options={[{ value: "both", label: "С подписями" }, { value: "icons", label: "Только значки" }]}
+            onChange={(v) => setS({ dockIcons: v })}
+            hint="Подпись всё равно видна в подсказке при наведении и для читалок экрана."
+          />
+
+          {ON_ANDROID && (
+            <>
+              <div style={{ marginTop: 18, marginBottom: 9 }}><Label g={g}>Экран</Label></div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: "rgba(var(--ink, 231,238,246),0.55)", lineHeight: 1.5 }}>
+                  Во весь экран: крупная цифра для телефона на подставке, ночью тусклый красный. Выход — двойное касание.
                 </div>
+                <Btn g={g} style={{ whiteSpace: "nowrap", flexShrink: 0 }} onClick={() => { setShowSettings(false); setKiosk(true); }}>ОТКРЫТЬ</Btn>
+              </div>
+            </>
+          )}
 
-                <Choice
-                  label="Единицы скорости" g={g} value={settings.unit}
-                  options={UNIT_KEYS.map((k) => ({ value: k, label: UNITS[k].label }))}
-                  onChange={(v) => setS({ unit: v, digits: null })}
-                  hint="Прошивка всегда меряет в м/с — пересчёт делает дашборд, плату перезаливать не нужно."
-                />
-                <Choice
-                  label="Знаков после запятой" g={g} value={settings.digits}
-                  options={[
-                    { value: null, label: "авто" }, { value: 0, label: "0" },
-                    { value: 1, label: "1" }, { value: 2, label: "2" },
-                  ]}
-                  onChange={(v) => setS({ digits: v })}
-                  hint="«Авто» — сколько принято для выбранной единицы. У Бофорта всегда целое."
-                />
-                <Choice
-                  label="Гарнитура" g={g} value={settings.font}
-                  options={Object.keys(FONT_SETS).map((k) => ({ value: k, label: FONT_SETS[k].label }))}
-                  onChange={(v) => setS({ font: v })}
-                  hint="Числа остаются моноширинными в любом наборе: на приборной панели разряды обязаны стоять в колонку. Ничего не скачивается — только то, что уже есть в системе, иначе на станции без интернета шрифт бы просто не появился."
-                />
-                <Choice
-                  label="Акцент" g={g} value={settings.accent}
-                  options={Object.keys(ACCENTS).map((k) => ({ value: k, label: ACCENTS[k].label }))}
-                  onChange={(v) => setS({ accent: v })}
-                  hint="Единственный цветной элемент интерфейса. «По Бофорту» меняет цвет вместе с силой ветра, остальные постоянные и делают дашборд одноцветным — включая розу ветров. «Янтарь» и «фосфор» — цвета люминофора старых монохромных мониторов."
-                />
-                <Choice
-                  label="Подложка" g={g} value={settings.ground}
-                  options={Object.keys(GROUNDS).map((k) => ({ value: k, label: GROUNDS[k].label }))}
-                  onChange={(v) => setS({ ground: v })}
-                  hint="Светлого варианта нет намеренно: светящийся текст по белому фону не работает, а свечение здесь несущая часть оформления."
-                />
-                <Switch
-                  label="Плотность" g={g} value={settings.density} accent={accent}
-                  off={{ value: "normal", label: "обычная" }}
-                  on={{ value: "compact", label: "плотная" }}
-                  onChange={(v) => setS({ density: v })}
-                  hint="Плотная убирает воздух внутри панелей — на телефоне влезает заметно больше."
-                />
-                <Switch
-                  label="Рамки панелей" g={g} value={settings.borders} accent={accent}
-                  off={{ value: false, label: "нет" }} on={{ value: true, label: "есть" }}
-                  onChange={(v) => setS({ borders: v })}
-                  hint="Без рамок блоки разделяются только воздухом. Чище, но на широком экране труднее понять, где кончается один прибор и начинается другой."
-                />
-                <Switch
-                  label="Окно камеры" g={g} value={settings.showCamera} accent={accent}
-                  off={{ value: false, label: "скрыть" }} on={{ value: true, label: "показывать" }}
-                  onChange={(v) => setS({ showCamera: v })}
-                />
-                <Choice
-                  label="Свечение" g={g} value={settings.glow}
-                  options={[
-                    { value: "off", label: "выкл" }, { value: "normal", label: "обычное" },
-                    { value: "strong", label: "сильное" },
-                  ]}
-                  onChange={(v) => setS({ glow: v })}
-                />
-                <Choice
-                  label="Анимация" g={g} value={settings.motion}
-                  options={[
-                    { value: "full", label: "полная" }, { value: "calm", label: "сдержанная" },
-                    { value: "off", label: "выкл" },
-                  ]}
-                  onChange={(v) => setS({ motion: v })}
-                  hint="Плавность стрелки и цифр, вращение развёртки, переходы между вкладками. Системная настройка «уменьшить движение» перекрывает этот выбор и всё отключает."
-                />
-                <Switch
-                  label="Компас" g={g} value={settings.showCompass} accent={accent}
-                  off={{ value: false, label: "скрыть" }} on={{ value: true, label: "показывать" }}
-                  onChange={(v) => setS({ showCompass: v })}
-                  hint={hasDir ? "Датчик направления подключён." : "Датчик направления не подключён — компас скрыт в любом случае."}
-                />
-                <Switch
-                  label="Отражаемость" g={g} value={settings.pixelRadar !== false} accent={accent}
-                  off={{ value: false, label: "обычная" }} on={{ value: true, label: "пиксельная" }}
-                  onChange={(v) => setS({ pixelRadar: v })}
-                  hint="Пиксельная показывает радарную мозаику клетка в клетку — как её измерили. Обычная просит у службы сглаженный кадр и растягивает его без ступенек: смотрится мягче, но граница ливня оказывается там, где её дорисовала интерполяция."
-                />
-                <Switch
-                  label="Суперклетки" g={g} value={settings.pixelCells !== false} accent={accent}
-                  off={{ value: false, label: "обычные" }} on={{ value: true, label: "пиксельные" }}
-                  onChange={(v) => setS({ pixelCells: v })}
-                  hint="Экран считается по узлам модели, и пиксельный режим рисует ровно эти узлы. Обычный размывает ту же сетку в плавное пятно — красивее, но создаёт впечатление, будто расчёт подробнее, чем он есть."
-                />
-                <Choice
-                  label="Источник данных" g={g} value={source}
-                  options={[
-                    { value: "station", label: "станция" },
-                    { value: "district", label: "район" },
-                    { value: "demo", label: "демо" },
-                  ]}
-                  onChange={(v) => setSource(v)}
-                  hint={!PUBLIC_COPY
-                    ? "«Район» — погода вокруг дома из интернета: она знает давление, осадки и воздух, которых на плате нет. «Демо» рисует правдоподобный ветер без железа."
-                    : cloudId
-                      ? "«Станция» здесь работает: у выбранной станции заполнен идентификатор в облаке, и она сама отдаёт показания наружу через брокер. «Район» — погода вокруг указанной точки из интернета, «демо» — модель без железа."
-                      : cloudAvail
-                        ? "У выбранной станции не заполнен идентификатор в облаке, поэтому «станция» отсюда молчит: напрямую к плате с HTTPS-страницы браузер не пустит, а наружу она ничего не отдаёт. Впишите идентификатор в её карточке — или смотрите «район» и «демо»."
-                        : "На публичной копии «станция» всегда даст OFFLINE: с HTTPS-страницы браузер не пустит запрос на http:// к плате, и снаружи она всё равно не адресуема. «Район» работает везде, где есть интернет."}
-                />
-                {/* Канал — не четвёртый источник, а ортогональный выбор внутри
-                    «станции»: цифры те же, с той же мачты и того же датчика,
-                    меняется только провод. */}
-                {isStation && cloudAvail && (
-                  <Switch
-                    label="Канал до станции" g={g} value={link} accent={accent}
-                    off={{ value: "direct", label: "напрямую" }}
-                    on={{ value: "cloud", label: "через облако" }}
-                    onChange={(v) => setLink(v)}
-                    hint={cloudId
-                      ? "Напрямую — запрос к плате по HTTP: быстро (поток 20 Гц), только из её сети. Через облако — станция сама шлёт показания на брокер: работает откуда угодно, но с постоянной задержкой около секунды, и это очередь на плате, а не сеть. Управление есть только напрямую."
-                      : "У выбранной станции не заполнен идентификатор в облаке, поэтому «через облако» ей некуда подключаться. Впишите его в карточке станции."}
-                  />
+          <div style={{ marginTop: 18, marginBottom: 9 }}><Label g={g}>Вибрация</Label></div>
+          <Choice
+            label="Сила" g={g} value={settings.haptics || "normal"}
+            options={[{ value: "off", label: "выкл" }, { value: "soft", label: "мягко" }, { value: "normal", label: "обычно" }, { value: "strong", label: "сильно" }]}
+            onChange={(v) => { setHapticConfig({ level: v }); setS({ haptics: v }); haptic("tap"); }}
+            hint={canVibrate()
+              ? "Системный отклик, как у клавиатуры: «мягко» — только лёгкие щелчки, «сильно» — жёстче, а упор ползунка бьёт дважды. Уважает системную настройку «Виброотклик» телефона."
+              : "На этом устройстве вибромотора нет — настройка заработает на телефоне."}
+          />
+          {(settings.haptics || "normal") !== "off" && (
+            <>
+              <Switch
+                label="Касание окон" g={g} accent={accent}
+                value={settings.hapTouch !== false ? "on" : "off"}
+                off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+                onChange={(v) => { setHapticConfig({ touch: v === "on" }); setS({ hapTouch: v === "on" }); haptic("tap"); }}
+                hint="Короткий щелчок, когда касаешься кнопки или панели. Прокрутка и перетаскивание не отзываются."
+              />
+              <Switch
+                label="Ползунки" g={g} accent={accent}
+                value={settings.hapSliders !== false ? "on" : "off"}
+                off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+                onChange={(v) => { setHapticConfig({ sliders: v === "on" }); setS({ hapSliders: v === "on" }); haptic("tick"); }}
+                hint="Мелкий щелчок на каждом шаге ползунка и упор у края."
+              />
+              <Switch
+                label="Заставка и обновление" g={g} accent={accent}
+                value={settings.hapBoot !== false ? "on" : "off"}
+                off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+                onChange={(v) => { setHapticConfig({ boot: v === "on" }); setS({ hapBoot: v === "on" }); haptic("boot"); }}
+                hint="Мягкий стук при входе в приложение и тихая дрожь, пока ставится обновление."
+              />
+            </>
+          )}
+
+          <div style={{ marginTop: 18, marginBottom: 9 }}><Label g={g}>Голос и тревоги</Label></div>
+          <Switch
+            label="Уведомления" g={g} accent={accent}
+            value={settings.notify ? "on" : "off"}
+            off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+            onChange={(v) => { setS({ notify: v === "on" }); if (v === "on") requestNotify(); }}
+            hint={`Windows и Android: сводка ветра с прогнозом, станция пропала или вернулась, ветер растёт, шквал. Не больше ${DAY_LIMIT} в сутки и не чаще раза в 3 минуты — сегодня отправлено ${sentToday()}.`}
+          />
+          {settings.notify && (
+            <Choice
+              label="Сводка" g={g} value={String(settings.digestHours ?? 3)}
+              options={[{ value: "0", label: "без сводок" }, { value: "1", label: "раз в час" }, { value: "3", label: "раз в 3 ч" }, { value: "6", label: "раз в 6 ч" }]}
+              onChange={(v) => setS({ digestHours: +v })}
+              hint="Сейчас, прогноз на 6 часов и окно для занятия из «Анализа». Новая сводка заменяет прежнюю, а не копится стопкой."
+            />
+          )}
+          <Choice
+            label="Голосовая сводка" g={g} value={String(settings.voiceEvery || 0)}
+            options={[{ value: "0", label: "выкл" }, { value: "5", label: "5 мин" }, { value: "15", label: "15 мин" }, { value: "30", label: "30 мин" }]}
+            onChange={(v) => setS({ voiceEvery: +v })}
+            hint="Синтезатор речи читает ветер и порыв вслух — когда руки заняты. Разово — кнопкой «Сказать» в режиме во весь экран."
+          />
+          <Switch
+            label="Тревога: ветер растёт" g={g} accent={accent}
+            value={settings.trendAlarm ? "on" : "off"}
+            off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+            onChange={(v) => {
+              setS({ trendAlarm: v === "on" });
+              if (v === "on" && typeof Notification !== "undefined" && Notification.permission === "default") Notification.requestPermission().catch(() => {});
+            }}
+            hint={`Когда за 10 минут ветер вырос на ${settings.trendRise || 5} м/с и больше — не по абсолютному порогу. Не чаще раза в 20 минут.`}
+          />
+          <Switch
+            label="Тихие часы" g={g} accent={accent}
+            value={settings.quiet ? "on" : "off"}
+            off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+            onChange={(v) => setS({ quiet: v === "on" })}
+            hint="Ночью без уведомлений и голоса. Что было за ночь — одной сводкой утром."
+          />
+          {settings.quiet && (
+            <>
+              <Choice label="С" g={g} value={String(settings.quietFrom ?? 23)}
+                      options={[21, 22, 23, 0].map((h) => ({ value: String(h), label: `${h}:00` }))}
+                      onChange={(v) => setS({ quietFrom: +v })} />
+              <Choice label="До" g={g} value={String(settings.quietTo ?? 7)}
+                      options={[6, 7, 8, 9].map((h) => ({ value: String(h), label: `${h}:00` }))}
+                      onChange={(v) => setS({ quietTo: +v })} />
+              <Switch label="Утренняя сводка" g={g} accent={accent}
+                      value={settings.morning !== false ? "on" : "off"}
+                      off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+                      onChange={(v) => setS({ morning: v === "on" })} />
+            </>
+          )}
+                  </div>
+                )}
+                {dockView === "demo" && (
+                  <div className="dock-content dock-demo" key="demo">
+                    <DemoControls demo={demo} setDemo={setDemo} g={g} accent={accent} onClose={() => setShowDemo(false)} />
+                  </div>
                 )}
               </div>
-            )}
-
-            {setView === "custom" && (
-              <div key="s-custom" className="tabfade">
-                <Customize settings={settings} setS={setS} g={g} accent={accent}
-                           onEditLayout={() => { setLayoutMode(true); setTab("wind"); }} />
-              </div>
-            )}
-
-            {setView === "extra" && (
-              <div key="s-extra" className="tabfade">
-                <Permissions g={g} />
-
-                <Choice
-                  label="Окно графика и анализа" g={g} value={settings.histMinutes}
-                  options={[
-                    { value: 1, label: "1 мин" }, { value: 2, label: "2 мин" },
-                    { value: 5, label: "5 мин" }, { value: 10, label: "10 мин" },
-                  ]}
-                  onChange={(v) => setS({ histMinutes: v })}
-                  hint="Задаёт и графики, и окно конвективного анализа. Буфер истории всегда держит 10 минут независимо от этого выбора — иначе шквал было бы не на чем считать."
-                />
-                <Switch
-                  label="Сетка на карте" g={g} value={settings.showGrid} accent={accent}
-                  off={{ value: false, label: "скрыть" }} on={{ value: true, label: "показывать" }}
-                  onChange={(v) => setS({ showGrid: v })}
-                  hint="Меридианы и параллели через 30°. Без них карта чище, с ними видно, где широта."
-                />
-                <Switch
-                  label="Поток данных" g={g} value={settings.useSse} accent={accent}
-                  off={{ value: false, label: "только опрос" }} on={{ value: true, label: "SSE" }}
-                  onChange={(v) => setS({ useSse: v })}
-                  hint="Поток /api/stream даёт 20 кадров в секунду одним соединением. «Только опрос» полезен, если сеть рвёт длинные соединения: данные идут реже, но надёжнее."
-                />
-                <Choice
-                  label="Период опроса" g={g} value={settings.pollMs}
-                  options={[
-                    { value: 1000, label: "1 с" }, { value: 2000, label: "2 с" }, { value: 5000, label: "5 с" },
-                  ]}
-                  onChange={(v) => setS({ pollMs: v })}
-                  hint="Как часто дашборд спрашивает /api/data, когда потока нет. Чаще раза в секунду нельзя: сервер на плате закрывает соединение после каждого ответа, а lwIP держит его в TIME_WAIT ещё минуту, и свободные слоты кончаются."
-                />
-                <Choice
-                  label="Детализация отражаемости" g={g} value={settings.mapQuality}
-                  options={[
-                    { value: "eco", label: "эконом" }, { value: "normal", label: "обычная" },
-                    { value: "max", label: "максимум" },
-                  ]}
-                  onChange={(v) => setS({ mapQuality: v })}
-                  hint="Ступень тайлов мировой мозаики: «обычная» берёт ту, где пиксель радара совпадает с пикселем экрана. «Эконом» на ступень грубее и вчетверо меньше запросов — заметно на мобильной сети; «максимум» на ступень мельче."
-                />
-                <Switch
-                  label="Оповещать о шквале" g={g} value={settings.notifySquall} accent={accent}
-                  off={{ value: false, label: "нет" }} on={{ value: true, label: "да" }}
-                  onChange={(v) => setS({ notifySquall: v })}
-                  hint="Уведомление, когда рост скорости отвечает критерию ВМО — 8 м/с при пике от 11 м/с. Нужно разрешение выше; по обычному HTTP браузер уведомления не даёт."
-                />
-                <Choice
-                  label="Порог тревоги по ветру" g={g} value={settings.alarmMs}
-                  options={[
-                    { value: 13.9, label: "13.9 · 7 баллов" },
-                    { value: 17.2, label: "17.2 · 8 баллов" },
-                    { value: 20.8, label: "20.8 · 9 баллов" },
-                    { value: 24.5, label: "24.5 · 10 баллов" },
-                  ]}
-                  onChange={(v) => setS({ alarmMs: v })}
-                  hint="При каком ветре под часами загорается «ОПАСНО». По умолчанию 17.2 м/с — начало 8 баллов по Бофорту, международная граница штормового предупреждения; примерно там же лежит High Wind Warning службы погоды США. Уровень «внимание» всегда на 13.9 м/с. Считается по большему из скорости и порыва: ломает вещи порыв, а не среднее."
-                />
-                <Switch
-                  label="Не гасить экран" g={g} value={settings.keepAwake} accent={accent}
-                  off={{ value: false, label: "нет" }} on={{ value: true, label: "да" }}
-                  onChange={(v) => setS({ keepAwake: v })}
-                  hint="Держит экран включённым, пока дашборд открыт — для планшета на стене. Тоже требует защищённого соединения, и на самой станции работать не будет."
-                />
-
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-                  <Btn g={g} onClick={() => {
-                    setSettings({ ...DEFAULT_SETTINGS });
-                    try { localStorage.removeItem("wind_ui_settings"); } catch { /* приватный режим */ }
-                  }}>
-                    Сбросить настройки
-                  </Btn>
-                  <Btn g={g} onClick={() => {
-                    setHistory([]);
-                    setRose({ sectors: Array.from({ length: 16 }, () => [0, 0, 0, 0, 0]), calm: 0, total: 0 });
-                  }}>
-                    Очистить историю и розу
-                  </Btn>
-                  <Btn g={g} onClick={() => {
-                    try { localStorage.removeItem("wind_ui_tutor_done"); } catch { /* приватный режим */ }
-                    setTab("wind");
-                  }}>
-                    Показать обучение снова
-                  </Btn>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
-        )}
-      </main>
+          <nav className="dock-bar">
+            <div className="dock-tabs">
+            {TABS.map((t) => (
+              <Tab key={t.id} id={t.id} active={tab} onClick={setTab} g={g} short={t.short} fluid={fluid}>{t.label}</Tab>
+            ))}
+            </div>
+            <button className="gear-btn dock-gear" onClick={toggleSettings}
+                    aria-label="Настройки" title="Настройки">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3.2" />
+              <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+            </svg>
+            </button>
+          </nav>
+        </div>
+        {/* Круглые кнопки справа от пульта. В демо-режиме их две — ручное управление
+            и «во весь экран», — и стоят они одной вытянутой капсулой с двумя значками,
+            а не двумя кружками рядом. Без демо-режима остаётся один кружок. Капсула
+            — один элемент стекла (.gear-btn): одна линза, одна фаска; половинки
+            внутри — обычные прозрачные кнопки. На Android кнопки «во весь экран»
+            нет, и демо стоит кружком. */}
+        {(() => {
+          const demoBtn = (cls) => (
+            <button className={`${cls}${showDemo ? " is-on" : ""}`} onClick={toggleDemo}
+                    aria-label="Ручное управление" title="Ручное управление">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+                <path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" />
+              </svg>
+            </button>
+          );
+          const fullIcon = (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+            </svg>
+          );
+          if (demoMode && !ON_ANDROID) {
+            return (
+              <div className="gear-btn demo-fab fab-pill">
+                {demoBtn("fab-half")}
+                <button className="fab-half" onClick={() => setKiosk(true)} aria-label="Во весь экран" title="Во весь экран">{fullIcon}</button>
+              </div>
+            );
+          }
+          return (
+            <>
+              {demoMode && demoBtn("gear-btn demo-fab")}
+              {!ON_ANDROID && (
+                <button className="gear-btn demo-fab" onClick={() => setKiosk(true)} aria-label="Во весь экран" title="Во весь экран">{fullIcon}</button>
+              )}
+            </>
+          );
+        })()}
+      </div>
+
+      {kiosk && (
+        <Kiosk speedText={convertSpeed(data.speed, settings.unit)} unit={unit.short}
+               gustText={convertSpeed(data.gust || 0, settings.unit)} bft={bf} color={accent}
+               name={activeStation ? activeStation.name : demoMode ? "Демо" : "Станция"}
+               speed={data.speed} gust={data.gust} history={history} onClose={() => setKiosk(false)} />
+      )}
 
       {/* Перегрузка: ветер вышел за предел датчика. Слой поверх всего,
           но кликов не ловит. */}
       {overloaded && <StormParticles intensity={overFrac} motion={motion} />}
 
-      {/* Плёнка темы — то, что лежит поверх всего экрана, а не внутри панели:
-          у электронно-лучевой трубки строки развёртки привязаны к экрану, а не
-          к изображению, и при прокрутке обязаны стоять на месте. Кликов не
-          ловит, поэтому поверх неё всё работает как обычно. */}
-      {THEMES[settings.theme]?.veil && (
-        // Три слоя, потому что у них разная жизнь: один ползёт всегда,
-        // второй срывается раз в двадцать секунд, третий играет один раз
-        // при включении. Одной анимацией это не собирается.
-        <div className={`veil veil-${settings.theme}`} aria-hidden="true">
-          <i /><i /><i />
-        </div>
+      {/* Живой фон под стеклом: без него стеклу нечего преломлять. Только на
+          своей сцене — свою картинку пятна не закрашивают. Фильтры линзы
+          вставляет startLens() — у каждого плавающего элемента свой. */}
+      {liquid && !material && (settings.scene === "liquid" || settings.scene === "liquidDark") && (
+        <LiquidWall dark={settings.scene === "liquidDark"} fps={eco || motion === "off" ? 0 : motion === "calm" ? 5 : 8} />
+      )}
+      {/* Край прокрутки: содержимое уходит под шапку и под док, растворяясь. */}
+      {liquid && <div className="lg-edge lg-edge-top" aria-hidden="true" />}
+      {liquid && <div className="lg-edge lg-edge-bot" aria-hidden="true" />}
+
+      {update && showUpdate && (
+        <UpdateModal g={g} accent={accent} up={update} onClose={() => setShowUpdate(false)} />
       )}
 
       {showWelcome && (
@@ -3886,338 +5455,7 @@ export default function WindDashboard() {
         />
       )}
 
-      <style>{`${SWITCH_CSS}${themeCss(settings.theme)}
-        /* Гарнитура — через переменные: оформление здесь инлайновое, и таскать
-           выбранный шрифт пропсами через полсотни компонентов было бы адом. */
-        :root { --ui-sans: ${FONT_SETS[settings.font]?.sans || FONT_SETS.grotesk.sans};
-                --ui-mono: ${FONT_SETS[settings.font]?.mono || FONT_SETS.grotesk.mono};
-                --ui-bg: ${(GROUNDS[settings.ground] || GROUNDS.black).bg};
-                --ui-corner: ${CORNERS[settings.corners] ?? 0}px;
-                --ui-fill: ${(settings.panelFill || 0) / 100}; }
-        /* Вид панели по умолчанию — «приборная» тема. Всё, что тема меняет,
-           она меняет здесь: подставляет свои значения этих же переменных. */
-        :root { --pnl-line: rgba(160,180,200,0.15);
-                --pnl-head-line: rgba(160,180,200,0.15);
-                --pnl-bg: linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.008)),
-                          rgba(255,255,255,var(--ui-fill, 0));
-                --pnl-shadow: none;
-                --pnl-blur: none;
-                /* Скругление панели отдельной переменной от --ui-corner:
-                   у стекла фаска на прямом углу читается как скол, и теме
-                   нужно уметь прибавить своё, не отменяя выбор человека. */
-                --pnl-corner: var(--ui-corner, 0px); }
-        /* Две кривые на весь дашборд. Первая тормозит к концу, вторая
-           переваливает за цель и возвращается — от неё движение и кажется
-           живым. Держим их переменными, чтобы «сделать медленнее» не
-           превращалось в правку полусотни мест. */
-        :root { --ease-out: cubic-bezier(.16,.84,.28,1);
-                --ease-back: cubic-bezier(.34,1.42,.44,1); }
-        * { -webkit-tap-highlight-color: transparent; }
-
-        /* ---------- запуск ---------- */
-        @keyframes bootIn   { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes bootOut  { to { opacity: 0; transform: scale(1.06) } }
-        @keyframes bootArc  { to { stroke-dashoffset: 0 } }
-        @keyframes bootSpin { to { transform: rotate(360deg) } }
-        @keyframes bootBar  { from { transform: scaleX(0) } to { transform: scaleX(1) } }
-        @keyframes bootName { from { opacity: 0; letter-spacing: 16px }
-                              to   { opacity: 1; letter-spacing: 5px } }
-        .boot {
-          position: fixed; inset: 0; z-index: 900;
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
-          gap: 18px; background: var(--ui-bg, #04070a);
-          animation: bootIn .2s ease both, bootOut .45s ease-in 1.25s both;
-        }
-        .boot-mark { animation: bootSpin 2.4s linear infinite; transform-origin: 50% 50% }
-        .boot-arc  { animation: bootArc 1.25s var(--ease-out) both }
-        .boot-dot  { animation: bootIn .4s ease .3s both }
-        .boot-name { font-family: var(--ui-mono); font-size: 13px; color: #e7eef6;
-                     animation: bootName .9s var(--ease-out) .15s both }
-        .boot-bar  { width: 190px; height: 2px; background: rgba(160,180,200,0.18) }
-        .boot-bar i { display: block; height: 100%; background: #e7eef6;
-                      transform-origin: 0 50%;
-                      animation: bootBar 1.35s var(--ease-out) both }
-        .boot-note { font-family: var(--ui-mono); font-size: 9.5px; letter-spacing: 2px;
-                     color: rgba(231,238,246,0.46); text-transform: uppercase;
-                     animation: bootIn .8s ease .5s both }
-
-        /* ---------- ожидание ---------- */
-        /* Мерцание вместо крутящегося кружка: кружок одинаков и на полсекунды,
-           и на полминуты, а бегущий по блоку блик показывает, что чего-то ждут
-           именно здесь, на месте будущего содержимого. */
-        @keyframes shimmer { from { background-position: -160% 0 } to { background-position: 260% 0 } }
-        .shimmer {
-          background-image: linear-gradient(100deg,
-            rgba(231,238,246,0.03) 30%, rgba(231,238,246,0.11) 48%, rgba(231,238,246,0.03) 66%);
-          background-size: 220% 100%;
-          animation: shimmer 2.4s linear infinite;
-        }
-        @keyframes waitBar { 0% { transform: translateX(-100%) } 100% { transform: translateX(320%) } }
-        .wait-bar { position: relative; height: 2px; overflow: hidden;
-                    background: rgba(160,180,200,0.14) }
-        .wait-bar i { position: absolute; inset: 0 auto 0 0; width: 32%;
-                      background: currentColor; animation: waitBar 1.9s var(--ease-out) infinite }
-
-        /* Подложка задаётся переменной во всех трёх местах сразу: инлайновый
-           фон корневого div перекрыл бы выбор, а прозрачный body показал бы
-           фон хоста. */
-        body, html { background: var(--ui-bg, #04070a); margin: 0 }
-        /* Подложка кастомизации ложится слоями на body. Когда она есть,
-           корневые обёртки обязаны стать прозрачными — иначе своя заливка
-           перекрыла бы её целиком и выбор не дал бы никакого эффекта. */
-        body { ${backdrop} }
-        #root, .app { background: ${backdrop ? "transparent" : "var(--ui-bg, #04070a)"} }
-        button:focus-visible, input:focus-visible { outline: 1px solid rgba(231,238,246,0.6); outline-offset: 1px; }
-
-        @keyframes pulse   { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
-        @keyframes ledBlink{ 0%, 49% { filter: none } 50%, 100% { filter: brightness(0.3) } }
-        /* Развёртка кругового обзора. transform-origin задан инлайном в SVG:
-           у вложенных <g> проценты считаются от bbox, а не от вьюбокса. */
-        @keyframes ppiSweep{ to { transform: rotate(360deg) } }
-        @keyframes echoPing{ 0% { r: 3; opacity: .75 } 100% { r: 15; opacity: 0 } }
-        @keyframes vortex  { to { transform: rotate(-360deg) } }
-        @keyframes rise {
-          0%   { opacity: 0; transform: translateY(30px) scale(.95) }
-          62%  { opacity: 1; transform: translateY(-5px) scale(1.008) }
-          100% { opacity: 1; transform: none }
-        }
-        /* Курсор подсказчика мигает как в восьмибитных играх — жёсткими шагами,
-           без плавного затухания: плавность выдаёт CSS и убивает весь эффект. */
-        @keyframes caretBlink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
-        .tutor-caret { animation: caretBlink 1s steps(1) infinite }
-
-        /* Перегрузка шкалы. Второй круг дышит, кольца частиц вокруг него
-           крутятся в разные стороны — так движение читается вихрем, а не
-           вращением одной шестерёнки. */
-        @keyframes overPulse { 0%, 100% { opacity: 1 } 50% { opacity: .55 } }
-        @keyframes orbitCW  { to { transform: rotate(360deg) } }
-        @keyframes orbitCCW { to { transform: rotate(-360deg) } }
-        .over-pulse { animation: overPulse 1.6s ease-in-out infinite }
-        .orbit-cw   { animation: orbitCW 2.4s linear infinite }
-        .orbit-ccw  { animation: orbitCCW 2.4s linear infinite }
-
-        /* Частицы по экрану летят справа налево со сносом по вертикали.
-           Только transform и opacity — свойства, которые браузер считает
-           на видеокарте, не трогая вёрстку. */
-        @keyframes stormFly {
-          from { transform: translate3d(102vw, 0, 0) scale(1); opacity: 0 }
-          8%   { opacity: .9 }
-          88%  { opacity: .9 }
-          to   { transform: translate3d(-6vw, var(--drift, 0), 0) scale(.6); opacity: 0 }
-        }
-        .storm-bit {
-          position: absolute; left: 0; border-radius: 50%;
-          will-change: transform, opacity;
-          animation: stormFly 2s linear infinite;
-        }
-
-        /* Тревога добралась до самой шкалы: пульсирует число и кольцо.
-           Не мигание в ноль, а именно пульс — резкое исчезновение цифры
-           мешало бы её прочитать, а прочитать её в этот момент важнее всего. */
-        @keyframes speedAlarm { 0%, 100% { opacity: 1 } 50% { opacity: .45 } }
-        .speed-alarm { animation: speedAlarm 1.9s ease-in-out infinite }
-
-        /* Винт Young 05103. Вращение задаётся длительностью из JS —
-           она обратно пропорциональна скорости ветра. */
-        @keyframes youngSpin { to { transform: rotate(360deg) } }
-        .young-spin { animation: youngSpin 1.8s linear infinite; transform-box: view-box }
-
-        /* Воронка качается целиком, обломки летают по орбите вокруг неё. */
-        @keyframes tornadoSway {
-          0%, 100% { transform: rotate(-2.2deg) }
-          50%      { transform: rotate(2.2deg) }
-        }
-        @keyframes debrisOrbit {
-          from { transform: rotate(0deg) translateX(var(--orbit, 20px)) scaleX(1) }
-          50%  { transform: rotate(180deg) translateX(var(--orbit, 20px)) scaleX(.35) }
-          to   { transform: rotate(360deg) translateX(var(--orbit, 20px)) scaleX(1) }
-        }
-        @keyframes recBlink { 0%, 55% { opacity: 1 } 56%, 100% { opacity: .15 } }
-        /* Полосы конденсации бегут по воронке — так глаз считывает вращение.
-           Бегущий штрих вместо пересчёта геометрии: ноль работы на кадр. */
-        @keyframes funnelBand { to { stroke-dashoffset: -40 } }
-        /* Молния редкая и короткая, как в жизни: две вспышки за двенадцать
-           секунд. Постоянно сверкающая гроза выглядит гирляндой. */
-        @keyframes lightning {
-          0%, 5.6%, 100% { opacity: 0 }
-          5.8% { opacity: 1 } 6.4% { opacity: .15 } 6.9% { opacity: .9 } 7.6% { opacity: 0 }
-        }
-        .funnel-band { animation: funnelBand 3s linear infinite }
-        .lightning { animation: lightning 12s linear infinite; opacity: 0 }
-        /* Ночью воронку выхватывает только вспышка. Кадры те же, что у молнии,
-           поэтому подсветка синхронна с ней сама собой — без единой строки JS. */
-        @keyframes flashLit {
-          0%, 5.6%, 100% { opacity: .06 }
-          5.8% { opacity: .95 } 6.4% { opacity: .3 } 6.9% { opacity: .85 } 7.6% { opacity: .06 }
-        }
-        .flash-lit { animation: flashLit 12s linear infinite }
-        .tornado-sway { animation: tornadoSway 7s ease-in-out infinite; transform-box: view-box }
-        .tornado-debris { animation: debrisOrbit 3.4s linear infinite; transform-box: view-box }
-        .rec-blink { animation: recBlink 1.6s steps(1) infinite }
-
-        /* Блок сетки и панель внутри него. Высота у блока задана человеком,
-           поэтому панель обязана занять её целиком, а её тело — стать
-           колонкой: только тогда прибор внутри может растянуться на остаток.
-           Правило нарочно привязано к .blk — вне сетки (радар, окна, другие
-           вкладки) высота по-прежнему от содержимого. */
-        .blk { min-width: 0; min-height: 0 }
-        .blk > *, .blk .pnl { height: 100% }
-        .pnl { display: flex; flex-direction: column }
-        .pnl > div:last-child { display: flex; flex-direction: column; min-height: 0 }
-        .blk .pnl > div:last-child { flex: 1 1 auto; overflow: auto }
-        /* Полоса прокрутки внутри панели — тонкая и без стрелок: панель это
-           прибор, а не документ. */
-        .blk .pnl > div:last-child::-webkit-scrollbar { width: 6px; height: 6px }
-        .blk .pnl > div:last-child::-webkit-scrollbar-thumb {
-          background: rgba(160,180,200,0.25) }
-
-        /* Плотность, рамки и контраст — классами на корне, чтобы не тащить
-           их пропсами в каждый компонент. */
-        .dens-compact .pnl > div { padding: 8px 9px }
-        .dens-compact .pnl > header { padding: 6px 9px 5px }
-        /* Раньше это правило пыталось перебить инлайновый border панели и
-           проигрывало — настройка молча ничего не делала. Теперь и рамка, и
-           фон живут в переменных, и снять их достаточно один раз. */
-        .noborders { --pnl-line: transparent; --pnl-bg: none; --pnl-shadow: none;
-                     --pnl-head-line: rgba(160,180,200,0.12) }
-
-        /* Ползунки демо-режима. Родной вид input[type=range] выбивается из
-           приборной панели сильнее всего остального, поэтому он собран заново:
-           тонкая линейка и квадратная ручка, без скруглений и объёма. */
-        .rng { -webkit-appearance: none; appearance: none; width: 100%; height: 16px;
-               background: transparent; cursor: pointer; display: block }
-        .rng::-webkit-slider-runnable-track { height: 2px; background: rgba(160,180,200,0.28) }
-        .rng::-moz-range-track { height: 2px; background: rgba(160,180,200,0.28) }
-        .rng::-webkit-slider-thumb { -webkit-appearance: none; appearance: none;
-               width: 10px; height: 14px; margin-top: -6px; border: none;
-               background: var(--rng-accent, #e7eef6); transition: transform .12s ease }
-        .rng::-moz-range-thumb { width: 10px; height: 14px; border: none; border-radius: 0;
-               background: var(--rng-accent, #e7eef6) }
-        .rng:active::-webkit-slider-thumb { transform: scaleY(1.25) }
-        .rng:focus-visible { outline: 1px solid rgba(231,238,246,0.6); outline-offset: 3px }
-
-        /* Тревога дышит рамкой, а не мигает целиком: мигающий блок в углу
-           экрана раздражает и его начинают игнорировать. */
-        @keyframes alarmPulse {
-          0%, 100% { box-shadow: 0 0 0 rgba(239,68,68,0) }
-          50%      { box-shadow: 0 0 16px rgba(239,68,68,0.35) }
-        }
-        .alarm-hot { animation: alarmPulse 3s ease-in-out infinite }
-
-        /* Переходы. Раньше двигались только панели при появлении, и от этого
-           смена вкладки выглядела как подмена картинки. Теперь у содержимого
-           есть вход, у подвкладок — своя, более короткая версия, а у строк
-           списка — собственная: список станций иначе прыгает при удалении. */
-/* Кривая с перелётом: значение переваливает за единицу и возвращается.
-           Именно она отличает «съехало» от «прилетело и встало» — без неё
-           движение читается как перерисовка, сколько его ни удлиняй. */
-        @keyframes tabfade {
-          from { opacity: 0; transform: translateY(26px) scale(.965) }
-          to   { opacity: 1; transform: none }
-        }
-        @keyframes rowin {
-          from { opacity: 0; transform: translateX(-22px) }
-          to   { opacity: 1; transform: none }
-        }
-        .tabfade { animation: tabfade .62s var(--ease-out) both }
-        .rowin   { animation: rowin .44s var(--ease-out) both }
-
-        /* Полоса вкладок: под выбранной проезжает подчёркивание, а не просто
-           меняется цвет. Движение показывает, откуда и куда переключились. */
-        @keyframes tabmark { from { transform: scaleX(0); opacity: 0 } to { transform: scaleX(1); opacity: 1 } }
-        .tab-mark { animation: tabmark .5s var(--ease-out) both; transform-origin: 50% 50% }
-        /* Растр отражаемости проявляется, а не выскакивает: подмена готового
-           кадра иначе читается как мигание. */
-        @keyframes radarFade { from { opacity: 0 } to { opacity: .78 } }
-        .radar-fade { animation: radarFade .9s ease-out both }
-
-        /* Кнопки и тумблеры: нажатие должно чувствоваться, иначе на телефоне
-           непонятно, сработало ли касание. */
-        button { transition: background-color .32s ease, border-color .32s ease,
-                             color .32s ease, transform .22s var(--ease-back),
-                             box-shadow .32s ease }
-        button:not(:disabled):active { transform: scale(.93) }
-        @media (hover: hover) {
-          button:not(:disabled):hover { border-color: rgba(160,180,200,0.42) }
-          a:hover { border-color: rgba(160,180,200,0.42) }
-        }
-        @keyframes grow { from { opacity: 0; transform: scale(.86) } to { opacity: 1; transform: none } }
-
-        /* Карта: пинг вокруг активного предупреждения и вокруг EF5 в архиве.
-           Радиус анимируется через CSS-геометрию; там, где браузер её не умеет,
-           кольцо остаётся статичным — оно и в этом виде читается. */
-        @keyframes mapPing { 0% { r: 5; opacity: .7 } 100% { r: 22; opacity: 0 } }
-        /* Единственная анимация в дашборде, которая специально тревожит.
-           Полсекунды гашения из полутора — заметно, но не мельтешит. */
-        @keyframes warnBlink { 0%, 62% { opacity: 1 } 63%, 100% { opacity: .18 } }
-        @keyframes alarmEdge {
-          0%, 100% { box-shadow: 0 0 0 rgba(255,45,45,0) }
-          50%      { box-shadow: 0 0 22px rgba(255,45,45,0.30) }
-        }
-
-        .map-ping { animation: mapPing 4s ease-out infinite }
-        .map-ping.slow { animation-duration: 6.5s }
-        .warn-blink { animation: warnBlink 1.5s steps(1) infinite }
-        .detail-extreme { animation: alarmEdge 2.2s ease-in-out infinite }
-
-        .ppi-sweep { animation: ppiSweep 6.5s linear infinite }
-        .ppi-sweep.slow { animation-duration: 14s }
-        .ping { animation: echoPing 3.6s ease-out infinite }
-        .vortex { animation: vortex 5.5s linear infinite }
-        .grow { animation: grow .85s var(--ease-back) both; transform-origin: 50% 50% }
-        /* Панели въезжают снизу при смене вкладки — движение подсказывает, что
-           содержимое сменилось целиком, а не обновилось одно число. */
-        /* Панели въезжают по очереди, а не разом: волна слева направо читается
-           как «прибор собирается», а одновременный въезд — как рывок экрана.
-           Порядковый номер приходит переменной --i прямо из раскладки. */
-        .pnl { animation: rise .7s var(--ease-out) both }
-        /* Внутри сетки едет сама ячейка, а не панель в ней. Иначе движение
-           идёт дважды: панель поднимается внутри ячейки, ячейка стоит, и вместо
-           одного въезда получается дёрганье содержимого в неподвижной рамке. */
-        .blk { animation: rise .7s var(--ease-out) both;
-               animation-delay: calc(var(--i, 0) * 65ms) }
-        .blk .pnl, .blk > * { animation: none }
-        .modal-card { animation: pop .5s var(--ease-back) both }
-        @keyframes pop {
-          from { opacity: 0; transform: translateY(18px) scale(.94) }
-          to   { opacity: 1; transform: none }
-        }
-
-        .mo-off .pnl, .mo-off .modal-card, .mo-off .grow { animation: none }
-        .mo-off .ppi-sweep, .mo-off .ping, .mo-off .vortex { animation: none }
-        .mo-off .map-ping, .mo-off .warn-blink, .mo-off .detail-extreme { animation: none }
-        .mo-off .tutor-caret { animation: none }
-        .mo-off .tabfade, .mo-off .rowin, .mo-off .radar-fade { animation: none }
-        .mo-off .blk, .mo-off .shimmer, .mo-off .wait-bar i { animation: none }
-        .mo-off .tab-mark { animation: none }
-        .mo-off .alarm-hot, .mo-off .speed-alarm { animation: none }
-        .mo-calm .pnl, .mo-calm .blk, .mo-calm .tabfade { animation-duration: .34s }
-        .mo-calm .blk { animation-delay: calc(var(--i, 0) * 28ms) }
-        .mo-off .over-pulse, .mo-off .orbit-cw, .mo-off .orbit-ccw,
-        .mo-off .storm-bit { animation: none }
-        .mo-off .young-spin, .mo-off .tornado-sway, .mo-off .tornado-debris,
-        .mo-off .rec-blink, .mo-off .funnel-band, .mo-off .lightning,
-        .mo-off .flash-lit { animation: none }
-        .mo-off button:not(:disabled):active { transform: none }
-        .mo-calm .tabfade { animation-duration: .2s }
-        .mo-calm .pnl { animation-duration: .25s }
-        .mo-calm .warn-blink { animation-duration: 2.4s }
-
-        /* Системная просьба убрать движение сильнее любой настройки дашборда. */
-        @media (prefers-reduced-motion: reduce) {
-          *, *::before, *::after { animation: none !important; transition-duration: .01ms !important }
-        }
-
-        /* Телефон портретом: обе колонки в столбик, нижние карточки 2x2.
-           Инлайн-стили перекрываются только с !important. */
-        @media (max-width: 820px) {
-          /* .wind-grid здесь больше нет: число колонок считает columnsFor(),
-             и правило с !important спорило бы с ним за один и тот же стиль. */
-          .stat-row  { grid-template-columns: 1fr 1fr !important }
-          .live-grid { grid-template-columns: 1fr !important }
-          .demo-grid { grid-template-columns: 1fr !important }
-        }
-      `}</style>
+      <style>{pageCss}</style>
     </div>
   );
 }
@@ -4260,7 +5498,7 @@ function StormParticles({ intensity, motion }) {
         <span key={b.i} className="storm-bit" style={{
           top: `${b.top}%`,
           width: b.size, height: b.size,
-          background: b.hue === 0 ? OVER_A : b.hue === 1 ? OVER_B : "rgba(231,238,246,0.85)",
+          background: b.hue === 0 ? OVER_A : b.hue === 1 ? OVER_B : "rgba(var(--ink, 231,238,246),0.85)",
           animationDuration: `${b.dur}s`,
           animationDelay: `${b.delay}s`,
           "--drift": `${b.drift}vh`,
@@ -4270,17 +5508,3 @@ function StormParticles({ intensity, motion }) {
   );
 }
 
-// Ячейка строки состояния: разделитель рисуется границей, а не отдельным
-// элементом, — иначе при переносе на узком экране остаются висячие палочки.
-function StatusCell({ children, g, first, color }) {
-  return (
-    <span style={{
-      padding: "7px 14px", color: color || DIM,
-      borderLeft: first ? "none" : `1px solid ${LINE}`,
-      fontFamily: SANS, fontWeight: 500, whiteSpace: "nowrap",
-      textShadow: color ? glowColor(color, g, 0.4) : "none",
-    }}>
-      {children}
-    </span>
-  );
-}

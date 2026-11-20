@@ -1,5 +1,8 @@
-import { Component, Suspense, lazy, useState, useMemo, useEffect } from "react";
+import { Component, Suspense, lazy, memo, useState, useMemo, useEffect } from "react";
 import { LINE, TEXT, DIM, MONO } from "./ui-kit.js";
+import { APP_VERSION } from "./wind-version.js";
+import { Liquid } from "./wind-liquid.jsx";
+import { haptic, hapticLong, hapticStop } from "./wind-haptic.js";
 
 // ============================================================
 // СТРАХОВКА
@@ -164,9 +167,14 @@ export function chunk(load) {
   // зависеть от того, жив ли канал именно в эту секунду. Отказ проглатывается
   // намеренно: это опережающая загрузка, её провал ничего не ломает — вкладка
   // просто попробует ещё раз, когда её откроют.
-  Chunk.preload = () => { load().catch(() => {}); };
+  // memo: корень дашборда перерисовывается с каждым кадром потока (20 Гц), а
+  // карта, эфир и метеорология от кадра не зависят вовсе — их пропсы меняются
+  // только вместе с настройками. Без memo каждая из них пересобиралась бы
+  // двадцать раз в секунду впустую.
+  const Part = memo(Chunk);
+  Part.preload = () => { load().catch(() => {}); };
 
-  return Chunk;
+  return Part;
 }
 
 // Порядок важен: первым идёт то, что откроют вероятнее всего. На узком канале
@@ -188,7 +196,24 @@ export function warmUp(parts, delayMs = 4000) {
 // Живёт снаружи дашборда и о нём ничего не знает: узел рисуется поверх, а через
 // заданное время убирается совсем. Оставлять его прозрачным нельзя — невидимый
 // слой поверх страницы съедал бы нажатия.
-const BOOT_MS = 1700;
+const BOOT_MS = 3900;
+
+// После обновления заставка другая: та же, но с полосой-ползунком, и идёт она
+// дольше — тем дольше, чем тяжелее обновление (метку ставит wind-update.jsx перед
+// установкой). Сама установка к этому моменту уже закончена; полоса показывает
+// ход подготовки интерфейса и даёт увидеть, что именно поставилось.
+const POST_KEY = "wk_post_update";
+function readPostUpdate() {
+  try {
+    const j = JSON.parse(localStorage.getItem(POST_KEY) || "null");
+    // Метка свежая: старая (оставшаяся от сорвавшейся установки) не в счёт.
+    return j && Date.now() - j.t < 120000 ? j : null;
+  } catch { return null; }
+}
+const STAGES = [
+  [0.00, "Проверка файлов"], [0.22, "Применение обновления"],
+  [0.62, "Подготовка интерфейса"], [0.90, "Запуск"],
+];
 
 export function Boot() {
   const [gone, setGone] = useState(() => {
@@ -199,32 +224,79 @@ export function Boot() {
       return JSON.parse(localStorage.getItem("wind_ui_settings") || "{}").motion === "off";
     } catch { return false; }
   });
+  // После обновления сначала идёт полоса установки, а когда она дошла до
+  // конца — программа «запускается заново»: та же заставка, что при обычном
+  // входе, со своим стуком. Поэтому up — состояние, и в конце полосы оно
+  // сбрасывается, а не прячет заставку. Новый ключ корня (ниже) заставляет
+  // заставку смонтироваться заново, с начала всех своих анимаций.
+  const [up, setUp] = useState(readPostUpdate);
+  // 5 с на любое обновление плюс 10 мс на каждый килобайт: файл в 600 КБ — около
+  // 11 с, а «тяжёлое» обновление в несколько мегабайт — до потолка в 25 с.
+  const dur = up ? Math.min(25000, 5000 + ((up.size || 600000) / 1024) * 10 + (up.notes || 0) * 150) : BOOT_MS;
+  const [p, setP] = useState(0);
+
+  useEffect(() => { if (up) { try { localStorage.removeItem(POST_KEY); } catch { /* приватный режим */ } } }, [up]);
 
   useEffect(() => {
-    if (gone) return;
-    const id = setTimeout(() => setGone(true), BOOT_MS);
-    return () => clearTimeout(id);
-  }, [gone]);
+    if (gone) return undefined;
+    if (!up) {
+      // Заставка входа «стучит» вместе с рисунком: появление знака, имя,
+      // замыкание дуги. После обновления заставка другая — там тишина.
+      const taps = [[60, "boot"], [700, "tick"], [Math.max(900, dur - 450), "boot"]]
+        .map(([at, k]) => setTimeout(() => haptic(k), at));
+      const id = setTimeout(() => setGone(true), dur);
+      return () => { clearTimeout(id); taps.forEach(clearTimeout); };
+    }
+    const t0 = Date.now();
+    // Тихий гул на всё время полосы — и ни мгновением дольше: глушится и по
+    // концу, и при уходе со страницы, и при размонтировании.
+    hapticLong(dur);
+    const onHide = () => { if (document.hidden) hapticStop(); };
+    document.addEventListener("visibilitychange", onHide);
+    const id = setInterval(() => {
+      const x = Math.min(1, (Date.now() - t0) / dur);
+      setP(x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);   // плавный разгон и торможение
+      if (x >= 1) { clearInterval(id); hapticStop(); }
+    }, 50);
+    const end = setTimeout(() => { hapticStop(); setP(0); setUp(null); }, dur + 450);
+    return () => { clearInterval(id); clearTimeout(end); hapticStop(); document.removeEventListener("visibilitychange", onHide); };
+  }, [gone, up, dur]);
 
   if (gone) return null;
 
+  const stage = STAGES.filter(([at]) => p >= at).pop()[1];
   return (
-    <div className="boot">
+    <div key={up ? "up" : "fresh"} className={up ? "boot boot-up" : "boot"} style={up ? {
+      animation: `bootIn .2s ease both, bootOut .5s ease-in ${(dur - 50) / 1000}s both`,
+    } : undefined}>
       <div className="boot-mark">
         <svg viewBox="0 0 100 100" width="86" height="86">
           {/* Кольцо собирается из дуги: штрих-пунктир длиной в окружность,
-              смещение которого и есть «сколько уже нарисовано». */}
+              смещение которого и есть «сколько уже нарисовано». После
+              обновления дуга идёт вровень с полосой. */}
           <circle cx="50" cy="50" r="34" fill="none" stroke={LINE} strokeWidth="1" />
           <circle className="boot-arc" cx="50" cy="50" r="34" fill="none"
                   stroke={TEXT} strokeWidth="2" strokeLinecap="butt"
-                  strokeDasharray="214" strokeDashoffset="214"
+                  strokeDasharray="214" strokeDashoffset={up ? 214 * (1 - p) : 214}
+                  style={up ? { animation: "none" } : undefined}
                   transform="rotate(-90 50 50)" />
           <circle className="boot-dot" cx="50" cy="16" r="3" fill={TEXT} />
         </svg>
       </div>
       <div className="boot-name">WEATHERED_KIWI</div>
-      <div className="boot-bar"><i /></div>
-      <div className="boot-note">Ветроизмерительная станция · подъём</div>
+      {up ? (
+        <>
+          <div className="boot-slide"><Liquid fast busy v={p} color="linear-gradient(90deg, #7dd3fc, #a78bfa)" edge="#a78bfa" className="boot-liq" /><b style={{ left: `${p * 100}%` }} /></div>
+          <div className="boot-pct">{Math.round(p * 100)}%</div>
+          <div className="boot-stage">{stage}</div>
+          <div className="boot-note">{up.from} → {up.to}</div>
+        </>
+      ) : (
+        <>
+          <div className="boot-bar"><i /></div>
+          <div className="boot-note">Ветроизмерительная станция · {APP_VERSION}</div>
+        </>
+      )}
     </div>
   );
 }

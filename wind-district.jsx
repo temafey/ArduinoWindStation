@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   LINE, LINE_HI, TEXT, DIM, FAINT, SANS, NUM, glow,
 } from "./ui-kit.js";
@@ -38,6 +38,8 @@ import {
 const OM_WEATHER = "https://api.open-meteo.com/v1/forecast";
 const OM_AIR = "https://air-quality-api.open-meteo.com/v1/air-quality";
 const ECO = "https://api.saveecobot.com/output.json";
+const OM_GEO = "https://geocoding-api.open-meteo.com/v1/search";
+const REV_GEO = "https://api.bigdatacloud.net/data/reverse-geocode-client";
 
 const COORD_KEY = "wind_district_coords";
 
@@ -61,7 +63,7 @@ const WMO = {
   95: "гроза", 96: "гроза с градом", 99: "гроза с крупным градом",
 };
 
-function weatherText(code) {
+export function weatherText(code) {
   return WMO[code] ?? `код ВМО ${code}`;
 }
 
@@ -124,6 +126,45 @@ export function districtToData(w) {
 // ------------------------------------------------------------
 // Загрузка
 // ------------------------------------------------------------
+// Определить место «по запросу» — цепочкой, от точного к грубому:
+//   1. родной датчик приложения Android (WKNative.getLocation): GPS и сеть,
+//      не зависит от того, что WebView думает про безопасный контекст;
+//   2. navigator.geolocation — браузер или Windows (в Electron без ключа Google
+//      он часто молчит, поэтому ждём недолго);
+//   3. по IP-адресу — до города, не до улицы, зато работает везде.
+// Что именно сработало, записывается в coords.src, чтобы интерфейс не выдавал
+// грубое определение за точное.
+function nativeLocation() {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined" || !window.WKNative || !window.WKNative.getLocation) {
+      reject(new Error("no-native")); return;
+    }
+    const t = setTimeout(() => reject(new Error("timeout")), 16000);
+    window.__wkLoc = (r) => {
+      clearTimeout(t);
+      if (r && Number.isFinite(r.lat)) resolve({ lat: r.lat, lon: r.lon, acc: r.acc, src: "gps" });
+      else reject(new Error((r && r.error) || "fail"));
+    };
+    window.WKNative.getLocation();
+  });
+}
+function browserLocation() {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) { reject(new Error("no-geo")); return; }
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, src: "gps" }),
+      (e) => reject(e),
+      { enableHighAccuracy: false, timeout: 9000, maximumAge: 10 * 60 * 1000 },
+    );
+  });
+}
+async function ipLocation() {
+  const res = await fetch("https://ipwho.is/?lang=ru");
+  const j = await res.json();
+  if (!j || j.success === false || !Number.isFinite(j.latitude)) throw new Error("ip");
+  return { lat: j.latitude, lon: j.longitude, acc: 15000, src: "ip", name: j.city || undefined };
+}
+
 export function useDistrict(active) {
   const [coords, setCoordsState] = useState(() => {
     try {
@@ -134,40 +175,52 @@ export function useDistrict(active) {
   const [weather, setWeather] = useState(null);
   const [air, setAir] = useState(null);
   const [sensors, setSensors] = useState(null);
+  const [place, setPlace] = useState("");
   const [error, setError] = useState(null);
   const [locating, setLocating] = useState(false);
+  const [loadedAt, setLoadedAt] = useState(null);
   const ecoAt = useRef(0);
 
   const setCoords = useCallback((c) => {
     setCoordsState(c);
+    setPlace(c && c.name ? c.name : "");
     try { localStorage.setItem(COORD_KEY, JSON.stringify(c)); } catch { /* приватный режим */ }
   }, []);
 
-  // Место берётся у браузера, а не вшивается в код: координаты мачты — это
+  // Место берётся у устройства, а не вшивается в код: координаты мачты — это
   // домашний адрес, а дашборд лежит в публичном репозитории.
-  const locate = useCallback(() => {
-    if (!navigator.geolocation) {
-      setError("Браузер не умеет определять место.");
-      return;
-    }
+  const locate = useCallback(async () => {
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (p) => {
-        setLocating(false);
-        setError(null);
-        setCoords({ lat: p.coords.latitude, lon: p.coords.longitude });
-      },
-      (e) => {
-        setLocating(false);
-        setError(
-          e.code === 1
-            ? "Доступ к геоданным закрыт. Разрешение можно выдать во вкладке НАСТРОЙКИ → ДОПОЛНИТЕЛЬНЫЕ."
-            : "Место определить не удалось."
-        );
-      },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 10 * 60 * 1000 }
-    );
+    setError(null);
+    let got = null, denied = false;
+    for (const step of [nativeLocation, browserLocation, ipLocation]) {
+      try { got = await step(); break; }
+      catch (e) { if (e && (e.code === 1 || e.message === "permission")) denied = true; }
+    }
+    setLocating(false);
+    if (got) {
+      setCoords({ lat: got.lat, lon: got.lon, acc: got.acc, src: got.src, name: got.name });
+      if (got.src === "ip") setError("Точное место определить не удалось — показан город по IP-адресу (это примерно). Уточнить можно поиском по названию.");
+    } else {
+      setError(denied
+        ? "Доступ к геоданным закрыт. Разрешите его в настройках телефона или найдите место по названию."
+        : "Место определить не удалось. Найдите его по названию.");
+    }
   }, [setCoords]);
+
+  // Поиск места по названию: Open-Meteo Geocoding. Названия принимает на разных
+  // языках, украинское написание находит надёжнее всего.
+  const searchPlace = useCallback(async (q) => {
+    const name = String(q || "").trim();
+    if (name.length < 2) return [];
+    const res = await fetch(`${OM_GEO}?name=${encodeURIComponent(name)}&count=6&language=uk&format=json`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const j = await res.json();
+    return (j.results || []).map((r) => ({
+      name: r.name, admin: [r.admin2, r.admin1].filter(Boolean).join(", "), country: r.country,
+      lat: r.latitude, lon: r.longitude,
+    }));
+  }, []);
 
   const load = useCallback(async () => {
     if (!coords) return;
@@ -180,13 +233,32 @@ export function useDistrict(active) {
         "temperature_2m,relative_humidity_2m,apparent_temperature,dew_point_2m," +
         "precipitation,weather_code,pressure_msl,surface_pressure,cloud_cover," +
         "wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day,uv_index," +
-        "shortwave_radiation,visibility"
+        "shortwave_radiation,visibility" +
+        // Что будет: 12 часов вперёд и «ближайшие осадки» по 15-минутным шагам.
+        "&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,wind_gusts_10m" +
+        "&forecast_hours=12&minutely_15=precipitation&forecast_minutely_15=8" +
+        "&daily=sunrise,sunset&forecast_days=1"
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setWeather(await res.json());
-      setError(null);
+      setLoadedAt(new Date());
+      setError((e) => (e && e.startsWith("Погоду") ? null : e));
     } catch {
       setError("Погоду загрузить не удалось: нет выхода в интернет либо источник недоступен.");
+    }
+
+    // Как называется место: реверс-геокодер без ключа. Нужен только для подписи,
+    // поэтому его отказ ничего не ломает.
+    if (!coords.name) {
+      try {
+        const res = await fetch(`${REV_GEO}?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&localityLanguage=uk`);
+        if (res.ok) {
+          const j = await res.json();
+          const nm = j.locality || j.city || "";
+          const reg = j.principalSubdivision || "";
+          setPlace([nm, reg].filter(Boolean).join(", "));
+        }
+      } catch { /* подпись — не обязательна */ }
     }
 
     try {
@@ -237,7 +309,12 @@ export function useDistrict(active) {
     return () => clearInterval(id);
   }, [active, coords, load]);
 
-  return { coords, setCoords, locate, locating, weather, air, sensors, error, reload: load };
+  // Один и тот же объект, пока ничего не поменялось: дашборд перерисовывается
+  // с каждым кадром потока, и новый объект здесь снимал бы memo со всех,
+  // кто получает district целиком.
+  return useMemo(() => ({ coords, setCoords, locate, locating, weather, air, sensors, error, place, loadedAt,
+           searchPlace, reload: load }),
+    [coords, setCoords, locate, locating, weather, air, sensors, error, place, loadedAt, searchPlace, load]);
 }
 
 // ------------------------------------------------------------

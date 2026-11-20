@@ -271,7 +271,7 @@ export function openMqtt (opts) {
 
   function subscribe () {
     // id пакета фиксированный: за одно соединение уходит ровно один SUBSCRIBE,
-    // а публикаций у зрителя нет вовсе — аллокатор id здесь был бы кодом ради
+    // а публикуют здесь только QoS 0 (команды оператора, publish()) — аллокатор id был бы кодом ради
     // кода.
     const parts = [Uint8Array.of(0, 1)]
     for (const t of topics) parts.push(encStr(t), Uint8Array.of(0))
@@ -355,6 +355,12 @@ export function openMqtt (opts) {
   open()
 
   return {
+    // PUBLISH с QoS 0 — для оператора (подписанная команда в wind/<id>/cmd).
+    // QoS 0 достаточно: доставку подтверждает не брокер, а сама станция —
+    // ответом в ack на каждую команду, в том числе отвергнутую.
+    publish (topic, text) {
+      send(packet(0x30, join(encStr(topic), TXT.encode(text))))
+    },
     close () {
       if (!stopped && ws && ws.readyState === 1) {
         // Штатный DISCONNECT: брокер тогда не считает обрыв аварией и не

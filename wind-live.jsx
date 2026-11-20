@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { LINE, LINE_HI, TEXT, DIM, FAINT, MONO, SANS, NUM, glow } from "./ui-kit.js";
+import { LINE, LINE_HI, TEXT, DIM, FAINT, SANS, NUM, glow } from "./ui-kit.js";
+import { Segments } from "./wind-switch.jsx";
 
 // ============================================================
 // ЭФИР
@@ -277,7 +278,7 @@ function Frame({ src, g, motion, online }) {
         </div>
       </header>
 
-      <div style={{ position: "relative", background: "#020407", aspectRatio: String(src.ratio) }}>
+      <div className="ink-dark" style={{ position: "relative", background: "#020407", aspectRatio: String(src.ratio) }}>
         {online && href ? (
           <img
             src={href}
@@ -384,30 +385,18 @@ export default function LiveWatch({ g, motion, online }) {
         .rcv-txt { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
           text-align: center; pointer-events: none }
         .rcv-big { font-family: var(--ui-mono, monospace); font-size: 22px; letter-spacing: 3px;
-          color: rgba(231,238,246,0.9) }
+          color: rgba(var(--ink, 231,238,246),0.9) }
         .rcv-sub { font-family: var(--ui-sans, sans-serif); font-size: 10px; letter-spacing: 1px;
-          color: rgba(231,238,246,0.45); margin-top: 5px }
+          color: rgba(var(--ink, 231,238,246),0.45); margin-top: 5px }
         .rcv-blip { position: absolute; right: 10px; top: 10px; width: 6px; height: 6px;
           border-radius: 50%; background: #67e8f9; animation: rcvBlip 1.1s ease-in-out infinite }
         .mo-off .rcv-line.sweep, .mo-off .rcv-blip { animation: none }
         .mo-off .rcv-fill, .mo-off .rcv-line { transition: none }
       `}</style>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
-        {[{ id: "all", label: "Все" }, ...CATS].map((c) => {
-          const on = c.id === cat;
-          return (
-            <button key={c.id} onClick={() => { setCat(c.id); setOnly(null); }}
-                    style={{
-                      background: on ? "rgba(231,238,246,0.09)" : "transparent",
-                      border: `1px solid ${on ? LINE_HI : LINE}`,
-                      color: on ? TEXT : DIM, textShadow: on ? glow(g, 0.5) : "none",
-                      fontFamily: SANS, fontSize: 10, letterSpacing: 1.4,
-                      textTransform: "uppercase", padding: "5px 11px", cursor: "pointer",
-                    }}>
-              {c.label}
-            </button>
-          );
-        })}
+        <Segments variant="chips" ariaLabel="Категория" value={cat}
+                  onChange={(id) => { setCat(id); setOnly(null); }}
+                  options={[{ id: "all", label: "Все" }, ...CATS].map((c) => ({ value: c.id, label: c.label }))} />
         <div style={{ flex: 1 }} />
         <span style={{ ...NUM, fontSize: 9.5, color: FAINT }}>
           {inCat.length} из {SOURCES.length}
@@ -415,21 +404,10 @@ export default function LiveWatch({ g, motion, online }) {
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-        {inCat.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => setOnly(only === s.id ? null : s.id)}
-            style={{
-              background: only === s.id ? "rgba(231,238,246,0.09)" : "transparent",
-              border: `1px solid ${only === s.id ? LINE_HI : LINE}`,
-              color: only === s.id ? TEXT : DIM,
-              fontFamily: SANS, fontSize: 10, letterSpacing: 1,
-              padding: "5px 10px", cursor: "pointer", transition: "all .18s ease",
-            }}
-          >
-            {s.title}
-          </button>
-        ))}
+        {/* Повторное нажатие на выбранный снимает выбор — капля уходит. */}
+        <Segments variant="chips seg-plain" ariaLabel="Источник" value={only}
+                  onChange={(id) => setOnly(only === id ? null : id)}
+                  options={inCat.map((s) => ({ value: s.id, label: s.title }))} />
         {only && (
           <button onClick={() => setOnly(null)} style={{
             background: "transparent", border: `1px solid ${LINE}`, color: DIM,
@@ -468,21 +446,11 @@ export default function LiveWatch({ g, motion, online }) {
             </a>
           ))}
         </div>
-        <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.6, marginTop: 10 }}>
-          Это постоянные адреса каналов, а не проверенный список идущих прямо сейчас эфиров.
-          Убедиться, что трансляция в воздухе, без ключа к API невозможно, а писать «в эфире»
-          не проверив — значит обманывать. Шторм-чейзеры выходят в эфир в дни вспышек;
-          в спокойный день там будет пусто, и это нормально.
-        </div>
       </div>
 
       <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.65, fontFamily: SANS }}>
-        Спутниковые кадры — <b style={{ color: DIM }}>NOAA STAR</b> (GOES-19 и GOES-18),
-        радарные петли — <b style={{ color: DIM }}>radar.weather.gov</b>, приземный анализ —
-        <b style={{ color: DIM }}> Центр прогнозов погоды (WPC)</b>, тропический прогноз —
-        <b style={{ color: DIM }}> Национальный центр ураганов (NHC)</b>. Файлы по постоянным
-        адресам перезаписываются каждые несколько минут; страница подставляет к адресу метку
-        времени, иначе браузер отдал бы вчерашний кадр из кэша.
+        Источники: <b style={{ color: DIM }}>NOAA STAR</b> · <b style={{ color: DIM }}>radar.weather.gov</b> ·
+        <b style={{ color: DIM }}> WPC</b> · <b style={{ color: DIM }}>NHC</b>.
       </div>
     </div>
   );

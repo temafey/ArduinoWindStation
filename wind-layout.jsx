@@ -228,7 +228,7 @@ const btn = {
 // край не получалось вовсе. Слой поднят выше содержимого по той же причине.
 const grip = {
   position: "absolute", touchAction: "none", zIndex: 6,
-  background: "rgba(231,238,246,0.10)",
+  background: "rgba(var(--ink, 231,238,246),0.10)",
 };
 
 export function BlockFrame({ row, ops, drag, resize, children }) {

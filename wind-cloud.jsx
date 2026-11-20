@@ -257,3 +257,61 @@ export function probeStatus (opts = {}) {
     })
   })
 }
+
+// ============================================================
+// КОМАНДЫ ОПЕРАТОРА
+// ============================================================
+// Подписанная команда станции через брокер (см. §Облачный канал в CLAUDE.md):
+//   sig = HMAC-SHA256(key, id "\n" op "\n" args "\n" exp "\n" sessionId)
+//
+// ⛔ Ни логин оператора, ни ключ сюда не вшиваются и нигде не сохраняются:
+// человек вводит их руками на время сеанса. Учётка зрителя в бандле открыта
+// всем, а эта умеет писать в cmd — положить её рядом значило бы раздать ключ.
+// WebCrypto работает только в защищённом контексте, то есть на HTTPS — ровно
+// там, где прямого канала к плате нет и команды через облако нужны.
+let lastCmdId = 0
+const hex = (u8) => Array.from(u8, (b) => b.toString(16).padStart(2, '0')).join('')
+
+export async function sendCommand (opts) {
+  const url = opts.url || DEF_URL
+  const stationId = opts.stationId || DEF_STATION
+  const { user, password, keyHex, sessionId, op, args = '' } = opts
+  if (!globalThis.crypto || !crypto.subtle) return { ok: false, detail: 'подпись доступна только на HTTPS' }
+  if (!/^[0-9a-fA-F]{64}$/.test(keyHex || '')) return { ok: false, detail: 'ключ — ровно 64 hex-символа' }
+  if (!sessionId) return { ok: false, detail: 'нонс станции ещё не пришёл — подождите кадр состояния' }
+  if (!url || !user || !password) return { ok: false, detail: 'нужны логин и пароль оператора' }
+  // id — секунды эпохи: растут сами и между вкладками не сталкиваются
+  // (станция требует id новее последнего принятого внутри своей загрузки).
+  const id = Math.max(lastCmdId + 1, Math.floor(Date.now() / 1000))
+  lastCmdId = id
+  const exp = Math.floor(Date.now() / 1000) + 300
+  const raw = new Uint8Array(keyHex.match(/../g).map((h) => parseInt(h, 16)))
+  const key = await crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const msg = [id, op, args, exp, sessionId].join('\n')
+  const sig = hex(new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(msg))))
+  const body = JSON.stringify({ id, op, args, exp, sig })
+  const ackTopic = 'wind/' + stationId + '/ack'
+  return new Promise((resolve) => {
+    let mqtt = null
+    let done = false
+    const finish = (r) => {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      if (mqtt) mqtt.close()
+      resolve(r)
+    }
+    const timer = setTimeout(() => finish({ ok: false, detail: 'станция не ответила за 20 с' }), 20000)
+    mqtt = openMqtt({
+      url, user, password,
+      topics: [ackTopic],
+      clientPrefix: 'wind-op-',
+      onUp: () => mqtt.publish('wind/' + stationId + '/cmd', body),
+      onFail: (reason) => finish({ ok: false, detail: reason }),
+      onMessage: (t, text) => {
+        const j = parse(text)
+        if (t === ackTopic && j && j.id === id) finish({ ok: !!j.ok, detail: j.detail || '' })
+      },
+    })
+  })
+}

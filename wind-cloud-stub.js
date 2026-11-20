@@ -44,3 +44,7 @@ export function probeStatus () {
     error: 'в этой сборке облачного канала нет',
   })
 }
+
+export function sendCommand () {
+  return Promise.resolve({ ok: false, detail: 'облака в этой сборке нет' })
+}
