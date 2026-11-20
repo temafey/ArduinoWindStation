@@ -216,9 +216,21 @@ export function startLens(level) {
     const w = el.offsetWidth, h = el.offsetHeight;
     if (w < 8 || h < 8) return;
     if (Math.abs(w - it.w) < 2 && Math.abs(h - it.h) < 2) return;
+    // Растянутая линза дока. Пока док раскрывался, карта закрытой полосы тянулась
+    // на всё окно — и преломление получалось толстым, волнистым, с радужной
+    // каймой по краям; по окончании перехода карта пересчитывалась под новый размер
+    // и всё это исчезало. Теперь раскрытый док оставляет карту закрытой полосы —
+    // вид, который было видно только в движении, держится, пока окно открыто.
+    // Пересчёт — когда док снова обычного (полосного) размера, например при смене
+    // подписей на значки.
+    if (it.stretch && it.w && (w > it.w * 1.6 || h > it.h * 1.6)) return;
     it.w = w; it.h = h;
     const rad = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
-    const m = lensMap(w, h, rad, maxPx);
+    // Окна и всплывашки строят карту для уменьшенной копии: карта растягивается до
+    // реального размера, а вместе с ней и смещение, и кромка — тот же растянутый вид,
+    // но с первого кадра и при любом размере окна.
+    const st = it.k || 1;
+    const m = lensMap(w / st, h / st, rad / st, maxPx);
     if (!m) return;
     const kids = it.f.children;
     kids[0].setAttribute("href", m.url);
@@ -238,7 +250,9 @@ export function startLens(level) {
   const scan = () => {
     for (const el of document.querySelectorAll(LENS_SEL)) {
       if (items.has(el)) continue;
-      const it = { f: filterNode(`lgl-${++seq}`), t: 0, w: 0, h: 0 };
+      const it = { f: filterNode(`lgl-${++seq}`), t: 0, w: 0, h: 0,
+                   stretch: el.matches(".dock"),
+                   k: el.matches(".modal-card, .ver-pop") ? 2.2 : el.matches(".upd-tab") ? 1.6 : 1 };
       host.appendChild(it.f);
       items.set(el, it);
       ro.observe(el);
@@ -624,8 +638,10 @@ export const THEMES = {
         border: 1px solid rgba(255,255,255,0.16) !important; border-radius: 30px !important;
         box-shadow: 0 0 0 0.5px rgba(0,0,0,0.5), 0 40px 90px -30px rgba(0,0,0,0.85),
                     inset 0 1px 0.5px rgba(255,255,255,0.45) !important;
-        -webkit-backdrop-filter: blur(30px) var(--lg-lens,) saturate(190%) !important;
-        backdrop-filter: blur(30px) var(--lg-lens,) saturate(190%) !important;
+        /* Размытие 10 px, а не 30: под тридцатью линзу не разглядеть — преломляется
+           уже смазанная картинка, и растянутая кромка (см. startLens) пропадала. */
+        -webkit-backdrop-filter: blur(10px) var(--lg-lens,) saturate(190%) !important;
+        backdrop-filter: blur(10px) var(--lg-lens,) saturate(190%) !important;
         animation: lgMaterialize .81s var(--ease-back) both !important;
       }
       @keyframes lgMaterialize {

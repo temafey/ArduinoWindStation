@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld("wkUpdater", {
 contextBridge.exposeInMainWorld("wkWindow", {
   toggleFullscreen: () => ipcRenderer.invoke("wk:fullscreen-toggle"),
   isFullscreen: () => ipcRenderer.invoke("wk:fullscreen-state"),
+  // Значок окна: "glass" или "tonal" (тумблер «Liquid Glass иконка»).
+  setIcon: (kind) => ipcRenderer.invoke("wk:set-icon", kind),
   onFullscreen: (cb) => {
     const h = (_e, v) => cb(v);
     ipcRenderer.on("wk:fullscreen", h);

@@ -90,3 +90,6 @@ desktop/site/*.exe
 # адрес домашнего компьютера в локальной сети
 desktop/lan-feed.txt
 desktop/*.log
+
+# стоп-кран выкладки обновлений (локальный переключатель, см. auto-rebuild.ps1)
+desktop/.hold-release

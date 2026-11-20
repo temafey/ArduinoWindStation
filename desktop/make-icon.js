@@ -9,6 +9,7 @@
 //   build/android/ic_fg.png, ic_bg.png  — адаптивный значок 8.0+ (слои 432, маску даёт лаунчер)
 //   build/android/ic_mono.png           — тематический значок Android 13+ (силуэт)
 //   build/android/widget_preview*.png   — картинки виджетов в списке виджетов
+//   build/icon-tonal.png, build/android/ic_tonal*.png — тональный значок (с 0.5.0)
 const { app, BrowserWindow } = require("electron");
 const fs = require("fs");
 const path = require("path");
@@ -113,6 +114,29 @@ const monoSvg = (n) => svgDoc(n, n, `<g transform="rotate(-18 54 55)"><ellipse c
   const x = 54 + 13.5 * Math.cos(a), y = 55 + 11.6 * Math.sin(a); return `<ellipse cx="${x}" cy="${y}" rx="2.2" ry="1.2" fill="#000" transform="rotate(${d} ${x} ${y})"/>`; }).join("")}</mask>`, 108, 108)
   .replace("<g ", '<g mask="url(#m)" ');
 
+// ---------- тональный значок (с 0.5.0) ----------
+// Плоская версия для темы «Тональная» и тумблера «Liquid Glass иконка» в настройках.
+// Рисунок повторяет tonalSvg() из wind-kiwi.jsx — менять оба вместе.
+// (cx, cy) — центр дольки, k — масштаб относительно плитки 48 (там RX = 12.2).
+const T_TILE = "M24 2.5c11.4 0 15.6.4 18.3 3.2 2.8 2.7 3.2 6.9 3.2 18.3s-.4 15.6-3.2 18.3c-2.7 2.8-6.9 3.2-18.3 3.2s-15.6-.4-18.3-3.2C2.9 39.6 2.5 35.4 2.5 24s.4-15.6 3.2-18.3C8.4 2.9 12.6 2.5 24 2.5z";
+function tonalKiwi(cx, cy, k) {
+  const RX = 12.2 * k, RY = RX * 0.86;
+  const seeds = Array.from({ length: 12 }, (_, i) => {
+    const d = i * 30 + 8, a = d * Math.PI / 180, x = cx + RX * 0.54 * Math.cos(a), y = cy + RY * 0.54 * Math.sin(a);
+    return `<ellipse cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" rx="${(1.15 * k).toFixed(2)}" ry="${(0.62 * k).toFixed(2)}" fill="#2a2214" transform="rotate(${d} ${x.toFixed(2)} ${y.toFixed(2)})"/>`;
+  }).join("");
+  return `<g transform="rotate(-18 ${cx} ${cy})">`
+    + `<ellipse cx="${cx}" cy="${cy + 0.6 * k}" rx="${RX * 1.17}" ry="${RY * 1.19}" fill="#7d5c35"/>`
+    + `<ellipse cx="${cx}" cy="${cy}" rx="${RX}" ry="${RY}" fill="#86c34f"/>`
+    + `<ellipse cx="${cx}" cy="${cy}" rx="${RX * 0.8}" ry="${RY * 0.8}" fill="#a7d872"/>`
+    + seeds
+    + `<ellipse cx="${cx}" cy="${cy}" rx="${RX * 0.27}" ry="${RY * 0.27}" fill="#f3fbe6"/></g>`;
+}
+const tonalTileSvg = (n) => svgDoc(n, n, `<path d="${T_TILE}" fill="#d6ecc2"/>` + tonalKiwi(24, 24, 1), 48, 48);
+// Адаптивный слой: долька в безопасном круге (как у стеклянного fgSvg), фон — плоский тон.
+const tonalFgSvg = (n) => svgDoc(n, n, tonalKiwi(54, 54, 25 / 12.2 / 1.19), 108, 108);
+const tonalBgSvg = (n) => svgDoc(n, n, `<rect width="108" height="108" fill="#d6ecc2"/>`, 108, 108);
+
 // Картинки виджетов для списка виджетов — в том же материале, что рисует WindWidget.java.
 function widgetPreview(W, H, wide) {
   let s = `<defs><filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="10"/></filter>
@@ -182,6 +206,12 @@ app.whenReady().then(async () => {
   fs.writeFileSync(path.join(AND, "ic_fg.png"), await render(win, fgSvg(432), 432));
   fs.writeFileSync(path.join(AND, "ic_bg.png"), await render(win, bgSvg(432), 432));
   fs.writeFileSync(path.join(AND, "ic_mono.png"), await render(win, monoSvg(432), 432));
+  // Тональный значок: окно Windows (main.js, wk:set-icon) и второй ярлык Android
+  // (activity-alias .TonalLauncher в манифесте).
+  fs.writeFileSync(path.join(OUT, "icon-tonal.png"), await render(win, tonalTileSvg(256), 256));
+  fs.writeFileSync(path.join(AND, "ic_tonal.png"), await render(win, tonalTileSvg(192), 192));
+  fs.writeFileSync(path.join(AND, "ic_tonal_fg.png"), await render(win, tonalFgSvg(432), 432));
+  fs.writeFileSync(path.join(AND, "ic_tonal_bg.png"), await render(win, tonalBgSvg(432), 432));
   fs.writeFileSync(path.join(AND, "widget_preview.png"), await renderWH(win, widgetPreview(360, 360, false), 360, 360));
   fs.writeFileSync(path.join(AND, "widget_preview_wide.png"), await renderWH(win, widgetPreview(720, 340, true), 720, 340));
   win.destroy();

@@ -3,7 +3,8 @@ import {
   BG, BG_VAR, LINE, LINE_HI, TEXT, DIM, FAINT, MONO, SANS, NUM, glow, glowColor, dropGlow,
   clamp01, polar, wedgePath, FONT_SETS,
 } from "./ui-kit.js";
-import { KiwiMark } from "./wind-kiwi.jsx";
+import { KiwiMark, TonalMark, setFavicon } from "./wind-kiwi.jsx";
+import { LANGS, langInfo, resolveLang, systemLang, applyLang } from "./wind-i18n.js";
 import { chunk, warmUp } from "./wind-guard.jsx";
 import {
   mergeLayout, packLayout, layoutOps, useDrag, useResize, BlockFrame, LayoutBar, ROW, GAP,
@@ -471,6 +472,8 @@ const DEFAULT_SETTINGS = {
   // один раз в loadSettings().
   eco: null,
   skin: "glass",         // материал: glass (Liquid Glass) или material («Тональная»)
+  lang: null,            // язык интерфейса: null = как в системе, иначе код из LANGS (wind-i18n.js)
+  glassIcon: true,       // значок: true — стеклянная долька (Liquid Glass), false — тональная
   mdIcons: "blue",       // «Тональная»: цвет значков — blue (синие) или bg (в цвет фона)
   glassTint: "clear",
   glassLevel: GLASS_LEVEL_DEFAULT,
@@ -529,6 +532,8 @@ function loadSettings() {
     s.glassLevel = glassLevel(s);
     if (!THEMES[s.theme]) s.theme = "liquid";
     if (!MATERIAL_THEMES[s.skin]) s.skin = "glass";
+    if (s.lang != null && !LANGS.some((l) => l.code === s.lang)) s.lang = null;
+    if (typeof s.glassIcon !== "boolean") s.glassIcon = true;
     if (!MATERIAL_ICONS[s.mdIcons]) s.mdIcons = "blue";
     if (!["liquidDark", "plain", "light"].includes(s.scene)) s.scene = "liquid";
     if (!FONT_SETS[s.font]) s.font = "cascadia";
@@ -1171,6 +1176,17 @@ const RADAR_VIEWS = [
 ];
 const RADAR_OPTS = RADAR_VIEWS.map((v) => ({ value: v.id, label: v.label }));
 
+// Заголовок раздела настроек: «Система», «Тема», «Пульт»… Под ним — блоки, что к нему
+// относятся; над ним — тонкая черта (у первого раздела её нет).
+function SetSection({ title, first }) {
+  return (
+    <div className="set-sec" style={{ margin: first ? "0 0 14px" : "26px 0 14px", paddingTop: first ? 0 : 16,
+                                       borderTop: first ? "none" : "1px solid rgba(var(--rule, 160,180,200),0.18)" }}>
+      <span style={{ fontFamily: SANS, fontSize: 11, fontWeight: 700, letterSpacing: 2.2, textTransform: "uppercase", color: TEXT }}>{title}</span>
+    </div>
+  );
+}
+
 function Choice({ label, value, options, onChange, g, hint }) {
   // Стеклянный сегмент с перетекающей каплей (wind-switch.jsx).
   return (
@@ -1184,6 +1200,64 @@ function Choice({ label, value, options, onChange, g, hint }) {
 // Модальное окно вырастает из кнопки, которой его открыли, и уходит в неё
 // обратно (wind-morph.js). Окна, открывшиеся сами (приветствие при первом
 // запуске), кнопки не имеют и проявляются по-старому.
+// Окно выбора языка. Строки въезжают по очереди (--i — номер строки), выбранная
+// отмечена точкой тона темы. Названия языков — на самих языках и переводчику
+// не отдаются (translate="no"): «Deutsch» должен оставаться «Deutsch» везде.
+function LangPicker({ value, onPick, onClose, g }) {
+  const sys = langInfo(systemLang());
+  const rows = [{ code: null, name: "Как в системе", sub: sys.name, own: true },
+                ...LANGS.map((l) => ({ code: l.code, name: l.name, sub: l.en }))];
+  return (
+    <Modal onClose={onClose} g={g}>
+      <div className="lang-head">
+        <span>Выберите язык</span>
+        <button type="button" className="set-x" onClick={onClose} aria-label="Закрыть">✕</button>
+      </div>
+      <div className="lang-list" role="listbox" aria-label="Язык интерфейса">
+        {rows.map((r, i) => {
+          const on = (value ?? null) === r.code;
+          return (
+            <button key={r.code || "sys"} type="button" role="option" aria-selected={on}
+                    className={"lang-row" + (on ? " on" : "")} style={{ "--i": i }} onClick={() => onPick(r.code)}>
+              <b translate={r.own ? undefined : "no"}>{r.name}</b>
+              <small translate="no">{r.sub}</small>
+              <i className="lang-ck" aria-hidden="true" />
+            </button>
+          );
+        })}
+      </div>
+      <div className="lang-note">Языки, которых нет в списке, появятся в следующих обновлениях. Длинные справочные тексты пока частично на русском.</div>
+    </Modal>
+  );
+}
+
+const LANG_CSS = `
+  .lang-cur { margin-top: 7px; font-size: 10.5px; color: rgba(var(--ink, 231,238,246),0.46); line-height: 1.5 }
+  .lang-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px;
+    font-size: 15px; font-weight: 600 }
+  .lang-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px }
+  .lang-row { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+    padding: 11px 36px 11px 14px !important; border-radius: 18px !important; cursor: pointer; color: inherit;
+    background: rgba(var(--ink, 231,238,246),0.05) !important; border: 1px solid rgba(var(--rule, 160,180,200),0.18) !important;
+    animation: langIn .62s var(--ease-spring, cubic-bezier(.2,1.3,.4,1)) both; animation-delay: calc(var(--i) * 28ms);
+    transition: background .3s ease, border-color .3s ease, transform .5s var(--ease-spring, ease) }
+  .lang-row b { font-size: 13.5px; font-weight: 600 }
+  .lang-row small { font-size: 10.5px; opacity: .55 }
+  .lang-row:hover { background: rgba(var(--ink, 231,238,246),0.10) !important }
+  .lang-row.on { background: color-mix(in srgb, var(--sw-accent, #67e8f9) 20%, transparent) !important;
+    border-color: color-mix(in srgb, var(--sw-accent, #67e8f9) 60%, transparent) !important }
+  .lang-ck { position: absolute; right: 12px; top: 50%; width: 16px; height: 16px; margin-top: -8px; border-radius: 50%;
+    background: var(--sw-accent, #67e8f9); transform: scale(0); opacity: 0;
+    transition: transform .55s var(--ease-spring, ease), opacity .3s ease }
+  .lang-row.on .lang-ck { transform: scale(1); opacity: 1 }
+  .lang-note { margin-top: 14px; font-size: 10.5px; line-height: 1.5; color: rgba(var(--ink, 231,238,246),0.46) }
+  @keyframes langIn { from { opacity: 0; transform: translateY(10px) scale(.96) } to { opacity: 1; transform: none } }
+  .mo-off .lang-row { animation: none }
+  .app.sk-material .lang-row { background: var(--md-c-high) !important; border-color: transparent !important; border-radius: 16px !important }
+  .app.sk-material .lang-row.on { background: var(--md-sc) !important; color: var(--md-on-sc) !important }
+  .app.sk-material .lang-ck { background: var(--md-primary) }
+`;
+
 function Modal({ children, onClose, g }) {
   const bgRef = useRef(null);
   const cardRef = useRef(null);
@@ -2158,6 +2232,23 @@ export default function WindDashboard() {
   // «Тональная» — та же раскладка и движение, но без стекла: линза, свет
   // курсора и живой фон в ней не нужны и не считаются.
   const material = settings.skin === "material";
+
+  // Язык. Перевод делается на странице (wind-i18n.js), поэтому дашборду
+  // достаточно сказать, какой язык включить: всё остальное — переводчик.
+  const langCode = resolveLang(settings.lang);
+  useEffect(() => { applyLang(langCode); }, [langCode]);
+  const [langOpen, setLangOpen] = useState(false);
+
+  // Значок: в шапке, во вкладке браузера и у самой программы — окно и панель
+  // задач Windows (wkWindow.setIcon), значок на рабочем столе Android
+  // (WKNative.setIcon). Старые оболочки этих мостов не знают — молча мимо.
+  const tonalIcon = settings.glassIcon === false;
+  useEffect(() => {
+    const kind = tonalIcon ? "tonal" : "glass";
+    setFavicon(tonalIcon);
+    try { window.wkWindow?.setIcon?.(kind); } catch { /* старая оболочка */ }
+    try { if (window.WKNative && typeof window.WKNative.setIcon === "function") window.WKNative.setIcon(kind); } catch { /* старая оболочка */ }
+  }, [tonalIcon]);
   const eco = ecoOn(settings);
   const ecoRef = useRef(eco);
   ecoRef.current = eco;
@@ -4495,6 +4586,7 @@ export default function WindDashboard() {
         ${MOTION_CSS}
         ${ECO_CSS}
         ${MORPH_CSS}
+        ${LANG_CSS}
         ${settings.skin === "material" ? materialCss(settings.scene === "light", settings.mdIcons) : settings.scene === "light" ? LIGHT_CSS : ""}
       `,
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -4523,7 +4615,7 @@ export default function WindDashboard() {
           display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-            <span data-poke="kiwi" style={{ display: "inline-flex", cursor: "pointer" }}><KiwiMark size={36} g={g} /></span>
+            <span data-poke="kiwi" style={{ display: "inline-flex", cursor: "pointer" }}>{tonalIcon ? <TonalMark size={36} /> : <KiwiMark size={36} g={g} />}</span>
             <h1 style={{
               margin: 0, fontSize: 16, fontWeight: 700, letterSpacing: 1.2,
               fontFamily: SANS, color: TEXT, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 9,
@@ -5145,6 +5237,7 @@ export default function WindDashboard() {
             <button className="set-x" onClick={() => setShowSettings(false)} aria-label="Закрыть">✕</button>
           </div>
 
+          <SetSection title="Система" first />
           {/* Станции переехали во вкладку «Станция» — там подключение целиком.
               Здесь осталась только строка: какая выбрана и куда идти. */}
           <div style={{ marginBottom: 18 }}>
@@ -5157,11 +5250,6 @@ export default function WindDashboard() {
             </div>
           </div>
 
-          <div style={{ marginBottom: 18 }}>
-            <Btn g={g} onClick={() => { setShowSettings(false); setLayoutMode(true); setTab("wind"); }}>
-              КАСТОМИЗИРОВАТЬ РАСКЛАДКУ
-            </Btn>
-          </div>
           <Choice
             label="Единицы скорости" g={g} value={settings.unit}
             options={UNIT_KEYS.map((k) => ({ value: k, label: UNITS[k].label }))}
@@ -5184,6 +5272,21 @@ export default function WindDashboard() {
               onChange={(v) => setLink(v)}
             />
           )}
+          <div style={{ marginBottom: 18 }}>
+            <Label g={g}>Язык</Label>
+            <Segments
+              ariaLabel="Язык" value={settings.lang ? "pick" : "auto"}
+              options={[{ value: "auto", label: "По умолчанию" },
+                        { value: "pick", label: settings.lang ? langInfo(settings.lang).name : "Выбрать другой" }]}
+              onChange={(v) => (v === "auto" ? setS({ lang: null }) : setLangOpen(true))}
+            />
+            <div className="lang-cur">
+              {settings.lang
+                ? <>Выбранный язык: <span translate="no">{langInfo(settings.lang).name}</span> · <button type="button" className="eco-auto" onClick={() => setLangOpen(true)}>Выбрать другой</button></>
+                : <>Как в системе: <span translate="no">{langInfo(systemLang()).name}</span></>}
+            </div>
+          </div>
+          <SetSection title="Тема" />
           <Choice
             label="Тема" g={g} value={settings.skin === "material" ? "material" : "glass"}
             options={Object.entries(MATERIAL_THEMES).map(([value, t]) => ({ value, label: t.label }))}
@@ -5198,6 +5301,13 @@ export default function WindDashboard() {
               hint="Шестерёнка, кнопки справа от пульта и выбранная вкладка. «Синие» — тон primary; «в цвет фона» — нейтральные, тем же тоном, что поверхности вокруг."
             />
           )}
+          <Switch
+            label="Liquid Glass иконка" g={g} accent={accent}
+            value={tonalIcon ? "off" : "on"}
+            off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+            onChange={(v) => setS({ glassIcon: v === "on" })}
+            hint="Значок в шапке и значок самого приложения. Включено — стеклянная долька киви, выключено — плоская тональная."
+          />
           <Choice
             label="Фон" g={g}
             value={["liquidDark", "plain", "light"].includes(settings.scene) ? settings.scene : "liquid"}
@@ -5232,7 +5342,7 @@ export default function WindDashboard() {
           <GlassLevel g={g} value={glassLevel(settings)} eco={eco}
                       onCommit={(v) => setS({ glassLevel: v })} /></>}
 
-          <div style={{ marginTop: 18 }} />
+          <SetSection title="Пульт и раскладка" />
           <Choice
             label="Пульт управления" g={g} value={dockPos}
             options={[{ value: "bottom", label: "Снизу" }, { value: "top", label: "Сверху" },
@@ -5247,9 +5357,15 @@ export default function WindDashboard() {
             hint="Подпись всё равно видна в подсказке при наведении и для читалок экрана."
           />
 
+          <div style={{ marginBottom: 6 }}>
+            <Btn g={g} onClick={() => { setShowSettings(false); setLayoutMode(true); setTab("wind"); }}>
+              КАСТОМИЗИРОВАТЬ РАСКЛАДКУ
+            </Btn>
+          </div>
+
           {ON_ANDROID && (
             <>
-              <div style={{ marginTop: 18, marginBottom: 9 }}><Label g={g}>Экран</Label></div>
+              <SetSection title="Экран" />
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
                 <div style={{ fontSize: 11, color: "rgba(var(--ink, 231,238,246),0.55)", lineHeight: 1.5 }}>
                   Во весь экран: крупная цифра для телефона на подставке, ночью тусклый красный. Выход — двойное касание.
@@ -5259,7 +5375,7 @@ export default function WindDashboard() {
             </>
           )}
 
-          <div style={{ marginTop: 18, marginBottom: 9 }}><Label g={g}>Вибрация</Label></div>
+          <SetSection title="Вибрация" />
           <Choice
             label="Сила" g={g} value={settings.haptics || "normal"}
             options={[{ value: "off", label: "выкл" }, { value: "soft", label: "мягко" }, { value: "normal", label: "обычно" }, { value: "strong", label: "сильно" }]}
@@ -5294,7 +5410,7 @@ export default function WindDashboard() {
             </>
           )}
 
-          <div style={{ marginTop: 18, marginBottom: 9 }}><Label g={g}>Голос и тревоги</Label></div>
+          <SetSection title="Уведомления и голос" />
           <Switch
             label="Уведомления" g={g} accent={accent}
             value={settings.notify ? "on" : "off"}
@@ -5437,6 +5553,11 @@ export default function WindDashboard() {
         <UpdateModal g={g} accent={accent} up={update} onClose={() => setShowUpdate(false)} />
       )}
 
+      {langOpen && (
+        <LangPicker g={g} value={settings.lang}
+                    onPick={(code) => { setS({ lang: code }); setLangOpen(false); }}
+                    onClose={() => setLangOpen(false)} />
+      )}
       {showWelcome && (
         <WelcomeModal
           g={g} busy={geoBusy} message={welcomeMsg} stationCount={stations.length}

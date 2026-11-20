@@ -1,0 +1,636 @@
+0	# IN # TAGEN
+1	# oder # mm pro Kippung
+2	# m
+3	# Min.
+4	# Minuten
+5	# Stunden
+6	# Stunden
+7	# auf einmal
+8	# in den USA
+9	#-#-#: kein Eintrag
+10	#. Halten Sie die Schalen mit der Hand an oder schirmen Sie den Sensor vom Wind ab.
+11	#m
+12	#–# Hz
+13	#–# hPa
+14	#–# hPa, etwa ±# hPa
+15	#–# km Durchmesser
+16	#–# m/s
+17	#–# kleine Wirbel um ein gemeinsames Zentrum
+18	(Wolken, alle # h) ·
+19	GOES-# · „Sandwich“
+20	GOES-# · Pazifik
+21	GOES-# · Südliche Plains
+22	GOES-# · Luftmassen
+23	GOES-# · Infrarotkanal
+24	GOES-# · USA-Festland
+25	GOES-# · volle Scheibe
+26	METAR DER FLUGPLÄTZE
+27	MyWindProbeBETA.org oder #.#
+28	NASA/JPL, University of Arizona
+29	OPEN-METEO · # M
+30	RGB-Komposit aus Wasserdampf- und Ozonkanälen
+31	WC-#J der USAF, WP-#D und Gulfstream IV der NOAA
+32	loopMax, ms
+33	AUTO
+34	AZIMUT · ENTFERNUNG = GESCHWINDIGKEIT, m/s
+35	EF-ARCHIV
+36	Adresse
+37	Analyse
+38	Andover #
+39	Laufzeit
+40	Luftdruck
+41	BEAUFORT ·
+42	Bangkok
+43	Barneveld #
+44	Barometer Vaisala PTB#
+45	Akku
+46	Laptop-Akku: #%, lädt
+47	Akku, V
+48	Große Wirbel
+49	Beaufort
+50	Bridge Creek–Moore #
+51	Gepanzertes Abfangfahrzeug
+52	Buenos Aires
+53	LIVE
+54	KONSTANTE WIEDERHERSTELLEN
+55	GANZE WELT
+56	Manuell eingeben
+57	Wahrscheinlichkeit einer Zyklonbildung in # Tagen
+58	Seilförmig
+59	Wind
+60	Wind in der Höhe
+61	Vibration
+62	Sichtbarer Kanal über Infrarot
+63	Tornado-Arten
+64	Wikimedia Commons ↗
+65	Windsurfen
+66	Wirbel auf dem Mars
+67	Wirbel an der Böenfront
+68	Vollbild
+69	Wasserhose
+70	Luft
+71	Trichter ohne Bodenkontakt
+72	Alle
+73	Gesamte Zeit
+74	Woodward #
+75	Ort wählen
+76	Mammatuswolken
+77	Masthöhe
+78	STÄDTE
+79	BEREIT ZUR MESSUNG
+80	Gustnado
+81	Wo sind Sie?
+82	Gainesville #
+83	Auge des Hurrikans
+84	Stimme und Alarme
+85	Gesprochene Zusammenfassung
+86	Greenfield #
+87	Gewitter
+88	Gewitter mit rotierendem Aufwind
+89	TAG · SONNE #°
+90	Sensoren in der Nähe
+91	Daulatpur–Saturia #
+92	Delhi
+93	Demomodus
+94	Blitzdetektor
+95	Jakarta
+96	Jarrell #
+97	Justin Hobson
+98	Joplin #
+99	Rotordurchmesser
+100	Staudruck
+101	Disdrometer
+102	Drohne
+103	Rauch steigt senkrecht auf
+104	Daniel Rodriguez
+105	Geschwindigkeitseinheiten
+106	LIVE-EBENEN · NWS / NOAA
+107	Gelb
+108	Gelb, Warnung: aus
+109	DIESE SITZUNG · # WERTE
+110	PRO TAG
+111	MESSEN
+112	Für diesen Zeitraum steht nichts im Protokoll.
+113	Bild wird geladen…
+114	Schließen
+115	Gesamte Westhalbkugel, natürliche Farben
+116	West-Kentucky #
+117	Westlicher Satellit, volle Scheibe
+118	Startbild und Update
+119	Zustand
+120	Grün
+121	Grün, Akku: aus
+122	Spiegelglatte See
+123	Dock-Symbole
+124	Tornado von Iwanowo #
+125	Strahlung
+126	Quelle
+127	Datenquelle
+128	Datenquellen
+129	Quellen:
+130	Johannesburg
+131	KITE
+132	BILD #×#
+133	LAYOUT ANPASSEN
+134	WIRD GESAMMELT
+135	Kairo
+136	Kite
+137	Wie er entsteht
+138	So funktioniert es
+139	Kalender
+140	Nullpunktkalibrierung
+141	Kamera
+142	Weltkarte
+143	Karten
+144	Fenster-Berührung
+145	Kategorie
+146	Kyjiw
+147	Kinshasa
+148	Keilförmig
+149	Konvektionsprofil
+150	Kegelförmig
+151	Böenfaktor G
+152	Rot
+153	Rot, Alarm: aus
+154	WMO-Kriterium für Böenwalzen
+155	Rundumsicht
+156	Xenia #
+157	Lagos
+158	Landspout
+159	Lima
+160	London
+161	Los Angeles
+162	MIN — · MAX — m/s
+163	MINUTENWERTE
+164	Max. Anstieg in # s
+165	Ein sanfter Klick bei jedem Schritt des Schiebereglers und ein Anschlag am Rand.
+166	Standort der Station
+167	Monat
+168	Wetter
+169	Wetterdaten
+170	Meteorologie
+171	Wetterstation auf dem Autodach
+172	Mexiko-Stadt
+173	Mehrfachwirbel
+174	Lamellenhütte oder Stevenson-Hütte
+175	Mobiles Doppler-Radar
+176	Geht es jetzt?
+177	Moskau
+178	Mumbai
+179	Moore #
+180	IN DER NÄHE SUCHEN
+181	SAMMELN
+182	NICHT EINGERICHTET
+183	NICHT VERBUNDEN
+184	KEINE KAMERA
+185	KEINE ANTWORT
+186	KEIN SIGNAL
+187	Auf See
+188	An Land
+189	Hitzdraht
+190	Name
+191	Nairobi
+192	Einstellungen
+193	Natchez #
+194	Woche
+195	Keine Einträge für den Zeitraum.
+196	Nick Monteleone, USAF
+197	Die Koordinaten der Station werden benötigt.
+198	New York
+199	WOLKEN
+200	AKTUALISIEREN
+201	ZEITFENSTER LAUT PROGNOSE · # H
+202	ORIGINAL ↗
+203	AB # M · α = #/#
+204	ÖFFNEN ↗
+205	REFLEKTIVITÄT
+206	Aktualisiert
+207	Aktualisiert um #:#:#.
+208	Feuerwirbel
+209	Bestimmen Sie den Ort oder geben Sie ihn manuell ein.
+210	Meinen Standort bestimmen
+211	Kippwaagen-Regenmesser
+212	Abgesenkte Basis unter dem Aufwind
+213	Niederschlag
+214	Reflektivität über der Tornado Alley
+215	Reflektivität, Golfküste
+216	Wochenbericht
+217	Hurrikanjäger
+218	VERBINDEN
+219	BÖE
+220	GRENZE # m/s
+221	WARNUNGEN
+222	WMO-MERKMALE
+223	PRÜFEN
+224	LEER
+225	Gleitschirm
+226	Paris
+227	Segelboot
+228	Peking
+229	Mobiler Mast, Texas Tech
+230	Pyranometer
+231	Plainfield #
+232	Nach Koordinaten
+233	Nach Name
+234	Standard
+235	Wetter
+236	Bericht teilen
+237	Verbindung
+238	Livestreams zu Tornados suchen
+239	Schieberegler
+240	Band # µm, Wolkenobergrenzen-Temperatur
+241	Prognosekorrektur
+242	Böe
+243	Böen
+244	Ähnlich, aber nicht
+245	Warnung
+246	Gerät
+247	Bodenanalyse · WPC
+248	Rotationsmerkmale
+249	Prognose
+250	SPC-Prognosen (offiziell)
+251	Propeller mit Windfahne
+252	Spannungseinbrüche diese Woche
+253	Profil
+254	Bedienleiste
+255	Staubteufel eines anderen Planeten
+256	Staubteufel
+257	ROTOR # M
+258	Arbeit in der Höhe
+259	Radar
+260	Radar · Südosten der USA
+261	Radar · Südliche Plains
+262	Radarschleife · USA
+263	Strahlungsschutz
+264	Radiosonde
+265	Winddrehung
+266	Bereich
+267	Gebiet
+268	Gebiet aktiviert, aber kein Ort gewählt
+269	Geschwindigkeitsverteilung
+270	Empfohlene Sensoren
+271	Rekorde
+272	Rekorde erscheinen zusammen mit dem Protokoll.
+273	Windrose
+274	Rolling Fork #
+275	Hand-Flügelradanemometer
+276	Mit Beschriftung
+277	SCHERUNG
+278	STÄRKE
+279	TORNADOS HEUTE
+280	BENACHRICHTIGEN, WENN EIN FENSTER AUFGEHT ·
+281	SATELLIT UND RADAR · NOAA
+282	MITTEL ÜBER # MIN
+283	MITTLERER TAGESWIND · # WOCHEN
+284	SUPERZELLEN
+285	Flugzeug und Fallsonden
+286	São Paulo
+287	San Justo #
+288	Böe zurücksetzen
+289	Oben
+290	LEDs
+291	Komposit-Reflektivität, Animation
+292	Eigener Sensor
+293	Verbindung
+294	Heute und gestern
+295	Jetzt
+296	Derzeit entscheidet das Gerät:
+297	Sektor über der Tornado Alley
+298	St. Louis–East St. Louis #
+299	Seoul
+300	Signal
+301	Signal, dBm
+302	Sydney
+303	Stärke
+304	Singapur
+305	Blau
+306	Blau, WLAN: aus
+307	Geschwindigkeit
+308	Geschwindigkeit · # Min.
+309	Windgeschwindigkeit
+310	Geschwindigkeit, m/s
+311	Links
+312	U.S. Fish and Wildlife Service
+313	Tornados und Hurrikane
+314	Smithville #
+315	Unten
+316	Ereignisse
+317	Nachbarn
+318	Zustand nach Beaufort-Skala
+319	Rechts
+320	Claude fragen
+321	Satellit
+322	Mittel · # Min.
+323	Istanbul
+324	Station
+325	Die Station hat nicht auf /api/wifi geantwortet.
+326	Station antwortet nicht
+327	Station gegen Prognose
+328	Statistik
+329	Stationäres Doppler-Radar
+330	Wallwolke
+331	Superzelle
+332	Tag
+333	TURB
+334	Tuscaloosa–Birmingham #
+335	Teheran
+336	Design
+337	Temperatur und Feuchte
+338	Temperatur, Feuchte, Druck
+339	Thermoanemometer
+340	Ruhezeiten
+341	Tokio
+342	Nur Symbole
+343	Tonal
+344	Derselbe Satellit, in Großaufnahme
+345	Zugangspunkt
+346	Übertragungen vom Boden
+347	Alarm
+348	Alarm: Wind nimmt zu
+349	Tropenprognose · NHC
+350	Tropischer Wirbelsturm
+351	Pitotrohr
+352	Dreiachsiger Ultraschall
+353	Tri-State-Tornado #
+354	Turbulenz TI
+355	Tupelo #
+356	Dunkel (Standard)
+357	Dunkles Liquid Glass
+358	MANUELL ANGEBEN
+359	Fenster-Benachrichtigung
+360	Benachrichtigungen
+361	Wichita Falls #
+362	Ultraschall, zwei Achsen
+363	Hintergrund
+364	Fronten, Druckzentren, Isobaren
+365	Junín #
+366	Hackleburg–Phil Campbell #
+367	Hallam #
+368	Harald Richter, NOAA
+369	Symbolfarbe
+370	Einige Quellen haben nicht geantwortet — die übrigen Ebenen sind live.
+371	Schalenkreuz
+372	Schalen plus Windfahne
+373	Chicago
+374	STILLE
+375	Shanghai
+376	Ballonsonde mit Sender
+377	Böenkragen
+378	Ed Lu, NASA, von der ISS
+379	Edmonton #
+380	Eco-Modus
+381	Export
+382	El Reno #
+383	Windradenergie
+384	Live
+385	ICH BIN HIER
+386	Luftfahrt
+387	Archiv, #
+388	Bft ·
+389	Drucktendenz
+390	ohne bewegliche Teile
+391	ohne Mesozyklone
+392	bei Hitze und klarem Himmel
+393	für die Tasche
+394	wie der Hintergrund
+395	wichtiger als der Sensor
+396	Wind, Temperatur, Feuchte, Druck in Fahrt
+397	wirkt breiter als hoch
+398	Wirbel im Wirbel
+399	an
+400	ins Auge hinein
+401	in den Tornado hinein
+402	aus
+403	aus
+404	deutlich höher als breit, verjüngt sich nach unten
+405	Gewitter für Bastler
+406	Druck, Temperatur, Feuchte, Wind aus der Drift
+407	noch keine Daten
+408	zweimal täglich, weltweit
+409	zig Meter auf Kilometer Entfernung
+410	für Hobbyisten
+411	für eine Selbstbaustation
+412	bis # km
+413	bis # km für Niederschlag
+414	bis # km — hundertfach höher als auf der Erde
+415	noch kein Tornado
+416	Sensor vor der Sonne schützen, ohne die Belüftung zu nehmen
+417	Windstille im Zentrum
+418	von
+419	außergewöhnlich
+420	es sind zwei verschiedene
+421	Bild empfangen um
+422	noch keine Bilder
+423	Tropfen für Tropfen
+424	Klasse #
+425	keine Clients am Zugangspunkt
+426	km/h
+427	Computer — aus
+428	Kondensationskegel, der den Boden nicht erreicht hat
+429	wird gesammelt…
+430	schön, aber nicht gefährlich
+431	kurios
+432	m
+433	m/s
+434	Mutter der Tornados
+435	kein Ort gewählt
+436	mph
+437	sanft
+438	an der Vorderkante des kalten Abwinds eines Gewitters
+439	nicht erfüllt
+440	nicht eingestuft
+441	nicht verbunden
+442	kein Tornado
+443	ein paar Minuten
+444	nein
+445	kein Akku
+446	keine Koordinaten oder die Prognose hat nicht geantwortet
+447	keine Verbindung zur Station
+448	Update ·
+449	gemeinfrei
+450	normal
+451	meist #–# km
+452	meist #–# m/s
+453	meist die letzte Lebensphase eines Tornados
+454	etwa # t in der Ausführung TIV #
+455	etwa #–# m/s
+456	von einer Bodengrenze, nicht aus Rotation in der Wolke
+457	Vorderkante des kalten Abwinds eines Gewitters
+458	unter dem Amboss eines starken Gewitters
+459	unter dem stärksten Aufwind, neben dem Niederschlagsbereich
+460	mit dem WindStation-Netz oder dem Heimnetz verbinden und tippen
+461	vor einem halben Jahr
+462	Projekt TORUS
+463	am häufigsten verwechselt
+464	Arbeitspferd
+465	Größe und Geschwindigkeit jedes Teilchens
+466	Differenz zwischen Gesamt- und statischem Druck
+467	wächst von unten nach oben in eine sich entwickelnde Wolke, meist schwach
+468	eine seltene Ausnahme
+469	Rekord # km/h
+470	Daten werden gesammelt…
+471	Ihre eigene Frage zur Station oder zur Meteorologie
+472	heute
+473	ein Netz auf Rädern
+474	stark
+475	stark
+476	blau
+477	entsteht
+478	schwache Strömungen
+479	hier schauen
+480	solarer Fluss
+481	ein Stadium, keine Art
+482	Niederschlagsstandard
+483	Globalstrahlung, W/m²
+484	Superzellen-
+485	Hitze eines Feuers, keine Gewitterwolke
+486	das typische Bild
+487	Turbulenz
+488	Knoten
+489	ft/s
+490	Farbe — nach der festgestellten Kategorie
+491	breiter als hoch
+492	Stille
+493	Energie × Windscherung, Zelle = Modellknoten
+494	Referenz für die Luft
+495	Mast-Referenz
+496	heller = windiger, ab # m/s volle Farbe
+497	klarer Himmel
+498	−#…+# °C, Genauigkeit etwa ±# °C
+499	Wind der Station in den letzten Minuten — erscheint mit den Daten
+500	Keine Koordinaten gesetzt — Sie können sie bei der Station im Katalog eintragen.
+501	Windgeschwindigkeit und -richtung, Druck, Temperatur, Feuchte
+502	Die Koordinaten der Station werden benötigt — ohne sie gibt es nichts, womit man das Modell vergleichen kann.
+503	Die Koordinaten der Station werden benötigt — sie werden in secrets.h oder im Katalog gesetzt.
+504	Wie verbinde ich mich vom Handy mit der Station, wenn sie ihr eigenes Netz aufspannt?
+505	#. Tippen Sie auf „Messen“ — zehn Sekunden lang beobachtet das Dashboard, was der Pin sieht.
+506	Was bedeutet das Konvektionsprofil und woran erkenne ich, dass eine Böenwalze naht?
+507	Die Rose wird aus der Richtung gebaut, und die Station hat keinen Richtungssensor.
+508	Welches Anemometer soll ich statt des jetzigen wählen, um schwachen Wind zu sehen?
+509	Das Protokoll hat gerade erst begonnen — die Kurven erscheinen nach einer halben Stunde Betrieb.
+510	Mittlerer Wind, stärkste Böe, Stunden in Ihrem Bereich für „
+511	Wo sehe ich im Dashboard die Böen und wie setze ich das gesammelte Maximum zurück?
+512	Dieses Gerät hat keinen Vibrationsmotor — die Einstellung wirkt auf einem Handy.
+513	Wenn die Ortung nicht geklappt hat oder Sie den Standort nicht freigeben möchten.
+514	Die Beschriftung bleibt im Tooltip beim Überfahren und für Screenreader sichtbar.
+515	Nachts keine Benachrichtigungen und keine Stimme. Was nachts war — in einer Zusammenfassung am Morgen.
+516	Ein sanftes Klopfen beim Öffnen der App und ein leises Summen, während ein Update installiert wird.
+517	Die Messreihe wird gesammelt. Die Schätzung erscheint nach einigen Sekunden Messung.
+518	Wie schließe ich einen BME#-Sensor an meine Station an und was muss ich in der Firmware ändern?
+519	Bestimmen Sie den Ort auf Anfrage oder legen Sie ihn selbst fest. Er wird nur auf diesem Gerät gespeichert.
+520	Die LEDs laufen gerade im Automatikmodus. Schalten Sie auf „Manuell“, um sie selbst zu steuern.
+521	Noch ruhig. Hier landen Neustarts, Netzwechsel, Cloud, Akku, Kalibrierungen und Alarme.
+522	Öffnen Sie „Wetterdaten“: Wetter, Niederschlag, Prognose, Luft und ein Windkompass für Ihr Gebiet.
+523	Ein kurzer Klick beim Berühren einer Schaltfläche oder eines Feldes. Scrollen und Ziehen lösen nichts aus.
+524	Der Windkompass wird per Schaltfläche eingeschaltet und zeigt die Windrichtung, wie auch immer Sie das Handy drehen.
+525	Wenn der Wind in # Minuten um # m/s oder mehr zugelegt hat — nicht nach einer festen Schwelle. Höchstens einmal alle # Minuten.
+526	Satellit über #° W. Hier entstehen die Taifune des Pazifiks, und von hier kommt das Wetter für die ganze Westküste.
+527	Oben und unten ist die Bedienleiste waagerecht, an den Seiten senkrecht. Die Einstellungen klappen von ihr aus zum Bildschirm hin auf.
+528	Das Sektorbild wird doppelt so oft aktualisiert wie die volle Scheibe — man sieht, wie sich eine Gewitterfront innerhalb einer Stunde entfaltet.
+529	Eine Sprachausgabe liest Wind und Böe laut vor — wenn die Hände beschäftigt sind. Einmalig: Schaltfläche „Sagen“ im Vollbild.
+530	Anfragen gehen nur mit Koordinaten raus; Ihr Standort wird nirgendwohin sonst gesendet und nur auf diesem Gerät gespeichert.
+531	Aus — die Instrumente der Station werden gezeigt. An — erfundener Wind zum Kennenlernen des Dashboards; die Regler stecken in der Schaltfläche neben dem Dock.
+532	Der Flugplatz misst in # m Höhe auf freiem Feld. Deutlich mehr als bei Ihnen ist bei einem niedrigen Mast normal; deutlich weniger ist ein Grund, den Sensor zu prüfen.
+533	Der Richtungssensor ist nicht angeschlossen, daher ist der Azimut unbekannt, und für die Rundumsicht fehlt die Grundlage. Die Geschwindigkeit und alles, was davon abhängt, funktioniert.
+534	“, Wind nach Tagen, Rose und beste Tageszeiten — in einem Bild. Auf dem Handy öffnet sich „Teilen“, am Computer wird das Bild in den Downloads gespeichert.
+535	Für den oben gewählten Zeitraum: Zeit (UTC), Mittel, Minimum, Maximum, Böe, Richtung, Druck, Akku, Signal. Excel öffnet die CSV direkt.
+536	Das Zahnrad, die Schaltflächen rechts von der Bedienleiste und der gewählte Reiter. „Blau“ — der Primary-Ton; „wie der Hintergrund“ — neutral, im selben Ton wie die Flächen ringsum.
+537	Gebietsdaten sind aktiviert, aber kein Ort ist gewählt. Legen Sie ihn im Reiter „Gebiet“ fest — dann erscheinen hier Windgeschwindigkeit und -richtung, Wetter, Niederschlag, Prognose und Luft.
+538	Windows und Android: Windübersicht mit Prognose, Station verloren oder wieder da, Wind nimmt zu, Böenwalze. Höchstens # pro Tag und höchstens einmal alle # Minuten — heute gesendet: #.
+539	Das Bild ist nicht angekommen. Entweder hat das Gerät keinen Internetzugang (z. B. sind Sie im Netz der Station selbst), oder die Anfrage an eine fremde Domain wird von der Sicherheitsrichtlinie der Seite blockiert.
+540	Geostationärer Satellit über #° W. Tagsüber natürliche Farben, nachts schaltet er automatisch auf den Infrarotkanal mit hervorgehobenen Wolken, sodass das Bild nie dunkel wird.
+541	Ein gedachtes Kleinwindrad: Anlauf bei # m/s, Nennleistung bei #, Abschaltung bei #, Rotorwirkungsgrad #. Der Wind wird in Masthöhe genommen — auf einem höheren Mast liefert das Windrad mehr (siehe „Wind in der Höhe“).
+542	Oklahoma, Kansas, Texas — die berühmte Tornado Alley. Hierher schaut man meist, wenn das SPC erhöhtes Risiko ausruft: Man sieht, wie sich einzelne Superzellen entlang der Dryline aufreihen.
+543	Dasselbe Radarprodukt, aber größer und nur über der Tornado Alley. In diesem Maßstab erkennt man bereits die Form der Zelle — auch das Hakenecho, an dem man eine tornadische Superzelle erkennt.
+544	Eine fertige Animation des Wetterdienstes: die letzten Bilder der Basisreflektivität aller NEXRAD-Radare, zu einer Schleife zusammengefügt. Dasselbe Produkt wie die Ebene „Reflektivität“ auf der Karte, nur mit Bewegungsverlauf.
+545	Potenzgesetz für offenes Gelände: Der Wind nimmt mit der Höhe zu, weil der Boden ihn bremst. Über Wald oder Stadt ist der Anstieg stärker (α ≈ #–#), über Wasser schwächer (α ≈ #) — das ist eine Schätzung, keine Messung.
+546	Das Passwort des WindStation-Netzes wird hier weder abgefragt noch gespeichert: Es wird beim Bauen der Firmware in secrets.h festgelegt. Die Cloud-Kennung braucht man nur, wenn die Station ein Modem hat und Sie sie aus der Ferne sehen wollen.
+547	Die zweitaktivste Tornadoregion des Landes ist Dixie. Tornados sind hier öfter nächtlich und kommen mit einer Front statt mit einer Einzelzelle, deshalb sieht das Radarbild ganz anders aus: eine lange Linie statt einzelner Flecken.
+548	Liquid Glass — Glas, Glanzlichter und Linsen wie in iOS #. „Tonal“ — flache farbige Flächen, große Rundungen und Pillen wie in Android-Apps. Beide haben dieselben Animationen. Hell oder dunkel — je nach „Hintergrund“.
+549	Zwei Kanäle übereinander: Die Wolkentextur stammt aus dem sichtbaren, die Farbe aus dem Infrarotkanal. Man sieht zugleich das Relief der Wolkenoberseite und wie kalt sie ist. Ein Arbeitsprodukt der Meteorologen bei der Gewitteranalyse.
+550	Kein Foto, sondern eine Einfärbung nach Kanaldifferenzen. Trockene Stratosphärenluft erscheint rot, feuchte Tropenluft grün. An den Rändern dieser Farben sieht man Strahlstrom und Frontgrenzen, die auf einem normalen Bild fehlen.
+551	Misst Wärme statt Licht und funktioniert deshalb nachts wie tagsüber. Je kälter die Wolkenoberseite, desto höher ist sie gestiegen — an diesem Kanal erkennt man starke Konvektion: Ein Gewitter, das die Tropopause durchstößt, hat eine Oberseite kälter als minus sechzig Grad.
+552	Offizielle Prognose des National Hurricane Center für den Atlantik: Eingekreist sind die Gebiete, in denen sich in der kommenden Woche ein tropischer Wirbelsturm bilden kann, mit Wahrscheinlichkeit in Prozent. Genau das Bild, nach dem an der Küste die Bereitschaft ausgerufen wird.
+553	Instrumente, die man zum Wetter bringt, statt auf einem Mast darauf zu warten. Vom mobilen Gestell, das in fünf Minuten in die Bahn eines Hurrikans gestellt wird, bis zum Panzerfahrzeug, das in den Trichter fährt. Allen gemeinsam: Die Daten müssen erfasst sein, bevor das Instrument weggeweht wird.
+554	Wie ein Tornado entsteht, welche Arten es gibt und was ihm ähnelt, ohne einer zu sein. Letzteres ist wichtiger, als es scheint: Die Hälfte der „Tornados“ im Netz sind Gustnados und Staubteufel, und die meisten Fehlalarme kommen von einem Böenkragen, der eine Böenwalze ankündigt, keinen Trichter.
+555	Für Handys. Glas bleibt Glas — Tönung, Fase, Glanz, Leuchten bei Berührung —, aber ohne Reif unter den Feldern, ohne Linse, ohne laufenden Glanz und Mauslicht; der Hintergrund steht still, die Kameraszene friert ein, der Datenstrom wird # Mal pro Sekunde statt # gezeichnet. Die Messwerte ändern sich dadurch nicht.
+556	Die klassische Wetterkarte, die der diensthabende Meteorologe des Weather Prediction Center zeichnet. Kaltfronten mit Dreiecken, Warmfronten mit Halbkreisen, Isobaren alle # hPa. Jede Wetteranalyse beginnt mit dieser Karte, und sie hat sich in hundert Jahren kaum verändert.
+557	Sprache
+558	Wie im System
+559	Andere wählen
+560	Sprache wählen
+561	Sprache der Oberfläche
+562	Liquid-Glass-Symbol
+563	Tonales Symbol
+564	Das Symbol in der Kopfzeile und das der App selbst. An — eine Kiwischeibe aus Glas, aus — ein flaches tonales.
+565	Sprachen, die nicht in der Liste stehen, kommen in künftigen Updates. Lange Hilfetexte sind teils noch auf Russisch.
+566	jetzt
+567	Gewählte Sprache:
+568	Wie im System:
+569	Glas
+570	Glasstärke
+571	flüssig
+572	Reif
+573	weich
+574	klar
+575	Clear — klares Glas wie in iOS #. Tinted — dichter und kontrastreicher, Text ist auf jedem Hintergrund lesbar (iOS #).
+576	Links — Milchglas: mehr Reif, dichtere Tönung, Text auf jedem Hintergrund lesbar. Rechts — eine klare Linse: weniger Reif, hellere Fase, stärkere Brechung am Rand.
+577	System
+578	Bedienleiste und Layout
+579	Benachrichtigungen und Stimme
+580	morgen
+581	Protokoll
+582	WIRD NICHT GEFÜHRT
+583	fällt schnell — wahrscheinlich mehr Wind und Unwetter
+584	fällt — das Wetter wird schlechter
+585	steigt schnell — beim Aufklaren starker Wind möglich
+586	steigt — das Wetter bessert sich
+587	gleichbleibend
+588	MITTEL ÜBER # MIN
+589	warte auf Daten
+590	· KORRIGIERT FÜR IHREN MAST
+591	in den nächsten zwei Tagen kein passender Wind
+592	der Wind muss halten
+593	Benachrichtigungen für dieses Fenster sind gerade aus — erlauben Sie sie im Browser oder in den Telefoneinstellungen.
+594	gestern
+595	Druck
+596	IN # STUNDEN
+597	Änderung
+598	Der Bericht konnte nicht gezeichnet werden.
+599	Mittlerer Wind
+600	Weibull, Form k
+601	Weibull, Skala c
+602	Stille (< # m/s)
+603	Über # m/s
+604	Mittlere Leistung
+605	Ertrag im Zeitraum
+606	Aufs Jahr gerechnet
+607	Stärkste Böe
+608	Windigster Tag
+609	Ruhigster Tag
+610	Zeichne…
+611	liegt fast nie daneben
+612	Das Protokoll wird nur von einer echten Station geführt — verbinden Sie sie im Reiter „Station“.
+613	Modell bei Ihnen
+614	Faktor Mittel / Böen
+615	Fehler, m/s
+616	Korrektur in Fenstern und Übersichten anwenden
+617	Prognosekorrektur
+618	Die Prognose hat nicht geantwortet.
+619	−# h
+620	+# h
+621	Station, auf # m umgerechnet
+622	Prognose
+623	korrigierte Prognose
+624	Im Mittel liegt die Prognose
+625	zu hoch
+626	zu niedrig
+627	Mittlerer Fehler
+628	Verglichene Stunden
+629	Für eine Schätzung sind mindestens drei Stunden Protokoll nötig.
+630	frage an…
+631	Im Umkreis von ~# km gibt es keine Flugplätze mit METAR.
+632	keine Daten
+633	Nacht an der Station
+634	Keine Alarme.
+635	Der Wind frischt auf

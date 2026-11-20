@@ -32,6 +32,11 @@ Copy-Item "$ic\ic_launcher.png" "$b\res\mipmap-xxxhdpi\ic_launcher.png"
 Copy-Item "$ic\ic_fg.png" "$b\res\mipmap-xxxhdpi\ic_launcher_fg.png"
 Copy-Item "$ic\ic_bg.png" "$b\res\mipmap-xxxhdpi\ic_launcher_bg.png"
 Copy-Item "$ic\ic_mono.png" "$b\res\mipmap-xxxhdpi\ic_launcher_mono.png"
+# Тональный значок (тумблер «Liquid Glass иконка», ярлык .TonalLauncher).
+if (-not (Test-Path "$ic\ic_tonal_fg.png")) { throw "нет тонального значка — запустите: npx electron make-icon.js" }
+Copy-Item "$ic\ic_tonal.png" "$b\res\mipmap-xxxhdpi\ic_tonal.png"
+Copy-Item "$ic\ic_tonal_fg.png" "$b\res\mipmap-xxxhdpi\ic_tonal_fg.png"
+Copy-Item "$ic\ic_tonal_bg.png" "$b\res\mipmap-xxxhdpi\ic_tonal_bg.png"
 Copy-Item "$ic\widget_preview.png", "$ic\widget_preview_wide.png" "$b\res\drawable-nodpi\"
 Copy-Item "$av\bridge.js" "$b\assets\bridge.js"
 # Лента на Google Диске (вне дома): те же id, что у программы для Windows.

@@ -19,16 +19,40 @@
         android:allowBackup="true"
         android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        <!-- Окно приложения. Сам в списке приложений не виден: туда его выводят два
+             ярлыка ниже — стеклянный и тональный значок, включён ровно один
+             (тумблер «Liquid Glass иконка», MainActivity.setIcon). Стеклянный ярлык
+             носит прежнее имя .MainActivity, чтобы значок на рабочем столе пережил
+             обновление со старых версий. -->
         <activity
-            android:name=".MainActivity"
-            android:exported="true"
+            android:name=".WindActivity"
+            android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize" />
+        <activity-alias
+            android:name=".MainActivity"
+            android:targetActivity=".WindActivity"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher"
+            android:enabled="true"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+        <activity-alias
+            android:name=".TonalLauncher"
+            android:targetActivity=".WindActivity"
+            android:icon="@mipmap/ic_tonal"
+            android:roundIcon="@mipmap/ic_tonal"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- Виджеты рабочего стола (WindWidget.java). Два входа в списке виджетов —
              квадратный и широкий; рисует их один и тот же код, и оба растягиваются. -->

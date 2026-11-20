@@ -1,17 +1,29 @@
 // Оболочка Weathered_Kiwi: окно Chromium вокруг уже собранного дашборда.
-const { app, BrowserWindow, session, shell, Menu, ipcMain } = require("electron");
+const { app, BrowserWindow, session, shell, Menu, ipcMain, nativeImage } = require("electron");
 const path = require("path");
+const fs = require("fs");
 const updater = require("./updater");
 const widgets = require("./widgets");
 
 let mainWin = null;
+
+// Значок окна и панели задач: стеклянный или тональный — тумблер «Liquid Glass
+// иконка» в настройках дашборда (wkWindow.setIcon). Выбор помнится в userData,
+// чтобы окно открывалось сразу с нужным значком, а не мигало стеклянным до
+// загрузки страницы. Значок самого .exe (ярлык, закреплённый в панели задач)
+// вшит в файл установщиком, и на лету его Windows сменить не даёт.
+const iconFile = () => path.join(app.getPath("userData"), "icon.txt");
+function iconKind() {
+  try { return fs.readFileSync(iconFile(), "utf8").trim() === "tonal" ? "tonal" : "glass"; } catch { return "glass"; }
+}
+const iconPath = (kind) => path.join(__dirname, "build", kind === "tonal" ? "icon-tonal.png" : "icon.png");
 
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280, height: 860, minWidth: 420, minHeight: 600,
     backgroundColor: "#04070a",
     title: "Weathered_Kiwi",
-    icon: path.join(__dirname, "build", "icon.png"),
+    icon: iconPath(iconKind()),
     autoHideMenuBar: true,
     fullscreenable: true,
     show: false,
@@ -93,6 +105,12 @@ if (!app.requestSingleInstanceLock()) {
       if (!mainWin || mainWin.isDestroyed()) return false;
       mainWin.setFullScreen(!mainWin.isFullScreen());
       return mainWin.isFullScreen();
+    });
+    ipcMain.handle("wk:set-icon", (_e, kind) => {
+      const k = kind === "tonal" ? "tonal" : "glass";
+      if (k !== iconKind()) { try { fs.writeFileSync(iconFile(), k); } catch { /* только на этот сеанс */ } }
+      if (mainWin && !mainWin.isDestroyed()) mainWin.setIcon(nativeImage.createFromPath(iconPath(k)));
+      return k;
     });
     ipcMain.handle("wk:fullscreen-state", () => !!(mainWin && !mainWin.isDestroyed() && mainWin.isFullScreen()));
     widgets.init({ showMain });

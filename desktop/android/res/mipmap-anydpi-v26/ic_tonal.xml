@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Тональный значок (с 0.5.0): плоская долька на тоне, без стекла. Monochrome — общий
+     с основным значком. Картинки рисует desktop/make-icon.js. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_tonal_bg" />
+    <foreground android:drawable="@mipmap/ic_tonal_fg" />
+    <monochrome android:drawable="@mipmap/ic_launcher_mono" />
+</adaptive-icon>

@@ -21,6 +21,12 @@ $stPk = Join-Path $PSScriptRoot '.last-pack-hash'
 $exe  = Join-Path $PSScriptRoot 'out\Weathered_Kiwi-win32-x64\Weathered_Kiwi.exe'
 
 function Log($m) { "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $m" | Add-Content -Path $log -Encoding UTF8 }
+
+# Стоп-кран: пока лежит файл desktop\.hold-release, ничего не пересобирается и не
+# выкладывается — ни лента, ни .exe, ни APK. Нужен, чтобы накопить несколько работ
+# и выложить их одним обновлением, когда решит человек: удалить файл (или запустить
+# скрипт с -Force) — и следующая сборка выложит всё накопленное разом.
+if ((Test-Path (Join-Path $PSScriptRoot '.hold-release')) -and -not $Force) { exit 0 }
 function HashOf($files) {
   $sb = [System.Text.StringBuilder]::new()
   foreach ($f in ($files | Sort-Object FullName -Unique)) {

@@ -182,7 +182,7 @@ public class WindWidget extends AppWidgetProvider {
             RemoteViews rv = new RemoteViews(ctx.getPackageName(), R.layout.wk_widget);
             rv.setImageViewBitmap(R.id.img, render(ctx, w, h, Model.load(ctx)));
             int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
-            Intent open = new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            Intent open = new Intent(ctx, WindActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             rv.setOnClickPendingIntent(R.id.img, PendingIntent.getActivity(ctx, 0, open, flags));
             Intent ref = new Intent(ctx, WindWidget.class).setAction(ACT_REFRESH);
             rv.setOnClickPendingIntent(R.id.refresh, PendingIntent.getBroadcast(ctx, 1, ref, flags));

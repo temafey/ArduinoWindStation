@@ -12,6 +12,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageInstaller;
 import android.net.Uri;
 import android.provider.Settings;
+import android.content.ComponentName;
 import android.content.pm.PackageManager;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -76,6 +77,14 @@ import java.util.concurrent.Executors;
 // Ed25519, которой подписан sig для Windows, в Android есть только с 13-й версии.
 public class MainActivity extends Activity {
     private static final int PORT = 8765;
+
+    private static void toggle(PackageManager pm, ComponentName c, boolean on) {
+        int want = on ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED : PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
+        int now = pm.getComponentEnabledSetting(c);
+        // DEFAULT = как в манифесте: стеклянный включён, тональный выключен.
+        boolean isOn = now == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT ? c.getClassName().endsWith(".MainActivity") : now == PackageManager.COMPONENT_ENABLED_STATE_ENABLED;
+        if (isOn != on) pm.setComponentEnabledSetting(c, want, PackageManager.DONT_KILL_APP);
+    }
     private static final String GDRIVE = "gdrive:";
     private static final String FEED_P256 =
         "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEw7hGp2C+XDtgE5ddluPNPSGSL4IFDHX4GEVKAcDug3maDrmc7iKPo6/Gp80cwl8T0zmE0SPMSF7LlKoMBcErIg==";
@@ -257,6 +266,22 @@ public class MainActivity extends Activity {
         // Место по запросу: GPS и сеть → window.__wkLoc({lat, lon, acc}) либо {error}.
         @JavascriptInterface public void getLocation() { runOnUiThread(new Runnable() { public void run() { locate(); } }); }
         // Виджеты рабочего стола: последнее показание и куда за ним ходить без приложения.
+        // Значок на рабочем столе: "glass" или "tonal" (тумблер «Liquid Glass иконка»).
+        // Два ярлыка-alias в манифесте, включён ровно один. Трогаем только когда
+        // состояние действительно меняется: переключение компонента лаунчер замечает
+        // не сразу и на части телефонов на миг убирает значок с экрана.
+        @JavascriptInterface public void setIcon(final String kind) {
+            final boolean tonal = "tonal".equals(kind);
+            runOnUiThread(new Runnable() { public void run() {
+                try {
+                    PackageManager pm = getPackageManager();
+                    ComponentName glass = new ComponentName(MainActivity.this, getPackageName() + ".MainActivity");
+                    ComponentName ton = new ComponentName(MainActivity.this, getPackageName() + ".TonalLauncher");
+                    toggle(pm, tonal ? ton : glass, true);
+                    toggle(pm, tonal ? glass : ton, false);
+                } catch (Exception e) { /* старый лаунчер — значок остаётся прежним */ }
+            } });
+        }
         @JavascriptInterface public void widget(String json) { WindWidget.store(getApplicationContext(), json); }
         // Уведомления. Сколько и когда — решает дашборд (wind-notify.js, не больше 33
         // в сутки); здесь только показать. tag — одно уведомление на тему: новая
@@ -329,7 +354,7 @@ public class MainActivity extends Activity {
             } else {
                 b = new Notification.Builder(this);
             }
-            Intent open = new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            Intent open = new Intent(this, WindActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             PendingIntent pi = PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0));
             b.setSmallIcon(R.mipmap.ic_launcher_mono)
              .setContentTitle(title)

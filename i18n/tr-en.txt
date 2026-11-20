@@ -1,0 +1,636 @@
+0	# IN # DAYS
+1	# or # mm per tip
+2	# m
+3	# min
+4	# minutes
+5	# hours
+6	# hours
+7	# at a time
+8	# across the US
+9	#-#-#: no record
+10	#. Stop the cups by hand or shield the sensor from the wind.
+11	#m
+12	#–# Hz
+13	#–# hPa
+14	#–# hPa, about ±# hPa
+15	#–# km across
+16	#–# m/s
+17	#–# small vortices around a common center
+18	(clouds, every # h) ·
+19	GOES-# · “sandwich”
+20	GOES-# · Pacific
+21	GOES-# · Southern Plains
+22	GOES-# · air mass
+23	GOES-# · infrared channel
+24	GOES-# · contiguous US
+25	GOES-# · full disk
+26	AIRPORT METAR
+27	MyWindProbeBETA.org or #.#
+28	NASA/JPL, University of Arizona
+29	OPEN-METEO · # M
+30	RGB composite of water vapor and ozone channels
+31	USAF WC-#J, NOAA WP-#D and Gulfstream IV
+32	loopMax, ms
+33	AUTO
+34	AZIMUTH · RANGE = SPEED, m/s
+35	EF ARCHIVE
+36	Address
+37	Analysis
+38	Andover #
+39	Uptime
+40	Air pressure
+41	BEAUFORT ·
+42	Bangkok
+43	Barneveld #
+44	Vaisala PTB# barometer
+45	Battery
+46	Laptop battery: #%, charging
+47	Battery, V
+48	Large vortices
+49	Beaufort
+50	Bridge Creek–Moore #
+51	Armored intercept vehicle
+52	Buenos Aires
+53	LIVE
+54	RESET TO CONSTANT
+55	WHOLE WORLD
+56	Enter manually
+57	Cyclone formation chance over # days
+58	Rope
+59	Wind
+60	Wind aloft
+61	Vibration
+62	Visible channel over infrared
+63	Types of tornadoes
+64	Wikimedia Commons ↗
+65	Windsurf
+66	Vortices on Mars
+67	Vortex on the gust front
+68	Full screen
+69	Waterspout
+70	Air
+71	Funnel without touchdown
+72	All
+73	All time
+74	Woodward #
+75	Choose location
+76	Mammatus clouds
+77	Mast height
+78	CITIES
+79	READY TO MEASURE
+80	Gustnado
+81	Where are you?
+82	Gainesville #
+83	Eye of the hurricane
+84	Voice and alerts
+85	Spoken summary
+86	Greenfield #
+87	Thunderstorm
+88	Storm with a rotating updraft
+89	DAY · SUN #°
+90	Sensors nearby
+91	Daulatpur–Saturia #
+92	Delhi
+93	Demo mode
+94	Lightning detector
+95	Jakarta
+96	Jarrell #
+97	Justin Hobson
+98	Joplin #
+99	Rotor diameter
+100	Dynamic pressure
+101	Disdrometer
+102	Drone
+103	Smoke rises vertically
+104	Daniel Rodriguez
+105	Speed units
+106	LIVE LAYERS · NWS / NOAA
+107	Yellow
+108	Yellow, Warning: off
+109	THIS SESSION · # SAMPLES
+110	PER DAY
+111	MEASURE
+112	Nothing in the log for this period.
+113	Loading image…
+114	Close
+115	The whole Western Hemisphere, true color
+116	Western Kentucky #
+117	Western satellite, full disk
+118	Splash and updates
+119	Health
+120	Green
+121	Green, Battery: off
+122	Sea like a mirror
+123	Dock icons
+124	Ivanovo tornado #
+125	Radiation
+126	Source
+127	Data source
+128	Data sources
+129	Sources:
+130	Johannesburg
+131	KITE
+132	IMAGE #×#
+133	CUSTOMIZE LAYOUT
+134	COLLECTING
+135	Cairo
+136	Kite
+137	How it forms
+138	How it works
+139	Calendar
+140	Zero calibration
+141	Camera
+142	World map
+143	Charts
+144	Tap feedback
+145	Category
+146	Kyiv
+147	Kinshasa
+148	Wedge
+149	Convective profile
+150	Cone
+151	Gust factor G
+152	Red
+153	Red, Alarm: off
+154	WMO squall criterion
+155	Radial view
+156	Xenia #
+157	Lagos
+158	Landspout
+159	Lima
+160	London
+161	Los Angeles
+162	MIN — · MAX — m/s
+163	MINUTE AGGREGATES
+164	Max. rise in # s
+165	A tiny click at every slider step and a bump at the edge.
+166	Station location
+167	Month
+168	Weather
+169	Weather data
+170	Meteorology
+171	Car-roof weather station
+172	Mexico City
+173	Multiple-vortex
+174	Multi-plate shield or Stevenson screen
+175	Mobile Doppler radar
+176	Good to go now?
+177	Moscow
+178	Mumbai
+179	Moore #
+180	FIND NEARBY
+181	COLLECTING
+182	NOT SET UP
+183	NOT CONNECTED
+184	NO CAMERA
+185	NO RESPONSE
+186	NO SIGNAL
+187	At sea
+188	On land
+189	Hot wire
+190	Name
+191	Nairobi
+192	Settings
+193	Natchez #
+194	Week
+195	No records for this period.
+196	Nick Monteleone, USAF
+197	Station coordinates are needed.
+198	New York
+199	CLOUDS
+200	REFRESH
+201	FORECAST WINDOWS · # H
+202	ORIGINAL ↗
+203	FROM # M · α = #/#
+204	OPEN ↗
+205	REFLECTIVITY
+206	Updated
+207	Updated #:#:#.
+208	Fire whirl
+209	Find your location or set it manually.
+210	Locate me
+211	Tipping-bucket rain gauge
+212	Lowered base under the updraft
+213	Precipitation
+214	Reflectivity over Tornado Alley
+215	Reflectivity, Gulf Coast
+216	Weekly report
+217	Hurricane Hunters
+218	CONNECT
+219	GUST
+220	LIMIT # m/s
+221	WARNINGS
+222	WMO SIGNS
+223	CHECK
+224	EMPTY
+225	Paraglider
+226	Paris
+227	Sailboat
+228	Beijing
+229	Portable mast, Texas Tech
+230	Pyranometer
+231	Plainfield #
+232	By coordinates
+233	By name
+234	Default
+235	Weather
+236	Share report
+237	Connection
+238	Search for live tornado streams
+239	Sliders
+240	# µm band, cloud-top temperature
+241	Forecast correction
+242	Gust
+243	Gusts
+244	Look-alikes
+245	Warning
+246	Instrument
+247	Surface analysis · WPC
+248	Signs of rotation
+249	Forecast
+250	SPC outlooks (official)
+251	Propeller with vane
+252	Power dips this week
+253	Profile
+254	Control dock
+255	Dust devils of another planet
+256	Dust devil
+257	ROTOR # M
+258	Working at height
+259	Radar
+260	Radar · Southeast US
+261	Radar · Southern Plains
+262	Radar loop · US
+263	Radiation shield
+264	Radiosonde
+265	Wind veer
+266	Section
+267	Area
+268	Area is on, but no location chosen
+269	Speed distribution
+270	Recommended sensors
+271	Records
+272	Records will appear along with the log.
+273	Wind rose
+274	Rolling Fork #
+275	Handheld vane anemometer
+276	With labels
+277	SHEAR
+278	STRENGTH
+279	TORNADOES TODAY
+280	NOTIFY WHEN A WINDOW OPENS ·
+281	SATELLITE AND RADAR · NOAA
+282	AVERAGE OVER # MIN
+283	DAILY MEAN WIND · # WEEKS
+284	SUPERCELLS
+285	Aircraft and dropsondes
+286	São Paulo
+287	San Justo #
+288	Reset gust
+289	Top
+290	LEDs
+291	Composite reflectivity, animation
+292	Your own sensor
+293	Link
+294	Today and yesterday
+295	Now
+296	The device decides now:
+297	Sector over Tornado Alley
+298	St. Louis–East St. Louis #
+299	Seoul
+300	Signal
+301	Signal, dBm
+302	Sydney
+303	Strength
+304	Singapore
+305	Blue
+306	Blue, WiFi: off
+307	Speed
+308	Speed · # min
+309	Wind speed
+310	Speed, m/s
+311	Left
+312	US Fish and Wildlife Service
+313	Tornadoes and hurricanes
+314	Smithville #
+315	Bottom
+316	Events
+317	Neighbors
+318	Beaufort scale state
+319	Right
+320	Ask Claude
+321	Satellite
+322	Average · # min
+323	Istanbul
+324	Station
+325	The station didn't answer /api/wifi.
+326	Station not responding
+327	Station vs forecast
+328	Statistics
+329	Fixed Doppler radar
+330	Wall cloud
+331	Supercell
+332	Day
+333	TURB
+334	Tuscaloosa–Birmingham #
+335	Tehran
+336	Theme
+337	Temperature and humidity
+338	Temperature, humidity, pressure
+339	Hot-wire anemometer
+340	Quiet hours
+341	Tokyo
+342	Icons only
+343	Tonal
+344	Same satellite, close-up
+345	Access point
+346	Ground streams
+347	Alarm
+348	Alert: wind rising
+349	Tropical outlook · NHC
+350	Tropical cyclone
+351	Pitot tube
+352	3-axis ultrasonic
+353	Tri-State tornado #
+354	Turbulence TI
+355	Tupelo #
+356	Dark default
+357	Dark Liquid Glass
+358	SET MANUALLY
+359	Window notification
+360	Notifications
+361	Wichita Falls #
+362	Ultrasonic, two axes
+363	Background
+364	Fronts, pressure centers, isobars
+365	Junín #
+366	Hackleburg–Phil Campbell #
+367	Hallam #
+368	Harald Richter, NOAA
+369	Icon color
+370	Some sources didn't respond — the other layers are live.
+371	Cup
+372	Cups plus vane
+373	Chicago
+374	CALM
+375	Shanghai
+376	Balloon with a transmitter
+377	Shelf cloud
+378	Ed Lu, NASA, from the ISS
+379	Edmonton #
+380	Eco mode
+381	Export
+382	El Reno #
+383	Turbine energy
+384	Live
+385	I'M HERE
+386	aviation
+387	archive, #
+388	Bft ·
+389	pressure tendency
+390	no moving parts
+391	no mesocyclone
+392	in heat and clear weather
+393	pocket-sized
+394	match background
+395	matters more than the sensor
+396	wind, temperature, humidity, pressure on the move
+397	looks wider than it is tall
+398	vortices within a vortex
+399	on
+400	into the eye
+401	into the tornado
+402	off
+403	off
+404	clearly taller than wide, narrowing downward
+405	storm-ready for DIY
+406	pressure, temperature, humidity, wind from drift
+407	no data yet
+408	twice a day, worldwide
+409	tens of meters at kilometers of range
+410	for hobbyists
+411	for a DIY station
+412	up to # km
+413	up to # km for precipitation
+414	up to # km — hundreds of times taller than on Earth
+415	not a tornado yet
+416	shade the sensor from the sun while keeping airflow
+417	calm at the center
+418	of
+419	exceptional
+420	two different things
+421	frame received at
+422	no frames yet
+423	drop by drop
+424	class #
+425	no clients on the access point
+426	km/h
+427	computer — off
+428	condensation funnel that didn't reach the ground
+429	collecting…
+430	beautiful, but not dangerous
+431	curious
+432	m
+433	m/s
+434	mother of tornadoes
+435	no location chosen
+436	mph
+437	soft
+438	at the leading edge of a storm's cold outflow
+439	not met
+440	not rated
+441	not connected
+442	not a tornado
+443	a few minutes
+444	no
+445	no battery
+446	no coordinates or the forecast didn't respond
+447	no connection to the station
+448	update ·
+449	public domain
+450	normal
+451	usually #–# km
+452	usually #–# m/s
+453	usually a tornado's final stage
+454	about # t as the TIV #
+455	about #–# m/s
+456	from a surface boundary, not from rotation in the cloud
+457	leading edge of a storm's cold outflow
+458	under the anvil of a strong storm
+459	under the strongest updraft, near the rain area
+460	connect to the WindStation or home network — then tap
+461	six months ago
+462	TORUS project
+463	most often confused
+464	workhorse
+465	size and speed of every particle
+466	difference between total and static pressure
+467	grows upward from a developing cloud, usually weak
+468	a rare exception
+469	record # km/h
+470	collecting data…
+471	your own question about the station or meteorology
+472	today
+473	a network on wheels
+474	strong
+475	strong
+476	blue
+477	forming
+478	light airflow
+479	look here
+480	solar flux
+481	a stage, not a type
+482	precipitation standard
+483	total solar radiation, W/m²
+484	supercellular
+485	heat of a fire, not a storm cloud
+486	the classic look
+487	turbulence
+488	knots
+489	ft/s
+490	color — by surveyed rating
+491	wider than tall
+492	calm
+493	energy × wind shear, cell = model grid node
+494	air reference
+495	mast reference
+496	brighter = windier, # m/s and up = full color
+497	clear sky
+498	−#…+# °C, accuracy about ±# °C
+499	station wind over the last minutes — appears once data arrives
+500	No coordinates set — you can enter them for the station in the catalog.
+501	wind speed and direction, pressure, temperature, humidity
+502	Station coordinates are needed — without them there's nothing to compare with the model.
+503	Station coordinates are needed — set them in secrets.h or in the catalog.
+504	How do I connect to the station from my phone when it runs its own network?
+505	#. Tap “Measure” — for ten seconds the dashboard watches what the pin sees.
+506	What does the convective profile mean, and how can I tell a squall is coming?
+507	The rose is built from direction, and the station has no direction sensor.
+508	Which anemometer should replace the current one to see light winds?
+509	The log has just started — charts will appear after half an hour of work.
+510	Mean wind, strongest gust, hours in your range for “
+511	Where in the dashboard can I see gusts and reset the stored maximum?
+512	This device has no vibration motor — the setting will work on a phone.
+513	If locating didn't work or you'd rather not share your location.
+514	The label is still shown in the tooltip on hover and to screen readers.
+515	No notifications or voice at night. What happened overnight — in one morning summary.
+516	A soft tap when you open the app and a quiet hum while an update installs.
+517	Collecting a series. The estimate will appear after a few seconds of measurements.
+518	How do I connect a BME# sensor to my station and what needs changing in the firmware?
+519	Find your location on request or set it yourself. It's stored only on this device.
+520	The LEDs are in auto mode right now. Switch to “Manual” to control them yourself.
+521	All quiet. Reboots, network changes, cloud, battery, calibrations and alerts show up here.
+522	Open “Weather data”: weather, precipitation, forecast, air and a wind compass for your area.
+523	A short click when you touch a button or panel. Scrolling and dragging don't respond.
+524	Turn on the wind compass with a button — it shows the wind direction however you hold the phone.
+525	When within # minutes the wind has risen by # m/s or more — not by an absolute threshold. At most once every # minutes.
+526	A satellite over #° W. Pacific typhoons are born here, and weather for the whole West Coast comes from here.
+527	At the top and bottom the dock is horizontal, on the sides it's vertical. Settings open out of it toward the screen.
+528	The sector image updates twice as often as the full disk — you can see a storm front unfold within an hour.
+529	A speech synthesizer reads wind and gust aloud — for when your hands are busy. One-off — the “Speak” button in full-screen mode.
+530	Requests go out with coordinates only; your location is sent nowhere else and stored nowhere but this device.
+531	Off — the station's instruments are shown. On — made-up wind to get to know the dashboard; controls are on the button next to the dock.
+532	The airport measures at # m in an open field. Much more than yours is normal for a low mast; much less is a reason to check the sensor.
+533	The direction sensor isn't connected, so the azimuth is unknown and there's nothing to build the radial view from. Speed and everything that depends on it works.
+534	”, wind by day, the rose and the best hours of the day — in one image. On a phone “Share” opens; on a computer the image is saved to downloads.
+535	For the period chosen above: time (UTC), mean, minimum, maximum, gust, direction, pressure, battery, signal. Excel opens CSV directly.
+536	The gear, the buttons to the right of the dock and the selected tab. “Blue” is the primary tone; “match background” is neutral, the same tone as the surfaces around.
+537	Area data is on, but no location is chosen. Set it on the “Area” tab — and wind speed and direction, weather, precipitation, forecast and air will appear here.
+538	Windows and Android: wind summary with forecast, station lost or back, wind rising, squall. No more than # per day and at most once every # minutes — sent today: #.
+539	The frame didn't arrive. Either the device has no internet access (for example, you're on the station's own network), or the request to another domain is blocked by the page's security policy.
+540	A geostationary satellite over #° W. True color by day; at night it switches automatically to the infrared channel with highlighted clouds, so the picture never goes dark.
+541	A notional small turbine: cut-in at # m/s, rated at #, cut-out at #, rotor efficiency #. Wind is taken at mast height — on a taller pole the turbine would give more (see “Wind aloft”).
+542	Oklahoma, Kansas, Texas — the famous Tornado Alley. This is where people look when SPC issues an elevated risk: you can see individual supercells lining up along the dryline.
+543	The same radar product, but larger and only over Tornado Alley. At this scale the cell's shape is visible — including the hook echo that identifies a tornadic supercell.
+544	A ready-made weather service animation: the latest base reflectivity frames from every NEXRAD radar, stitched into a loop. The same product as the “reflectivity” map layer, only with motion history.
+545	A power law for open terrain: wind grows with height because the ground slows it. Over forest or a city it grows faster (α ≈ #–#), over water slower (α ≈ #) — it's an estimate, not a measurement.
+546	The WindStation network password isn't asked for or stored here: it's set in secrets.h when the firmware is built. A cloud ID is only needed if the station has a modem and you want to see it from afar.
+547	The country's second most active tornado region is Dixie. Tornadoes here are more often nocturnal and come with a front rather than a lone cell, so the radar picture is quite different: a long line instead of separate blobs.
+548	Liquid Glass — glass, highlights and lenses, like iOS #. “Tonal” — flat colored surfaces, large rounded corners and pills, like Android apps. Both share the same animations. Light or dark — by “Background”.
+549	Two channels overlaid at once: cloud texture comes from the visible, color from the infrared. You see both the relief of the cloud top and how cold it is. A forecaster's working product for analyzing storms.
+550	Not a photo but a coloring by channel differences. Dry stratospheric air comes out red, moist tropical air green. The borders between these colors show the jet stream and frontal boundaries invisible on a normal image.
+551	It measures heat, not light, so it works at night just as by day. The colder a cloud top, the higher it has climbed — this channel is how strong convection is spotted: a storm that punched through the tropopause has a top colder than minus sixty.
+552	The National Hurricane Center's official Atlantic outlook: areas where a tropical cyclone may form within the next week are outlined, with a percentage chance. Exactly the picture used to announce readiness on the coast.
+553	Instruments taken to the weather rather than waiting for it on a mast. From a portable stand set up in a hurricane's path in five minutes to an armored vehicle driving into the funnel. They share one thing: the data must be taken before the instrument is blown away.
+554	How a tornado forms, what kinds there are and what looks like one but isn't. The last part matters more than it seems: half the “tornadoes” online are gustnadoes and dust devils, and most false alarms come from a shelf cloud, which means a squall, not a funnel.
+555	For phones. Glass stays glass — tint, bevel, highlight, touch glow — but without frost under panels, without the lens, the running sheen or cursor light; the background stands still, the camera scene freezes, the stream redraws # times a second instead of #. Readings don't change.
+556	The classic synoptic map drawn by the duty forecaster at the Weather Prediction Center. Cold fronts as triangles, warm fronts as semicircles, isobars every # hPa. Every weather analysis starts with this map, and it has barely changed in a hundred years.
+557	Language
+558	System default
+559	Choose another
+560	Choose a language
+561	Interface language
+562	Liquid Glass icon
+563	Tonal icon
+564	The icon in the header and the app's own icon. On — a glass kiwi slice; off — a flat tonal one.
+565	Languages not on the list will come in future updates. Long reference texts are still partly in Russian.
+566	now
+567	Selected language:
+568	System default:
+569	Glass
+570	Glass strength
+571	liquid
+572	frost
+573	soft
+574	clear
+575	Clear — transparent glass, like iOS #. Tinted — denser and more contrasty, text reads on any background (iOS #).
+576	Left — milky glass: more frost, denser tint, text reads on any background. Right — a clear lens: less frost, brighter bevel, stronger refraction at the edge.
+577	System
+578	Dock and layout
+579	Notifications and voice
+580	tomorrow
+581	Log
+582	NOT RECORDING
+583	falling fast — stronger wind and bad weather likely
+584	falling — weather worsening
+585	rising fast — strong wind possible as it clears
+586	rising — weather improving
+587	steady
+588	MEAN OVER # MIN
+589	waiting for data
+590	· ADJUSTED FOR YOUR MAST
+591	no suitable wind in the next two days
+592	wind must hold
+593	Notifications for this window are off right now — allow them in the browser or in the phone settings.
+594	yesterday
+595	Pressure
+596	OVER # HOURS
+597	Change
+598	Couldn't draw the report.
+599	Mean wind
+600	Weibull, shape k
+601	Weibull, scale c
+602	Calm (< # m/s)
+603	Over # m/s
+604	Mean power
+605	Output for the period
+606	Per year
+607	Strongest gust
+608	Windiest day
+609	Calmest day
+610	Drawing…
+611	almost never wrong
+612	The log is kept only from a real station — connect it on the “Station” tab.
+613	Model at your site
+614	Mean / gust multiplier
+615	Error, m/s
+616	Apply the correction in windows and summaries
+617	Forecast correction
+618	The forecast didn't respond.
+619	−# h
+620	+# h
+621	station, reduced to # m
+622	forecast
+623	corrected forecast
+624	On average the forecast
+625	overestimates
+626	underestimates
+627	Mean error
+628	Hours compared
+629	At least three hours of log are needed for an estimate.
+630	asking…
+631	No METAR airfields within ~# km.
+632	no data
+633	Night at the station
+634	No alerts.
+635	Wind is picking up

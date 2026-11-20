@@ -1,0 +1,636 @@
+0	# İÇİNDE # GÜN
+1	# veya devrilme başına # mm
+2	# m
+3	# dk
+4	# dakika
+5	# saat
+6	# saat
+7	tek seferde #
+8	tüm ABD'de #
+9	#-#-#: kayıt yok
+10	#. Kepçeleri elinizle durdurun veya sensörü rüzgârdan koruyun.
+11	#m
+12	#–# Hz
+13	#–# hPa
+14	#–# hPa, yaklaşık ±# hPa
+15	#–# km çapında
+16	#–# m/s
+17	ortak bir merkez etrafında #–# küçük girdap
+18	(bulutlar, # saatte bir) ·
+19	GOES-# · «sandviç»
+20	GOES-# · Pasifik
+21	GOES-# · Güney Ovaları
+22	GOES-# · hava kütleleri
+23	GOES-# · kızılötesi kanal
+24	GOES-# · kıta ABD
+25	GOES-# · tam disk
+26	HAVALİMANI METAR'LARI
+27	MyWindProbeBETA.org veya #.#
+28	NASA/JPL, Arizona Üniversitesi
+29	OPEN-METEO · # M
+30	Su buharı ve ozon kanallarından RGB bileşimi
+31	USAF WC-#J, NOAA WP-#D ve Gulfstream IV
+32	loopMax, ms
+33	OTO
+34	AZİMUT · MESAFE = HIZ, m/s
+35	EF ARŞİVİ
+36	Adres
+37	Analiz
+38	Andover #
+39	Çalışma süresi
+40	Atmosfer basıncı
+41	BEAUFORT ·
+42	Bangkok
+43	Barneveld #
+44	Vaisala PTB# barometre
+45	Pil
+46	Dizüstü pili: %#, şarj oluyor
+47	Pil, V
+48	Büyük girdaplar
+49	Beaufort
+50	Bridge Creek–Moore #
+51	Zırhlı önleme aracı
+52	Buenos Aires
+53	CANLI
+54	SABİTE DÖN
+55	TÜM DÜNYA
+56	Elle gir
+57	# gün içinde siklon oluşma olasılığı
+58	İp biçimli
+59	Rüzgâr
+60	Yüksekte rüzgâr
+61	Titreşim
+62	Kızılötesi üstünde görünür kanal
+63	Hortum türleri
+64	Wikimedia Commons ↗
+65	Rüzgâr sörfü
+66	Mars'ta girdaplar
+67	Hamle cephesinde girdap
+68	Tam ekran
+69	Su hortumu
+70	Hava
+71	Yere değmeyen huni
+72	Tümü
+73	Tüm zamanlar
+74	Woodward #
+75	Konum seç
+76	Mammatus bulutları
+77	Direk yüksekliği
+78	ŞEHİRLER
+79	ÖLÇÜME HAZIR
+80	Gustnado
+81	Neredesiniz?
+82	Gainesville #
+83	Kasırganın gözü
+84	Ses ve alarmlar
+85	Sesli özet
+86	Greenfield #
+87	Fırtına
+88	Dönen yükselen akımlı fırtına
+89	GÜNDÜZ · GÜNEŞ #°
+90	Yakındaki sensörler
+91	Daulatpur–Saturia #
+92	Delhi
+93	Demo modu
+94	Yıldırım dedektörü
+95	Cakarta
+96	Jarrell #
+97	Justin Hobson
+98	Joplin #
+99	Rotor çapı
+100	Dinamik basınç
+101	Disdrometre
+102	Drone
+103	Duman dikey yükselir
+104	Daniel Rodriguez
+105	Hız birimleri
+106	CANLI KATMANLAR · NWS / NOAA
+107	Sarı
+108	Sarı, Uyarı: kapalı
+109	BU OTURUM · # ÖRNEK
+110	GÜNLÜK
+111	ÖLÇ
+112	Bu dönem için günlükte hiçbir şey yok.
+113	Görüntü yükleniyor…
+114	Kapat
+115	Tüm batı yarımküre, doğal renkler
+116	Batı Kentucky #
+117	Batı uydusu, tam disk
+118	Açılış ekranı ve güncelleme
+119	Durum
+120	Yeşil
+121	Yeşil, Pil: kapalı
+122	Ayna gibi deniz
+123	Dock simgeleri
+124	İvanovo hortumu #
+125	Radyasyon
+126	Kaynak
+127	Veri kaynağı
+128	Veri kaynakları
+129	Kaynaklar:
+130	Johannesburg
+131	KITE
+132	GÖRÜNTÜ #×#
+133	DÜZENİ ÖZELLEŞTİR
+134	TOPLANIYOR
+135	Kahire
+136	Kite
+137	Nasıl oluşur
+138	Nasıl çalışır
+139	Takvim
+140	Sıfır kalibrasyonu
+141	Kamera
+142	Dünya haritası
+143	Haritalar
+144	Pencere dokunuşu
+145	Kategori
+146	Kyiv
+147	Kinşasa
+148	Kama biçimli
+149	Konvektif profil
+150	Koni biçimli
+151	Hamle katsayısı G
+152	Kırmızı
+153	Kırmızı, Alarm: kapalı
+154	WMO bora ölçütü
+155	Dairesel görünüm
+156	Xenia #
+157	Lagos
+158	Landspout
+159	Lima
+160	Londra
+161	Los Angeles
+162	MİN — · MAKS — m/s
+163	DAKİKALIK TOPLAMLAR
+164	# sn'de maks. artış
+165	Kaydırıcının her adımında hafif bir tık ve kenarda bir dayanak.
+166	İstasyon konumu
+167	Ay
+168	Meteo
+169	Hava verileri
+170	Meteoroloji
+171	Araç tavanında meteoroloji istasyonu
+172	Meksiko
+173	Çok girdaplı
+174	Çok plakalı siper veya Stevenson kulübesi
+175	Mobil Doppler radarı
+176	Şimdi uygun mu?
+177	Moskova
+178	Mumbai
+179	Moore #
+180	YAKINDA ARA
+181	TOPLANIYOR
+182	AYARLANMADI
+183	BAĞLI DEĞİL
+184	KAMERA YOK
+185	YANIT YOK
+186	SİNYAL YOK
+187	Denizde
+188	Karada
+189	Sıcak tel
+190	Ad
+191	Nairobi
+192	Ayarlar
+193	Natchez #
+194	Hafta
+195	Bu dönem için kayıt yok.
+196	Nick Monteleone, USAF
+197	İstasyonun koordinatları gerekli.
+198	New York
+199	BULUTLAR
+200	YENİLE
+201	TAHMİNE GÖRE PENCERELER · # SA
+202	ORİJİNAL ↗
+203	# M'DEN · α = #/#
+204	AÇ ↗
+205	YANSITICILIK
+206	Güncellendi
+207	#:#:# itibarıyla güncellendi.
+208	Ateş girdabı
+209	Konumu belirleyin ya da elle girin.
+210	Konumumu bul
+211	Devrilen kovalı yağış ölçer
+212	Yükselen akımın altında alçalmış taban
+213	Yağış
+214	Hortum Koridoru üzerinde yansıtıcılık
+215	Yansıtıcılık, Meksika Körfezi kıyısı
+216	Haftalık rapor
+217	Kasırga avcıları
+218	BAĞLAN
+219	HAMLE
+220	SINIR # m/s
+221	UYARILAR
+222	WMO İŞARETLERİ
+223	KONTROL ET
+224	BOŞ
+225	Yamaç paraşütü
+226	Paris
+227	Yelkenli
+228	Pekin
+229	Taşınabilir direk, Texas Tech
+230	Piranometre
+231	Plainfield #
+232	Koordinatlara göre
+233	Ada göre
+234	Varsayılan
+235	Hava durumu
+236	Raporu paylaş
+237	Bağlantı
+238	Hortum canlı yayınlarını ara
+239	Kaydırıcılar
+240	# µm bandı, bulut tepesi sıcaklığı
+241	Tahmin düzeltmesi
+242	Hamle
+243	Hamleler
+244	Benzer ama değil
+245	Uyarı
+246	Cihaz
+247	Yer analizi · WPC
+248	Dönme işaretleri
+249	Tahmin
+250	SPC tahminleri (resmî)
+251	Rüzgâr gülü kanatlı pervaneli
+252	Bu hafta gerilim düşmeleri
+253	Profil
+254	Kontrol paneli
+255	Başka bir gezegenin toz şeytanları
+256	Toz şeytanı
+257	ROTOR # M
+258	Yüksekte çalışma
+259	Radar
+260	Radar · ABD Güneydoğu
+261	Radar · Güney Ovaları
+262	Radar döngüsü · ABD
+263	Radyasyon siperi
+264	Radyosonda
+265	Rüzgâr dönüşü
+266	Bölüm
+267	Bölge
+268	Bölge açık ama konum seçilmedi
+269	Hız dağılımı
+270	Önerilen sensörler
+271	Rekorlar
+272	Rekorlar günlükle birlikte görünecek.
+273	Rüzgâr gülü
+274	Rolling Fork #
+275	El tipi kanatlı anemometre
+276	Etiketli
+277	KESME
+278	GÜÇ
+279	BUGÜNKÜ HORTUMLAR
+280	PENCERE AÇILINCA HABER VER ·
+281	UYDU VE RADAR · NOAA
+282	# DK ORTALAMASI
+283	GÜNLÜK ORTALAMA RÜZGÂR · # HAFTA
+284	SÜPERHÜCRELER
+285	Uçak ve bırakma sondaları
+286	São Paulo
+287	San Justo #
+288	Hamleyi sıfırla
+289	Üstte
+290	LED'ler
+291	Bileşik yansıtıcılık, animasyon
+292	Kendi sensörünüz
+293	İletişim
+294	Bugün ve dün
+295	Şimdi
+296	Şu an cihaz karar veriyor:
+297	Hortum Koridoru üzerinde sektör
+298	St. Louis–East St. Louis #
+299	Seul
+300	Sinyal
+301	Sinyal, dBm
+302	Sidney
+303	Güç
+304	Singapur
+305	Mavi
+306	Mavi, WiFi: kapalı
+307	Hız
+308	Hız · # dk
+309	Rüzgâr hızı
+310	Hız, m/s
+311	Solda
+312	ABD Balık ve Yaban Hayatı Servisi
+313	Hortumlar ve kasırgalar
+314	Smithville #
+315	Altta
+316	Olaylar
+317	Komşular
+318	Beaufort ölçeğine göre durum
+319	Sağda
+320	Claude'a sor
+321	Uydu
+322	Ortalama · # dk
+323	İstanbul
+324	İstasyon
+325	İstasyon /api/wifi isteğine yanıt vermedi.
+326	İstasyon yanıt vermiyor
+327	İstasyon ve tahmin
+328	İstatistik
+329	Sabit Doppler radarı
+330	Duvar bulutu
+331	Süperhücre
+332	Gün
+333	TÜRB
+334	Tuscaloosa–Birmingham #
+335	Tahran
+336	Tema
+337	Sıcaklık ve nem
+338	Sıcaklık, nem, basınç
+339	Termoanemometre
+340	Sessiz saatler
+341	Tokyo
+342	Yalnızca simgeler
+343	Tonal
+344	Aynı uydu, yakın plan
+345	Erişim noktası
+346	Yerden yayınlar
+347	Alarm
+348	Alarm: rüzgâr artıyor
+349	Tropikal tahmin · NHC
+350	Tropikal siklon
+351	Pitot tüpü
+352	Üç eksenli ultrasonik
+353	Üç Eyalet hortumu #
+354	Türbülans TI
+355	Tupelo #
+356	Koyu varsayılan
+357	Koyu Liquid Glass
+358	ELLE BELİRT
+359	Pencere bildirimi
+360	Bildirimler
+361	Wichita Falls #
+362	Ultrasonik, iki eksen
+363	Arka plan
+364	Cepheler, basınç merkezleri, izobarlar
+365	Junín #
+366	Hackleburg–Phil Campbell #
+367	Hallam #
+368	Harald Richter, NOAA
+369	Simge rengi
+370	Bazı kaynaklar yanıt vermedi — diğer katmanlar canlı.
+371	Kepçeli
+372	Kepçe artı rüzgâr gülü
+373	Chicago
+374	SAKİN
+375	Şanghay
+376	Vericili sonda balonu
+377	Raf bulutu
+378	Ed Lu, NASA, ISS'ten
+379	Edmonton #
+380	Eko modu
+381	Dışa aktar
+382	El Reno #
+383	Rüzgâr türbini enerjisi
+384	Canlı
+385	BURADAYIM
+386	havacılık
+387	arşiv, #
+388	Bft ·
+389	basınç eğilimi
+390	hareketli parça yok
+391	mezosiklon olmadan
+392	sıcakta ve açık havada
+393	cep tipi
+394	arka plan renginde
+395	sensörden daha önemli
+396	hareket hâlinde rüzgâr, sıcaklık, nem, basınç
+397	yüksekliğinden geniş görünür
+398	girdap içinde girdaplar
+399	açık
+400	gözün içine
+401	hortumun içine
+402	kapalı
+403	kapalı
+404	genişliğinden belirgin şekilde yüksek, aşağı doğru daralır
+405	amatör için fırtına
+406	basınç, sıcaklık, nem, sürüklenmeden rüzgâr
+407	henüz veri yok
+408	günde iki kez, tüm dünya
+409	kilometrelerce uzaktan onlarca metre
+410	amatörler için
+411	ev yapımı bir istasyon için
+412	# km'ye kadar
+413	yağış için # km'ye kadar
+414	# km'ye kadar — Dünya'dakinden yüzlerce kat yüksek
+415	henüz hortum değil
+416	havalandırmayı kesmeden sensörü güneşten korumak
+417	merkezde sükûnet
+418	/
+419	olağanüstü
+420	bunlar iki ayrı şey
+421	kare alındı:
+422	henüz kare yok
+423	damla damla
+424	sınıf #
+425	erişim noktasında istemci yok
+426	km/sa
+427	bilgisayar — kapalı
+428	yere ulaşmamış yoğuşma konisi
+429	toplanıyor…
+430	güzel ama tehlikeli değil
+431	ilginç
+432	m
+433	m/s
+434	hortumların annesi
+435	konum seçilmedi
+436	mph
+437	yumuşak
+438	fırtınanın soğuk çıkış akımının ön kenarında
+439	sağlanmadı
+440	değerlendirilmedi
+441	bağlı değil
+442	hortum değil
+443	birkaç dakika
+444	yok
+445	pil yok
+446	koordinat yok veya tahmin yanıt vermedi
+447	istasyonla bağlantı yok
+448	güncelleme ·
+449	kamu malı
+450	normal
+451	genellikle #–# km
+452	genellikle #–# m/s
+453	genellikle hortumun son evresi
+454	yaklaşık # t, TIV # sürümünde
+455	yaklaşık #–# m/s
+456	buluttaki dönmeden değil, yerdeki bir sınırdan
+457	bir fırtınanın soğuk çıkış akımının ön kenarı
+458	güçlü bir fırtınanın örsünün altında
+459	en güçlü yükselen akımın altında, yağış bölgesinin yanında
+460	WindStation ağına veya ev ağına bağlanın ve dokunun
+461	altı ay önce
+462	TORUS projesi
+463	en çok karıştırılan
+464	iş beygiri
+465	her parçacığın boyutu ve hızı
+466	toplam ve statik basınç farkı
+467	gelişmekte olan buluta doğru aşağıdan yukarı büyür, genellikle zayıf
+468	nadir bir istisna
+469	rekor # km/sa
+470	veri toplanıyor…
+471	istasyon veya meteoroloji hakkında kendi sorunuz
+472	bugün
+473	tekerlekli bir ağ
+474	güçlü
+475	güçlü
+476	mavi
+477	oluşuyor
+478	zayıf akımlar
+479	buraya bakın
+480	güneş akısı
+481	bir evre, bir tür değil
+482	yağış standardı
+483	toplam güneş radyasyonu, W/m²
+484	süperhücre
+485	bir yangının ısısı, fırtına bulutu değil
+486	tipik görünüm
+487	türbülans
+488	knot
+489	ft/s
+490	renk — tespit edilen kategoriye göre
+491	yüksekliğinden geniş
+492	sakin
+493	enerji × rüzgâr kesmesi, hücre = model düğümü
+494	hava için referans
+495	direk referansı
+496	daha parlak = daha rüzgârlı, # m/s ve üstü tam renk
+497	açık gökyüzü
+498	−#…+# °C, doğruluk yaklaşık ±# °C
+499	son dakikalarda istasyon rüzgârı — verilerle birlikte görünecek
+500	Koordinat girilmemiş — katalogda istasyonun yanına yazabilirsiniz.
+501	rüzgâr hızı ve yönü, basınç, sıcaklık, nem
+502	İstasyonun koordinatları gerekli — onlarsız modeli karşılaştıracak bir şey yok.
+503	İstasyonun koordinatları gerekli — secrets.h dosyasında veya katalogda ayarlanır.
+504	İstasyon kendi ağını yayınlıyorsa telefondan ona nasıl bağlanırım?
+505	#. «Ölç»e dokunun — panel on saniye boyunca pinin ne gördüğünü izler.
+506	Konvektif profil ne demek ve boranın yaklaştığını nasıl anlarım?
+507	Gül yöne göre çizilir ve istasyonda yön sensörü yok.
+508	Zayıf rüzgârı görmek için mevcut anemometre yerine hangisini seçmeliyim?
+509	Günlük yeni başladı — eğriler yarım saatlik çalışmadan sonra görünecek.
+510	Ortalama rüzgâr, en güçlü hamle, aralığınızdaki saatler: «
+511	Panelde hamleleri nerede görürüm ve biriken maksimumu nasıl sıfırlarım?
+512	Bu cihazda titreşim motoru yok — ayar bir telefonda çalışacak.
+513	Konum belirleme çalışmadıysa veya konumunuzu paylaşmak istemiyorsanız.
+514	Etiket, üzerine gelince ipucunda ve ekran okuyucular için görünür kalır.
+515	Gece bildirim ve ses yok. Gece olanlar — sabah tek bir özette.
+516	Uygulamayı açarken yumuşak bir vuruş ve güncelleme kurulurken hafif bir titreşim.
+517	Seri toplanıyor. Tahmin, birkaç saniyelik ölçümden sonra görünecek.
+518	İstasyonuma BME# sensörünü nasıl bağlarım ve yazılımda neyi değiştirmeliyim?
+519	Konumu isteğe bağlı belirleyin veya kendiniz girin. Yalnızca bu cihazda saklanır.
+520	LED'ler şu an otomatik modda. Kendiniz yönetmek için «Elle» seçeneğine geçin.
+521	Şimdilik sakin. Yeniden başlatmalar, ağ değişiklikleri, bulut, pil, kalibrasyonlar ve alarmlar burada görünür.
+522	«Hava verileri»ni açın: bölgeniz için hava, yağış, tahmin, hava kalitesi ve rüzgâr pusulası.
+523	Bir düğmeye veya panele dokununca kısa bir tık. Kaydırma ve sürükleme tepki vermez.
+524	Rüzgâr pusulası bir düğmeyle açılır ve telefonu nasıl çevirirseniz çevirin rüzgâr yönünü gösterir.
+525	Rüzgâr # dakikada # m/s veya daha fazla arttığında — sabit bir eşiğe göre değil. En fazla # dakikada bir.
+526	#° B üzerindeki uydu. Pasifik tayfunları burada doğar ve tüm batı kıyısının havası buradan gelir.
+527	Üstte ve altta panel yatay, yanlarda dikeydir. Ayarlar ondan ekrana doğru açılır.
+528	Sektör görüntüsü tam diskten iki kat sık güncellenir — bir fırtına cephesinin bir saatte nasıl geliştiği görülür.
+529	Bir ses sentezleyici rüzgârı ve hamleyi yüksek sesle okur — elleriniz doluyken. Tek sefer: tam ekranda «Söyle» düğmesi.
+530	İstekler yalnızca koordinatlarla gider; konumunuz başka hiçbir yere gönderilmez ve bu cihaz dışında saklanmaz.
+531	Kapalı — istasyonun göstergeleri görünür. Açık — paneli tanımak için uydurma rüzgâr; kontroller dock'un yanındaki düğmede.
+532	Havalimanı açık arazide # m'de ölçer. Sizinkinden çok fazlası alçak direk için normaldir; çok azı sensörü kontrol etmek için bir nedendir.
+533	Yön sensörü bağlı değil, bu yüzden azimut bilinmiyor ve dairesel görünümü kuracak bir şey yok. Hız ve ona bağlı her şey çalışıyor.
+534	», günlere göre rüzgâr, gül ve günün en iyi saatleri — tek bir görüntüde. Telefonda «Paylaş» açılır, bilgisayarda görüntü indirilenlere kaydedilir.
+535	Yukarıda seçilen dönem için: saat (UTC), ortalama, minimum, maksimum, hamle, yön, basınç, pil, sinyal. Excel CSV'yi doğrudan açar.
+536	Dişli, panelin sağındaki düğmeler ve seçili sekme. «Mavi» — primary tonu; «arka plan renginde» — nötr, çevredeki yüzeylerle aynı tonda.
+537	Bölge verileri açık ama konum seçilmedi. «Bölge» sekmesinde belirleyin — burada rüzgâr hızı ve yönü, hava, yağış, tahmin ve hava kalitesi görünecek.
+538	Windows ve Android: tahminle rüzgâr özeti, istasyon kayboldu veya geri döndü, rüzgâr artıyor, bora. Günde en fazla # ve # dakikada en fazla bir kez — bugün gönderilen: #.
+539	Kare gelmedi. Ya cihazın internet erişimi yok (örneğin istasyonun kendi ağındasınız) ya da başka bir alan adına yapılan istek sayfanın güvenlik politikasınca engellendi.
+540	#° B üzerinde yer sabit uydu. Gündüz doğal renkler, gece bulutları vurgulayan kızılötesi kanala kendiliğinden geçer, böylece görüntü hiç kararmaz.
+541	Varsayımsal küçük bir türbin: # m/s'de başlar, nominal #'de, durma #'de, rotor verimi #. Rüzgâr direk yüksekliğinden alınır — daha yüksek bir direkte türbin daha fazla verir («Yüksekte rüzgâr»a bakın).
+542	Oklahoma, Kansas, Teksas — ünlü Hortum Koridoru. SPC yüksek risk ilan ettiğinde en çok buraya bakılır: tek tek süperhücrelerin kuru hat boyunca dizildiği görülür.
+543	Aynı radar ürünü, ama daha büyük ve yalnızca Hortum Koridoru üzerinde. Bu ölçekte hücrenin biçimi görülür — hortumlu süperhücreyi ele veren kanca yankısı da dahil.
+544	Meteoroloji servisinin hazır animasyonu: tüm NEXRAD radarlarının son temel yansıtıcılık kareleri döngü olarak birleştirilmiş. Haritadaki «yansıtıcılık» katmanıyla aynı ürün, ama hareket geçmişiyle.
+545	Açık arazi için üstel yasa: rüzgâr yükseklikle artar çünkü yer onu yavaşlatır. Orman veya şehir üstünde artış daha güçlü (α ≈ #–#), su üstünde daha zayıf (α ≈ #) — bu bir tahmindir, ölçüm değil.
+546	WindStation ağının parolası burada sorulmaz ve saklanmaz: yazılım derlenirken secrets.h içinde belirlenir. Bulut kimliği yalnızca istasyonda modem varsa ve onu uzaktan görmek istiyorsanız gerekir.
+547	Ülkenin en aktif ikinci hortum bölgesi Dixie'dir. Burada hortumlar daha sık geceleri olur ve tek bir hücreyle değil bir cepheyle gelir, bu yüzden radar görüntüsü çok farklıdır: ayrı lekeler yerine uzun bir hat.
+548	Liquid Glass — iOS #'daki gibi cam, parıltılar ve mercekler. «Tonal» — Android uygulamalarındaki gibi düz renkli yüzeyler, büyük yuvarlatmalar ve hap biçimleri. İkisinde de animasyonlar aynı. Açık veya koyu — «Arka plan»a göre.
+549	İki kanal üst üste: bulut dokusu görünür kanaldan, renk kızılötesinden gelir. Bulut tepesinin kabartması ve ne kadar soğuk olduğu aynı anda görülür. Tahmincilerin fırtına analizinde kullandığı bir iş ürünü.
+550	Bir fotoğraf değil, kanal farkına göre renklendirme. Stratosferden gelen kuru hava kırmızı, nemli tropikal hava yeşil çıkar. Bu renklerin sınırlarında, normal görüntüde olmayan jet akımı ve cephe sınırları görülür.
+551	Işığı değil ısıyı ölçer, bu yüzden gece de gündüz gibi çalışır. Bulut tepesi ne kadar soğuksa o kadar yükseğe çıkmıştır — güçlü konveksiyon bu kanalla tanınır: tropopozu delen bir fırtınanın tepesi eksi altmıştan soğuktur.
+552	Ulusal Kasırga Merkezi'nin Atlantik için resmî tahmini: önümüzdeki hafta tropikal siklon oluşabilecek bölgeler yüzde olasılıkla işaretlenmiştir. Kıyıda hazırlık ilan edilirken kullanılan görüntünün ta kendisi.
+553	Havayı direkte beklemek yerine ona götürülen cihazlar. Bir kasırganın yoluna beş dakikada kurulan taşınabilir sehpadan huninin içine giren zırhlı araca kadar. Hepsinin ortak noktası: veriler, cihaz uçup gitmeden alınmalı.
+554	Bir hortum nasıl doğar, hangi türleri vardır ve hortum olmadığı hâlde ona ne benzer. Sonuncusu sanıldığından önemli: internetteki «hortumların» yarısı gustnado ve toz şeytanıdır, yanlış alarmların çoğu da huni değil bora haber veren raf bulutundan gelir.
+555	Telefonlar için. Cam cam olarak kalır — renk tonu, pah, parıltı, dokunuşta ışıma — ama panellerin altında kırağı, mercek, kayan parıltı ve imleç ışığı olmadan; arka plan durur, kamera sahnesi donar, akış saniyede # kez çizilir (normalde #). Ölçümler değişmez.
+556	Weather Prediction Center'ın nöbetçi tahmincisinin çizdiği klasik sinoptik harita. Soğuk cepheler üçgenlerle, sıcaklar yarım dairelerle, izobarlar # hPa arayla. Her hava analizi bu haritayla başlar ve yüz yılda neredeyse hiç değişmedi.
+557	Dil
+558	Sistemdeki gibi
+559	Başka seç
+560	Bir dil seçin
+561	Arayüz dili
+562	Liquid Glass simgesi
+563	Tonal simge
+564	Başlıktaki simge ve uygulamanın kendi simgesi. Açık — camdan bir kivi dilimi, kapalı — düz tonal.
+565	Listede olmayan diller sonraki güncellemelerde gelecek. Uzun başvuru metinleri henüz kısmen Rusça.
+566	şimdi
+567	Seçilen dil:
+568	Sistemdeki gibi:
+569	Cam
+570	Cam gücü
+571	sıvı
+572	kırağı
+573	yumuşak
+574	şeffaf
+575	Clear — iOS #'daki gibi şeffaf cam. Tinted — daha yoğun ve kontrastlı, metin her arka planda okunur (iOS #).
+576	Solda — süt cam: daha çok kırağı, daha yoğun ton, metin her arka planda okunur. Sağda — şeffaf mercek: daha az kırağı, daha parlak pah, kenarda daha güçlü kırılma.
+577	Sistem
+578	Panel ve düzen
+579	Bildirimler ve ses
+580	yarın
+581	Günlük
+582	KAYIT YOK
+583	hızla düşüyor — muhtemelen rüzgâr artacak, hava bozacak
+584	düşüyor — hava bozuluyor
+585	hızla yükseliyor — açılırken kuvvetli rüzgâr olabilir
+586	yükseliyor — hava düzeliyor
+587	sabit
+588	# DK ORTALAMASI
+589	veri bekleniyor
+590	· DİREĞİNİZE GÖRE DÜZELTİLMİŞ
+591	önümüzdeki iki gün uygun rüzgâr yok
+592	rüzgâr sürmeli
+593	Bu pencere için bildirimler şu an kapalı — tarayıcıda veya telefon ayarlarında izin verin.
+594	dün
+595	Basınç
+596	# SAATTE
+597	Değişim
+598	Rapor çizilemedi.
+599	Ortalama rüzgâr
+600	Weibull, şekil k
+601	Weibull, ölçek c
+602	Sakin (< # m/s)
+603	# m/s üzeri
+604	Ortalama güç
+605	Dönem üretimi
+606	Yıllık
+607	En güçlü hamle
+608	En rüzgârlı gün
+609	En sakin gün
+610	Çiziliyor…
+611	neredeyse hiç yanılmıyor
+612	Günlük yalnızca gerçek bir istasyondan tutulur — «İstasyon» sekmesinden bağlayın.
+613	Sizdeki model
+614	Ortalama / hamle çarpanı
+615	Hata, m/s
+616	Düzeltmeyi pencerelerde ve özetlerde uygula
+617	Tahmin düzeltmesi
+618	Tahmin yanıt vermedi.
+619	−# sa
+620	+# sa
+621	istasyon, # m'ye indirgenmiş
+622	tahmin
+623	düzeltilmiş tahmin
+624	Tahmin ortalamada
+625	fazla gösteriyor
+626	az gösteriyor
+627	Ortalama hata
+628	Karşılaştırılan saat
+629	Tahmin için en az üç saatlik günlük gerekli.
+630	soruluyor…
+631	~# km içinde METAR'lı havalimanı yok.
+632	veri yok
+633	İstasyonda gece
+634	Alarm olmadı.
+635	Rüzgâr güçleniyor

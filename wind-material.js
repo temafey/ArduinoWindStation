@@ -92,8 +92,10 @@ export function materialCss(light, icons = "blue") {
 
   /* ---- типографика: строчные, без разрядки ---- */
   ${M} *:not(svg *):not(:where(.ink-dark *)) { text-transform: none !important; letter-spacing: normal !important }
-  ${M} .caps { text-transform: lowercase !important }
-  ${M} .caps::first-letter { text-transform: uppercase !important }
+  /* В немецком существительные пишутся с прописной — строчные их испортили бы,
+     поэтому там капитель остаётся капителью (lang ставит wind-i18n.js). */
+  html:not([lang="de"]) ${M} .caps { text-transform: lowercase !important }
+  html:not([lang="de"]) ${M} .caps::first-letter { text-transform: uppercase !important }
   /* Кнопки панелей: главная — залитая primary, прочие — с обводкой (M3). */
   ${M} button.btn-pri:not(:disabled) { background: var(--md-primary) !important; color: var(--md-on-primary) !important; border-color: transparent !important }
   ${M} button.btn-pri:disabled { background: rgba(var(--ink),0.12) !important; border-color: transparent !important }

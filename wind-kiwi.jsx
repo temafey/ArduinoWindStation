@@ -132,3 +132,43 @@ export function KiwiMark({ size = 40, g }) {
     </svg>
   );
 }
+
+// ============================================================
+// ТОНАЛЬНЫЙ ЗНАК (с 0.5.0)
+// ============================================================
+// Тот же силуэт плитки и та же долька, но плоско, как значки Material You:
+// тональная заливка вместо стекла, без бликов, линзы и свечения. Рисунок —
+// одна строка SVG, потому что он же идёт в значок вкладки браузера (favicon);
+// make-icon.js повторяет его для значков Windows и Android.
+export function tonalSvg(size = 48) {
+  const seeds = SEEDS.map((sd) =>
+    `<ellipse cx="${sd.x.toFixed(2)}" cy="${sd.y.toFixed(2)}" rx="1.15" ry=".62" fill="#2a2214" transform="rotate(${sd.d} ${sd.x.toFixed(2)} ${sd.y.toFixed(2)})"/>`).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 48 48">`
+    + `<path d="${TILE}" fill="#d6ecc2"/>`
+    + `<g transform="rotate(${T} ${C} ${C})">`
+    + `<ellipse cx="${C}" cy="${C + 0.6}" rx="${(RX * 1.17).toFixed(2)}" ry="${(RY * 1.19).toFixed(2)}" fill="#7d5c35"/>`
+    + `<ellipse cx="${C}" cy="${C}" rx="${RX}" ry="${RY.toFixed(2)}" fill="#86c34f"/>`
+    + `<ellipse cx="${C}" cy="${C}" rx="${(RX * 0.8).toFixed(2)}" ry="${(RY * 0.8).toFixed(2)}" fill="#a7d872"/>`
+    + seeds
+    + `<ellipse cx="${C}" cy="${C}" rx="${(RX * 0.27).toFixed(2)}" ry="${(RY * 0.27).toFixed(2)}" fill="#f3fbe6"/>`
+    + `</g></svg>`;
+}
+
+const TONAL_URL = () => "data:image/svg+xml," + encodeURIComponent(tonalSvg());
+
+export function TonalMark({ size = 40 }) {
+  return (
+    <img src={TONAL_URL()} width={size} height={size} alt="" draggable={false} className="kiwi-mark kiwi-tonal"
+         style={{ display: "block", flexShrink: 0, filter: "drop-shadow(0 1px 2px rgba(0,0,0,.22))" }} />
+  );
+}
+
+// Значок вкладки браузера — тот же выбор, что у знака в шапке.
+export function setFavicon(tonal) {
+  try {
+    const link = document.querySelector("link[rel='icon']");
+    if (!link) return;
+    if (!link.dataset.orig) link.dataset.orig = link.getAttribute("href") || "";
+    link.setAttribute("href", tonal ? TONAL_URL() : link.dataset.orig);
+  } catch { /* нет документа */ }
+}
