@@ -65,8 +65,13 @@ Write-Host '  Остановить: Ctrl+C' -ForegroundColor DarkGray
 Write-Host ''
 # Сервер не должен молча пропадать: упал — запишем причину в serve-phone.log и поднимем снова.
 $log = Join-Path $PSScriptRoot 'serve-phone.log'
+# Вывод перенаправляет cmd, а не PowerShell: в Windows PowerShell каждая строка
+# stderr от программы (трассировка оборванного соединения, «порт 80 не открылся»)
+# становится ошибкой, и при $ErrorActionPreference = 'Stop' она обрывала весь
+# скрипт — сервер умирал на первом же таком сообщении, и цикл не перезапускал его.
+$env:PYTHONIOENCODING = 'utf-8'
 while ($true) {
-  python -I "$PSScriptRoot\serve-phone.py" $ports $site 2>&1 | Out-File -FilePath $log -Append -Encoding utf8
+  cmd /c "python -I `"$PSScriptRoot\serve-phone.py`" $ports `"$site`" >> `"$log`" 2>&1"
   "$(Get-Date -Format s) сервер остановился (код $LASTEXITCODE), перезапуск через 5 с" | Out-File -FilePath $log -Append -Encoding utf8
   Start-Sleep 5
 }

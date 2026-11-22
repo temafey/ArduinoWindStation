@@ -1299,6 +1299,39 @@ function MorphPop({ className, anchor, children, owner }) {
   return <span ref={ref} className={className} data-morph-owner={owner}>{children}</span>;
 }
 
+// Бульбашка «Сделано с помощью Claude» (с 0.5.6) — не окно, а часть значка:
+// значок приседает и «плавится», из-под него стекает капля на жидкой перемычке
+// и раздувается в бульбашку с надписью. Закрытие — капля втягивается обратно,
+// и значок её «глотает». Фазы in/out живут здесь, а классы приседания (cl-melt /
+// cl-slurp) ставятся прямо на значок — перерисовывать ради них шапку незачем.
+function ClaudeDrop({ open, chipRef }) {
+  const [phase, setPhase] = useState(null);
+  useLayoutEffect(() => {
+    const chip = chipRef.current;
+    const restart = (add, drop) => {
+      if (!chip) return;
+      chip.classList.remove(add, drop);
+      void chip.offsetWidth;
+      chip.classList.add(add);
+    };
+    if (open) { setPhase("in"); restart("cl-melt", "cl-slurp"); return undefined; }
+    if (chip?.classList.contains("cl-melt")) restart("cl-slurp", "cl-melt");
+    setPhase((p) => (p ? "out" : null));
+    const t = setTimeout(() => setPhase((p) => (p === "out" ? null : p)), 620);
+    return () => clearTimeout(t);
+  }, [open, chipRef]);
+  if (!phase) return null;
+  return (
+    <span className={`cl-drop cl-${phase}`} role="status">
+      <i className="cl-bridge" aria-hidden="true" />
+      <span className="cl-bub">
+        <i className="cl-bub-sheen" aria-hidden="true" />
+        <span className="cl-bub-t">Сделано с помощью Claude</span>
+      </span>
+    </span>
+  );
+}
+
 // Подпись, набранная капителью в исходнике («НАЙТИ РЯДОМ»). Тема «Тональная»
 // пишет такие обычным предложением — классом, без правки строк.
 // Признак — первое слово из двух и больше букв целиком прописное: так ловятся
@@ -1990,6 +2023,15 @@ export default function WindDashboard() {
   const claudeRef = useRef(null);
   const verRef = useRef(null);
   const toggleClaude = () => setShowClaude((v) => !v);
+  // Бульбашка Claude закрывается и касанием мимо неё, и Esc.
+  useEffect(() => {
+    if (!showClaude) return undefined;
+    const down = (e) => { if (!e.target.closest?.(".claude-wrap")) setShowClaude(false); };
+    const key = (e) => { if (e.key === "Escape") setShowClaude(false); };
+    document.addEventListener("pointerdown", down, true);
+    document.addEventListener("keydown", key);
+    return () => { document.removeEventListener("pointerdown", down, true); document.removeEventListener("keydown", key); };
+  }, [showClaude]);
   // Окошко версии: по нажатию на «Beta x.y.z». Открывается и закрывается так же,
   // как плашка Claude — с анимацией, повторным нажатием. Внутри — ручная проверка.
   const uc = useUpdateCheck();
@@ -2478,7 +2520,7 @@ export default function WindDashboard() {
       // режим раскладки не трогаем — там нажатие означает своё.
       if (!poke && !layoutMode && e.target.closest) {
         const t = e.target;
-        const live = t.closest("button, a, input, select, textarea, label, canvas, .dock-panel, .claude-pop, .modal-card")
+        const live = t.closest("button, a, input, select, textarea, label, canvas, .dock-panel, .cl-drop, .modal-card")
           || !["auto", "default", "text"].includes(getComputedStyle(t).cursor);
         if (!live) poke = t.closest(".stat") || t.closest(".pnl");
       }
@@ -4291,27 +4333,83 @@ export default function WindDashboard() {
         .boot-stage { font-family: var(--ui-mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
                       color: rgba(var(--ink, 231,238,246),0.6); min-height: 14px }
         .claude-wrap { position: relative; display: inline-flex }
-        .claude-pop {
-          position: absolute; top: calc(100% + 12px); left: 0; z-index: 120; white-space: nowrap;
-          padding: 9px 14px; border-radius: 14px; letter-spacing: .5px;
-          font-family: var(--ui-mono); font-size: 11px; font-weight: 600; color: #ff9a3c;
-          border: 1.5px solid #ff9a3c; background: rgba(40,22,8,0.55);
-          -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5);
-          box-shadow: 0 0 22px rgba(255,154,60,0.35), inset 0 1px 0 rgba(255,200,140,0.35);
-          text-shadow: 0 0 10px rgba(255,154,60,0.6); transform-origin: 20px -6px;
-          animation: claudePop .74s cubic-bezier(.34,1.56,.5,1) both;
+        /* Капля Claude: перемычка + бульбашка, вытекающие из значка (ClaudeDrop). */
+        .cl-drop { position: absolute; top: 100%; left: 0; z-index: 120; padding-top: 9px; pointer-events: none }
+        .cl-drop.cl-in { pointer-events: auto }
+        .cl-bub, .cl-bridge {
+          background:
+            radial-gradient(130% 100% at 50% 125%, rgba(255,120,30,0.5), rgba(255,120,30,0) 72%),
+            linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,190,130,0.14) 50%, rgba(255,140,60,0.22)),
+            rgba(60,30,10,0.42);
+          -webkit-backdrop-filter: blur(12px) var(--lg-lens,) saturate(140%);
+          backdrop-filter: blur(12px) var(--lg-lens,) saturate(140%);
         }
-        .claude-pop::before { content: ""; position: absolute; top: -6px; left: 18px; width: 10px; height: 10px;
-          background: rgba(40,22,8,0.9); border-left: 1.5px solid #ff9a3c; border-top: 1.5px solid #ff9a3c;
-          transform: rotate(45deg) }
-        @keyframes claudePop { from { opacity: 0; transform: translateY(-14px) scale(.4) rotate(-6deg); filter: blur(calc(var(--mb, 1) * 8px)) } to { opacity: 1; transform: none; filter: none } }
-        .claude-pop.claude-out { animation: claudeOut .54s cubic-bezier(.5,0,.8,.4) forwards; pointer-events: none }
-        @keyframes claudeOut {
-          0% { opacity: 1; transform: none; filter: none }
-          30% { transform: translateY(3px) scale(1.06) }
-          100% { opacity: 0; transform: translateY(-16px) scale(.35) rotate(7deg); filter: blur(6px) }
+        /* Жидкая перемычка: вогнутые бока (маска двумя кругами), как шейка капли. */
+        .cl-bridge { position: absolute; top: -1px; left: 24px; width: 26px; height: 12px;
+          -webkit-mask: radial-gradient(circle at 0 50%, transparent 7.5px, #000 8px) left / 51% 100% no-repeat,
+                        radial-gradient(circle at 100% 50%, transparent 7.5px, #000 8px) right / 51% 100% no-repeat;
+          mask: radial-gradient(circle at 0 50%, transparent 7.5px, #000 8px) left / 51% 100% no-repeat,
+                radial-gradient(circle at 100% 50%, transparent 7.5px, #000 8px) right / 51% 100% no-repeat;
+          transform-origin: 50% 0 }
+        .cl-bub { position: relative; display: block; white-space: nowrap; overflow: hidden; isolation: isolate;
+          padding: 11px 16px; border-radius: 18px; transform-origin: 37px 0;
+          font-family: var(--ui-mono); font-size: 11px; font-weight: 600; letter-spacing: .5px;
+          color: #ffb066; text-shadow: 0 0 10px rgba(255,140,50,0.55);
+          box-shadow: 0 0 0 0.5px rgba(255,170,100,0.55), inset 0 1px 0.5px rgba(255,255,255,0.6),
+                      inset 0 -1px 1px rgba(255,170,90,0.35), inset 0 0 12px rgba(255,140,50,0.2),
+                      0 10px 26px -10px rgba(255,120,30,0.6), 0 4px 12px -6px rgba(0,0,0,0.55) }
+        .cl-bub-t { position: relative; display: inline-block }
+        .cl-bub-sheen { position: absolute; top: -50%; bottom: -50%; left: 0; width: 30%; z-index: -1; pointer-events: none;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
+          transform: translateX(-160%) skewX(-18deg) }
+        .cl-in .cl-bridge { animation: clBridgeIn 1s cubic-bezier(.3,.7,.3,1) both }
+        .cl-in .cl-bub { animation: clBubIn 1.05s cubic-bezier(.3,.7,.35,1) both }
+        .cl-in .cl-bub-t { animation: clTextIn .6s var(--ease-out) .34s both }
+        .cl-in .cl-bub-sheen { animation: clSheenB 6s var(--ease-out) .55s infinite }
+        .cl-out .cl-bridge { animation: clBridgeOut .5s cubic-bezier(.5,0,.75,.5) .08s both }
+        .cl-out .cl-bub { animation: clBubOut .5s cubic-bezier(.5,0,.75,.4) both }
+        .cl-out .cl-bub-t { animation: clTextOut .16s ease both }
+        @keyframes clBubIn {
+          0%   { opacity: 0; transform: translateY(-12px) scale(.09, .14); border-radius: 50% }
+          14%  { opacity: 1 }
+          34%  { transform: translateY(3px) scale(.42, 1.18); border-radius: 46% }
+          56%  { transform: translateY(0) scale(1.07, .9); border-radius: 22px }
+          74%  { transform: scale(.97, 1.04) }
+          88%  { transform: scale(1.01, .99) }
+          100% { opacity: 1; transform: none; border-radius: 18px }
         }
-        .mo-off .claude-pop { animation: none }
+        @keyframes clBridgeIn {
+          0%   { transform: scale(.25, 0) }
+          30%  { transform: scale(.5, 1.7) }
+          58%  { transform: scale(1.18, .85) }
+          80%  { transform: scale(.95, 1.05) }
+          100% { transform: none }
+        }
+        @keyframes clTextIn { from { opacity: 0; transform: translateY(5px) scale(.94); filter: blur(calc(var(--mb, 1) * 5px)) } to { opacity: 1; transform: none; filter: none } }
+        @keyframes clSheenB { 0% { transform: translateX(-160%) skewX(-18deg) } 22%, 100% { transform: translateX(560%) skewX(-18deg) } }
+        @keyframes clBubOut {
+          0%   { opacity: 1; transform: none; border-radius: 18px }
+          30%  { transform: scale(1.04, .93) }
+          70%  { opacity: 1; transform: translateY(-4px) scale(.38, .7); border-radius: 46% }
+          100% { opacity: 0; transform: translateY(-12px) scale(.08, .12); border-radius: 50% }
+        }
+        @keyframes clBridgeOut { 0% { transform: none } 50% { transform: scale(.55, 1.35) } 100% { transform: scale(.2, 0) } }
+        @keyframes clTextOut { to { opacity: 0; filter: blur(calc(var(--mb, 1) * 4px)) } }
+        /* Значок «плавится», отдавая каплю, и «глотает» её обратно. */
+        .claude-chip.cl-melt { animation: clMelt .75s cubic-bezier(.3,.7,.35,1) }
+        .claude-chip.cl-slurp { animation: clSlurp .65s cubic-bezier(.3,.7,.35,1) .22s }
+        @keyframes clMelt { 0% { transform: none } 22% { transform: translateY(1px) scale(1.1, .82) } 48% { transform: scale(.95, 1.09) } 72% { transform: scale(1.02, .98) } 100% { transform: none } }
+        @keyframes clSlurp { 0% { transform: none } 35% { transform: translateY(1px) scale(1.12, .84) } 65% { transform: scale(.96, 1.06) } 100% { transform: none } }
+        .sc-light .cl-bub, .sc-light .cl-bridge { background:
+            radial-gradient(130% 100% at 50% 125%, rgba(255,140,50,0.34), rgba(255,140,50,0) 72%),
+            linear-gradient(180deg, rgba(255,255,255,0.94), rgba(255,236,220,0.78) 55%, rgba(255,214,180,0.82)) }
+        .sc-light .cl-bub { color: #c2560a; text-shadow: none;
+          box-shadow: 0 0 0 0.5px rgba(230,130,50,0.5), inset 0 1px 0.5px #fff, 0 10px 24px -12px rgba(230,110,20,0.55) }
+        .app.sk-material.sk-material .cl-bub, .app.sk-material.sk-material .cl-bridge { background: var(--md-c-highest);
+          -webkit-backdrop-filter: none; backdrop-filter: none }
+        .app.sk-material.sk-material .cl-bub { color: var(--md-on); text-shadow: none; box-shadow: var(--md-elev) }
+        .mo-off .cl-drop *, .mo-off .claude-chip { animation: none !important }
+        .mo-off .cl-out { display: none }
 
         /* Всплеск от нажатия */
         .rip { position: fixed; width: 280px; height: 280px; margin: -140px 0 0 -140px; border-radius: 50%;
@@ -4681,7 +4779,7 @@ export default function WindDashboard() {
                 </svg>
                 Claude
               </span>
-              {showClaude && <MorphPop className="claude-pop" anchor={claudeRef}>Сделано с помощью Claude</MorphPop>}
+              <ClaudeDrop open={showClaude} chipRef={claudeRef} />
             </span>
             </h1>
           </div>

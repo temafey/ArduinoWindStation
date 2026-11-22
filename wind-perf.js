@@ -51,7 +51,7 @@ export const ECO_CSS = `
              linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0.05)),
              rgba(12,16,26,calc(var(--lg-tint-a, 0.2) + 0.34)) }
 .app.eco :is(.pnl, .stat, .tutor-box), .app.eco nav:not(.dock-bar), .app.eco .ver-chip,
-.app.eco .bat-glass, .app.eco .claude-pop, .app.eco .claude-chip {
+.app.eco .bat-glass, .app.eco .cl-bub, .app.eco .cl-bridge, .app.eco .claude-chip {
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important }
 /* Бегущий блик: хоть он и едет одним композитором, это слой на каждую
    панель и кадр на каждый кадр анимации. В эко его нет — подсветка верхней

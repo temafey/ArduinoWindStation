@@ -132,7 +132,7 @@ export function lensActive(settings, eco) {
 // смещение по X на ширину блока, а по Y — на высоту. Поэтому масштаб подобран
 // так, чтобы и узкая сторона влезла в диапазон канала, а dx и dy пересчитаны
 // каждый в свою долю.
-const LENS_SEL = ".dock, .gear-btn:not(.dock-gear), .upd-tab, .ver-pop, .modal-card, .liq-thumb, .claude-chip";
+const LENS_SEL = ".dock, .gear-btn:not(.dock-gear), .upd-tab, .ver-pop, .modal-card, .liq-thumb, .claude-chip, .cl-bub";
 const SVGNS = "http://www.w3.org/2000/svg";
 
 function lensMap(W, H, radius, maxPx) {
