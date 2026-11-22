@@ -2452,7 +2452,7 @@ export default function WindDashboard() {
   // панелью. Только transform и opacity: ни одной перерисовки.
   useEffect(() => {
     if (motion === "off") return undefined;
-    const TOUCH_HOST = ".dock-tabs > button, .gear-btn, .ar-btn, .ver-chip, .upd-tab, .dock, .pnl, .stat, .tutor-box";
+    const TOUCH_HOST = ".dock-tabs > button, .gear-btn, .ar-btn, .ver-chip, .claude-chip, .upd-tab, .dock, .pnl, .stat, .tutor-box";
     const glassTouch = (e) => {
       if (!liquid || layoutMode || !e.target.closest) return false;
       const host = e.target.closest(TOUCH_HOST);
@@ -4673,6 +4673,7 @@ export default function WindDashboard() {
               <span className="claude-wrap">
               <span ref={claudeRef} className="claude-chip" data-poke="chip" role="button" tabIndex={0}
                     onClick={toggleClaude} style={{ cursor: "pointer" }}>
+                <i className="cl-sheen" aria-hidden="true" />
                 <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                   {[0, 30, 60, 90, 120, 150].map((a) => (
                     <line key={a} x1="12" y1="2.5" x2="12" y2="21.5" transform={`rotate(${a} 12 12)`} />

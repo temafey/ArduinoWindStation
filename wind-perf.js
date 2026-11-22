@@ -51,7 +51,7 @@ export const ECO_CSS = `
              linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0.05)),
              rgba(12,16,26,calc(var(--lg-tint-a, 0.2) + 0.34)) }
 .app.eco :is(.pnl, .stat, .tutor-box), .app.eco nav:not(.dock-bar), .app.eco .ver-chip,
-.app.eco .bat-glass, .app.eco .claude-pop {
+.app.eco .bat-glass, .app.eco .claude-pop, .app.eco .claude-chip {
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important }
 /* Бегущий блик: хоть он и едет одним композитором, это слой на каждую
    панель и кадр на каждый кадр анимации. В эко его нет — подсветка верхней
@@ -70,7 +70,7 @@ export const ECO_CSS = `
   animation: pop .61s var(--ease-spring) both !important }
 /* Декоративные кольца и вращения: не несут смысла, а работают постоянно —
    и каждый их кадр будит отрисовку всего экрана. */
-.app.eco .gear-btn::before, .app.eco .claude-chip::after, .app.eco .sys-dot.ok::after,
+.app.eco .gear-btn::before, .app.eco .claude-chip::after, .app.eco .cl-sheen::before, .app.eco .sys-dot.ok::after,
 .app.eco .more-soon { animation: none !important }
 .app.eco .gear-btn svg, .app.eco .claude-chip svg,
 .app.eco header > div:first-child > div:first-child > :first-child { animation: none !important }

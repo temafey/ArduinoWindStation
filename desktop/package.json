@@ -1,7 +1,7 @@
 {
   "name": "weathered-kiwi",
   "productName": "Weathered_Kiwi",
-  "version": "0.5.4",
+  "version": "0.5.6",
   "description": "Weathered_Kiwi — настольная программа станции",
   "main": "main.js",
   "private": true,

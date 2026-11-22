@@ -132,7 +132,7 @@ export function lensActive(settings, eco) {
 // смещение по X на ширину блока, а по Y — на высоту. Поэтому масштаб подобран
 // так, чтобы и узкая сторона влезла в диапазон канала, а dx и dy пересчитаны
 // каждый в свою долю.
-const LENS_SEL = ".dock, .gear-btn:not(.dock-gear), .upd-tab, .ver-pop, .modal-card, .liq-thumb";
+const LENS_SEL = ".dock, .gear-btn:not(.dock-gear), .upd-tab, .ver-pop, .modal-card, .liq-thumb, .claude-chip";
 const SVGNS = "http://www.w3.org/2000/svg";
 
 function lensMap(W, H, radius, maxPx) {
@@ -656,6 +656,56 @@ export const THEMES = {
         border: none; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.4), inset 0 1px 0.5px rgba(255,255,255,0.5);
         -webkit-backdrop-filter: blur(10px) saturate(180%); backdrop-filter: blur(10px) saturate(180%);
       }
+
+      /* Плашка Claude (с 0.5.6) — капля тёплого стекла, а не оранжевая рамка:
+         линза и иней как у плавающего стекла, фаска сверху, янтарный отсвет
+         снизу изнутри, по стеклу раз в несколько секунд пробегает блик
+         (transform псевдоэлемента — без перерисовок). Значок светится сквозь
+         стекло и медленно вращается; под пальцем капля вырастает. */
+      .th-liquid .claude-chip {
+        padding: 3px 11px 3px 8px; gap: 6px; isolation: isolate;
+        color: #ffb066; text-shadow: 0 0 10px rgba(255,140,50,0.55);
+        border: none;
+        background:
+          radial-gradient(130% 100% at 50% 125%, rgba(255,120,30,0.62), rgba(255,120,30,0) 72%),
+          linear-gradient(180deg, rgba(255,255,255,0.26), rgba(255,190,130,0.16) 50%, rgba(255,140,60,0.24)),
+          rgba(70,34,12,0.28);
+        box-shadow: 0 0 0 0.5px rgba(255,170,100,0.55), inset 0 1px 0.5px rgba(255,255,255,0.65),
+                    inset 0 -1px 1px rgba(255,170,90,0.35), inset 0 0 8px rgba(255,140,50,0.18),
+                    0 4px 14px -6px rgba(255,120,30,0.55), 0 2px 6px -3px rgba(0,0,0,0.5);
+        -webkit-backdrop-filter: blur(10px) var(--lg-lens,) saturate(140%);
+        backdrop-filter: blur(10px) var(--lg-lens,) saturate(140%);
+        transition: transform .68s var(--ease-spring), box-shadow .5s ease;
+      }
+      .cl-sheen { display: none }
+      .th-liquid .cl-sheen { display: block; position: absolute; inset: 0; border-radius: inherit; overflow: hidden;
+        pointer-events: none; z-index: -1 }
+      .th-liquid .cl-sheen::before {
+        content: ""; position: absolute; top: -40%; bottom: -40%; left: 0; width: 38%;
+        pointer-events: none; transform: translateX(-160%) skewX(-18deg);
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+        animation: clSheen 5.2s var(--ease-out) 1.6s infinite;
+      }
+      @keyframes clSheen { 0% { transform: translateX(-160%) skewX(-18deg) } 28%, 100% { transform: translateX(420%) skewX(-18deg) } }
+      /* Кольцо-пульс — мягкое стеклянное, а не оранжевая обводка. */
+      .th-liquid .claude-chip::after { border: 0.5px solid rgba(255,190,130,0.6);
+        box-shadow: 0 0 10px rgba(255,140,50,0.35); animation-duration: 3.4s }
+      .th-liquid .claude-chip svg { filter: drop-shadow(0 0 3px rgba(255,140,50,0.85)) }
+      .th-liquid .claude-chip:hover { transform: translateY(-1px) scale(1.08);
+        box-shadow: 0 0 0 0.5px rgba(255,190,120,0.75), inset 0 1px 0.5px rgba(255,255,255,0.75),
+                    inset 0 -1px 1px rgba(255,170,90,0.45), inset 0 0 10px rgba(255,140,50,0.28),
+                    0 6px 18px -6px rgba(255,120,30,0.75), 0 2px 6px -3px rgba(0,0,0,0.5) }
+      .th-liquid .claude-chip:active { transform: scale(1.12) !important; transition: transform .3s cubic-bezier(.3,1.6,.5,1) !important }
+      .th-liquid.lg-tinted .claude-chip { background:
+          radial-gradient(120% 90% at 50% 120%, rgba(255,128,40,0.5), rgba(255,128,40,0) 70%),
+          linear-gradient(180deg, rgba(60,36,20,0.55), rgba(40,24,12,0.6)) }
+      .mo-off .cl-sheen { display: none !important }
+      /* Светлая сцена: стекло светлое, янтарь — глубже, чтобы надпись читалась на белом. */
+      .th-liquid.sc-light .claude-chip { color: #c2560a; text-shadow: none;
+        background:
+          radial-gradient(130% 100% at 50% 125%, rgba(255,140,50,0.38), rgba(255,140,50,0) 72%),
+          linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,236,220,0.7) 55%, rgba(255,214,180,0.75)) }
+      .th-liquid.sc-light .claude-chip svg { filter: drop-shadow(0 0 2px rgba(255,140,50,0.5)) }
 
       /* ---------------- край прокрутки ----------------
          Scroll edge effect: содержимое, уходящее под шапку и под док, не
