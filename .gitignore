@@ -93,3 +93,4 @@ desktop/*.log
 
 # стоп-кран выкладки обновлений (локальный переключатель, см. auto-rebuild.ps1)
 desktop/.hold-release
+desktop/serve-phone.log

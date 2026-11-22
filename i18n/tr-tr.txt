@@ -634,3 +634,410 @@
 633	İstasyonda gece
 634	Alarm olmadı.
 635	Rüzgâr güçleniyor
+636	# cm
+637	≈ #–# libre
+638	Zırhlı araçlar
+639	Tekerlekli radarlar
+640	İstasyonlar ve sondalar
+641	Hava ve ağ
+642	Sean Casey'nin ilk zırhlı aracı
+643	içeriden çekim
+644	Taban
+645	Ford F-# Super Duty, # model, çift arka teker, dizel
+646	Yapımcı
+647	film yapımcısı Sean Casey (IMAX)
+648	Beyan edilen dayanım
+649	# km/sa'e kadar rüzgâr (# mph)
+650	Kütle
+651	yaklaşık # t, resmî olmayan veri
+652	Veri için değil, görüntü için hortuma yaklaşan araçların hikâyesi onunla başladı: Casey bir hortum hunisini içeriden IMAX filmine çekmek istiyordu. TIV #, zırhlı ve yere çapalanan sıradan bir kamyonun, geri kalan her şey uçarken tekerleklerinin üstünde kaldığını gösterdi.
+653	Dayanım rakamları ekibin kendi beyanıdır; bağımsız test yoktur. Farklı kaynaklara göre #'lerin başında yapıldı; kesin yıl kaynaklarda farklıdır.
+654	Zırhlı önleme aracı, ikinci nesil
+655	#×#, yere kadar zırh
+656	kaynaklara göre değişir: Dodge Ram #, Cummins dizel
+657	Ortaya çıkışı
+658	# civarı, TIV #'in yerini aldı
+659	hafifletmeden sonra yaklaşık # t (önceden # t ve üzeri)
+660	Yapı
+661	üç aks; Wikipedia'ya göre ikisi çekişli (#×#), diğer kaynaklar farklı
+662	Yerden yükseklik
+663	hidrolik: yolda yüksek, önleme sırasında alçak
+664	Yeniden yapılmış bir TIV: yere kadar ağır zırh etekleri, hafif gövde, zemine indirilme. Hız için # t'dan # t'a hafifletildi: böyle bir araç ne kadar çabuk pozisyon alırsa yetişme şansı o kadar artar. Amaç aynı: kamerayla hunin içinde olmak.
+665	Bilimsel değil, televizyon aracıdır: neredeyse hiç veri vermez ve risk çok büyüktür. Yere çapalar açıklamalarda geçer ama ciddi kaynaklarda doğrulama azdır, bu yüzden rakamlarda yer almaz.
+666	Reed Timmer'ın zırhlı kamyoneti
+667	sonda verisi için hortuma
+668	Ford F-# Super Duty, #–# model (kaynaklar ayrışıyor)
+669	Özellikler
+670	zırh, hidrolik çapalar, vinç, havalı süspansiyon, martı kanadı kapılar
+671	Maliyet
+672	yaklaşık # bin dolar, basın haberlerine göre
+673	Olay
+674	Mayıs #: Spalding, Nebraska yakınında hortuma giriş
+675	İçerideki rüzgâr
+676	ekibin tahminine göre #–# mph (yaklaşık #–# km/sa)
+677	General Motors aracına dayanmayan ilk Dominator. Bilimsel bir amaç için yapıldı: hortuma girip aracı çapalayarak onu içeriden ölçmek. Haberlere göre ayrıca girdabın yoluna fırlatılan sondalar için atış tüpleri de taşıyor.
+678	İçerideki rüzgâr hızı ekibin kendi tahminidir, standart bir ölçekte ölçüm değildir: EF derecesini araç üstündeki bir cihaz değil, hasar incelemesi verir. Kaynaklar atış tüpleri konusunda temkinlidir; bunları silah olarak okumamak gerekir.
+679	Dominator # ve #
+680	Timmer'ın arazi araçlarına dayalı ilk zırhlıları
+681	Tahoe ve Yukon XL
+682	Taban
+683	General Motors arazi araçları: Chevrolet Tahoe ve GMC Yukon XL
+684	Koruma
+685	zırh plakaları, polikarbonat, LINE-X koruyucu kaplama
+686	Rol
+687	televizyon programı ve bilimsel projeler için hortum arama
+688	İlk Dominator'lar sıradan dört çeker SUV'lardan doğdu: üzerlerine zırh ve cam eklendi, bu da hortumlara sıradan avcılardan daha fazla yaklaşmaya yetti. Bu deneyim daha sonra ağır Dominator #'e aktarıldı.
+689	İlk araçların ayrıntılı özellikleri açık kaynaklarda kıttır: yalnızca birden çok yayının aynı anda andığı bilgiler verilmiştir.
+690	DOW# ve DOW#
+691	Kamyon üstü Doppler radarları, X bandı
+692	her biri # kW iki verici
+693	Bant
+694	X, #–# GHz, çift polarizasyon
+695	Güç
+696	her biri # kW iki verici, mobil X radarları arasında rekor
+697	Hüzme
+698	dar, #–#°
+699	Mesafe çözünürlüğü
+700	# ila # m
+701	Sahibi
+702	Illinois Üniversitesi bünyesindeki DOW Facility (eskiden CSWR, Joshua Wurman)
+703	Hortumu kilometrelerce öteden tarayıp girdabın dönüş hızını veren meşhur «tekerlekli radarlar» bunlardır. ABD'de hortumların iç yapısına dair bilimsel ölçümlerin büyük kısmı bunlara dayanır.
+704	Radar yeri değil, hüzme yüksekliğindeki bir katmanı görür; bu yüzden rekor hızları EF derecesine girmez. Filo değişiyor: kaynaklar bugünkü araçları farklı adlandırıyor.
+705	Aynı anda on iki hüzmeli radar
+706	kat kat daha hızlı tarama
+707	İlke
+708	sırayla tek hüzme yerine yükseklik boyunca aynı anda # hüzme
+709	X, çift frekans ve polarizasyon
+710	Ne için
+711	sıradan bir antenin dönüşünden daha hızlı değişen bir hortumu yakalamak
+712	Sıradan bir radar gökyüzünü her turda bir açıdan tarar ve hortum değişmeye fırsat bulur. Aynı anda on iki hüzme, tek turda tüm yükseklik boyunca bir kesit verir: «hızlı tarama» budur.
+713	Hızlı taramanın bedeli farklı bir çalışma şeklidir: güç hüzmeler arasında bölünür, bu yüzden kısa mesafelerde kullanılır. Rapid-Scan DOW için kesin rakamlar burada verilmemiştir; bağımsız kaynaklarda yoktur.
+714	Hızlı kurulan C bandı radarı
+715	# cm dalga boyu
+716	C, # cm dalga boyu (X radarlarında # cm)
+717	# sonu
+718	Vericiler
+719	her biri # MW iki adet, Wikipedia'ya göre, ikincil kaynak
+720	Daha uzun dalga şiddetli yağmurda daha az zayıflar, bu yüzden radar sağanağın içinden daha uzağı görür. COW, mobil X radarı ile sabit NEXRAD arasında yer alır: hareket eder ama daha uzağa ulaşır.
+721	Beyan edilen iki megavat ikincil bir kaynaktan (Wikipedia) gelir; radarın sahibi rakamları farklı verebilir. DOW filosu değiştiği için güncel bileşimi sahibinin sitesinden kontrol edin.
+722	Oklahoma Üniversitesi'nin hızlı dönen radarı
+723	tek örnek
+724	Geliştirme
+725	ProSensing ile Oklahoma Üniversitesi birlikte, # civarı
+726	Frekans
+727	# MHz (X bandı)
+728	Anten
+729	# m parabolik çanak, çift polarizasyon
+730	Dönüş hızı
+731	saniyede yaklaşık #°
+732	Tam hacim
+733	# yükseliş açısı, yaklaşık # saniyede
+734	#–# m
+735	O kadar hızlı dönen bir radar ki # saniyede hortumun hacimsel görüntüsünü oluşturur; olağandan bir büyüklük mertebesi daha hızlı. Bunun için bağımsız ölçümleri hızla biriktirmek amacıyla frekanslar arasında atlar. Veriler NSF aracılığıyla araştırmacılara açıktır.
+736	Vericinin tepe gücü # kW, DOW'un X radarlarında ise her biri # kW. Bu, hızlı taramanın bilinçli bedelidir: böyle bir radar muhtemelen daha kısa mesafelerde çalışır, ancak açık kaynaklarda bağımsız menzil karşılaştırması yoktur.
+737	Hortumlar için saha sondası prototipi, #
+738	sensörlerle dolu bir varil
+739	Adı
+740	TOtable Tornado Observatory, «taşınabilir hortum gözlemevi»
+741	Yapanlar
+742	Al Bedard ve Carl Ramzy (NOAA)
+743	#–# libre (yaklaşık #–# kg)
+744	Yapısı
+745	metal bir varil, sonradan turuncuya boyandı
+746	Fikir basit ve çılgıncaydı: bir cihazı hortumun yoluna koyup beklemek. Varil yerinde kalacak kadar ağırdı. Adını «Oz Büyücüsü»ndeki köpek Toto'dan aldı ve Smithsonian dergisine göre «Twister» filminin konusuna ilham verdi.
+747	Açıklamalara göre varil, hizmetinin son yıllarında turuncuya boyandı. Bu bir çalışma aracından çok tarihtir: «yoldaki cihaz» fikri TOTO'nun kendisinden uzun yaşadı ve rotayı körlemesine tutturmak bu yöntemin başlıca zorluğudur.
+748	Turtle (Tim Samaras)
+749	Rüzgârın yere bastırdığı alçak koni sonda
+750	basınç rekoru
+751	Biçim
+752	basık bir koni: rüzgârın kendisi onu yere bastırır
+753	Ölçer
+754	basınç, nem, sıcaklık, rüzgâr hızı ve yönü
+755	Rekor
+756	# Haziran #, Manchester, Güney Dakota: # hPa düşüş, # saniyede
+757	Kayıt
+758	Guinness Rekorlar Kitabı: bir hortumda ölçülen en büyük basınç düşüşü
+759	Tim Samaras TOTO'yu hafif ve akıllı yaptı: varil yerine rüzgârın yere bastırdığı alçak bir koni. Bunlar hortumun yoluna bırakıldı ve biri, bir girdabın içinde ölçülmüş en hızlı ve en derin basınç düşüşünü kaydetti.
+760	Kaynaklarda yıllar ayrışıyor: «kaplumbağa» # yılına ve #'lerin başına tarihleniyor. Samaras # Mayıs # tarihinde El Reno yakınında hayatını kaybetti; çalışması yaşıyor ama başkalarının bunu tekrarlaması tehlikelidir.
+761	Yalnız gitmeyin: ABD Ulusal Hava Durumu Servisi araçta en az iki kişi olmasını öneriyor.
+762	Radara yüzde yüz güvenmeyin, kendiniz de bakın: radar gecikir ve yere yakın kısmı görmez.
+763	Başkasının kaçış yoluna güvenmeyin: harita ve GPS olsa bile yol bir tuzağa dönüşebilir.
+764	Sağanak, ıslak asfalt ve hamleli rüzgâr deneyimli gözlemciler için bile tehlikelidir.
+765	Takipten sonra onu değerlendirin: neler daha güvenli yapılabilirdi.
+766	Eşik
+767	# m/s pervane · # m/s yelkovan
+768	Hata
+769	±# m/s veya %# · ±#°
+770	Sensör
+771	# cm helikoid pervane, # kanat
+772	Boyutlar
+773	# × # cm, # kg
+774	Pervane adımı
+775	tur başına # cm
+776	Okyanus şamandıraları için tasarlandı, bu yüzden sıradan cihazları öldüren şeylere dayanır: tuz sisi, buzlanma, bakımsız geçen yıllar. Hız ve yönü tek gövdeyle ölçer: yelkovan pervaneyi tam akışa karşı çevirir. Dünyanın her yerindeki direklerde durur ve diğerlerinin karşılaştırıldığı gayriresmî referans noktasıdır.
+777	# m/s eşiği biraz yüksek: zayıf rüzgârı basitçe görmez. Durgun hava klimatolojisi için ultrasonik kullanılır.
+778	# m/s'den az
+779	%# veya ±# m/s (#–# m/s)
+780	Sınıf
+781	#, IEC #-#-#'e göre
+782	Rüzgâr enerjisinin sektör standardı: bir rüzgâr santralinin kendini amorti edip etmeyeceği onun okumalarıyla hesaplanır, bu yüzden doğruluk gereksinimleri sıradan meteorolojiden daha sıkıdır. Üç çanak rüzgâr ölçmenin en eski yöntemidir ve tam da kandırılamadığı için günümüze kadar gelmiştir.
+783	Çanakların ataleti vardır: sert hamlelerde «aşırı tepki» verir, yavaşladıklarından daha hızlı hızlanır ve ortalamayı biraz yüksek gösterir.
+784	# m/s
+785	%# KOK (# m/s'de) · ±#°
+786	dönüştürücü çiftleri arasında sesin uçuş süresi
+787	Hızı, ultrasesin dönüştürücüler arasında rüzgâr yönünde ve rüzgâra karşı geçme süreleri arasındaki farktan hesaplar. Hareket eden hiçbir şey yoktur: rulman yok, aşınacak ve yağlanacak bir şey yok. # m/s eşik: insanın hissetmediği hava hareketini görür.
+788	Yapışan buzdan ve şiddetli yağmurdan çekinir: dönüştürücüdeki bir damla okumayı bozar. Isıtma her modelde yoktur.
+789	Ölçer
+790	üç hız bileşeni ve akustik sıcaklık
+791	Uygulama
+792	girdap kovaryansı yöntemi
+793	Ortalama rüzgârı değil, girdabın kendisini ölçer: üç eksende saniyede yüz okuma, akışın yukarı ne kadar ısı, nem ve karbondioksit taşıdığını hesaplamayı sağlar. Yüzey katmanına dair modern bilimin tamamı bu cihazlara dayanır.
+794	Pahalıdır, güç ve gigabaytlarca ham verinin saklanmasını gerektirir. «Sadece rüzgâra bakmak» için anlamsızdır.
+795	yaklaşık # m/s çanak · # m/s yelkovan
+796	ortak bir travers üzerinde üç çanak ve ayrı bir yelkovan
+797	Aynı üretici ama #'ten dört kat ucuz ve zayıf rüzgârda belirgin şekilde daha hassas. Ayrı çanaklı ve yelkovanlı klasik yapı: bir şey bozulursa yalnızca yarısını değiştirmek gerekir.
+798	Bir yerine iki hareketli eksen: dert edilecek iki kat fazla rulman.
+799	±%# civarı
+800	Arayüz
+801	hız için reed anahtar, yön için potansiyometre
+802	Amatör istasyonlarda en yaygın anemometre, boşuna değil: çıkış sıradan darbeler ve gerilimdir, bu yüzden kelimenin tam anlamıyla üç kabloyla her karta bağlanır. Ev yapımı hava istasyonlarının çoğu onunla başlar.
+803	Amatör doğruluk. «Bugün hava nasıl» gözlemleri için mükemmel, resmî raporlama için değil.
+804	Ayrıca ölçer
+805	sıcaklık, nem, basınç, çiğ noktası
+806	Cep tipi hava istasyonu: # mm pervane ve telsiz büyüklüğünde bir gövdede sensör seti. Direk olmayan ve olmayacak yerlerde rüzgâr ölçmek gerektiğinde vazgeçilmezdir: yamaçta, güvertede, starta.
+807	Okumalar nasıl tuttuğunuza bağlıdır: pervane tam akışa yöneltilmelidir, yoksa düşük gösterir.
+808	Çözünürlük
+809	# m/s'ye kadar
+810	akış teli soğutur; sıcaklığı sabit tutan akım sinyalin kendisidir
+811	Saniyede metrenin kesirleri düzeyindeki hava hareketini güvenle ölçmenin tek yolu: bu hızlarda mekaniğin harekete geçecek torku yoktur. Havalandırmacıların ve aerodinamikçilerin başlıca aracı.
+812	Yön göstermez ve dış ortamı sevmez: teldeki toz ısı aktarımını değiştirir ve kalibrasyonu kaydırır.
+813	birkaç m/s'den süpersoniğe kadar
+814	Özellik
+815	hız basınç farkının kareköküyle artar
+816	Uçakların uçtuğu cihaz. Hareketli parça yok ve neredeyse sınırsız bir üst limit; bu yüzden her kanatta ve her rüzgâr tünelinde bulunur.
+817	Ölçeğin alt kısmında işe yaramaz: # m/s'de basınç farkı zaten gürültü düzeyindedir ve buzlanmış bir tüp sessizce yanıltır; havacılık tarihindeki birkaç felaket buradan.
+818	Bölüm değeri
+819	Toplayıcı
+820	genellikle # veya # cm²
+821	Çıkış
+822	her devrilmede bir reed darbesi
+823	Bir huni yağmuru iki küçük kepçeli bir tahterevalliye toplar: biri dolar, ağır basar, boşalır, diğeri yerini alır, reed bir darbe verir. On yıllarca çalışan iki hareketli parçalı bir mekanik.
+824	Rüzgâr damlaların bir kısmını huninin dışına savurur; # m/s'de eksik ölçüm yüzde onlarcaya ulaşır. Isıtma olmadan karı hiç ölçmez, sağanakta ise düşük gösterir: devrilme sırasında suyun bir kısmı dökülür.
+825	Ayırt eder
+826	yağmur, çisenti, kar, kar tanesi, dolu
+827	iki kafa arasında lazer perdesi
+828	Kafalar arasına düz bir lazer perdesi gerilmiştir. Onu geçen her damla ışını gölgeler: düşüşün derinliğinden boyut, süresinden düşme hızı hesaplanır. Buradan, radar yansıtıcılığını yağışa çevirmek için gereken damla boyut dağılımı elde edilir.
+829	Pahalıdır ve temiz pencereler ister. Şiddetli rüzgâr parçacıkları eğik sürükler ve hız tahminini karıştırır.
+830	Sıcaklık
+831	Nem
+832	%#–#, ana aralıkta yaklaşık ±%#
+833	Zorunlu
+834	radyasyon siperi
+835	Diğerlerinin doğrulandığı referans sonda. HUMICAP kapasitif algılama elemanı, sektör standardı hâline gelmiş bir Vaisala icadıdır.
+836	Tek başına işe yaramaz: siper olmadan havanın değil, gövdesindeki güneşin sıcaklığını gösterir. Burada siper sensörden daha önemlidir.
+837	Görev
+838	Türler
+839	pasif, doğal veya zorlanmış havalandırmalı
+840	Onsuz hata
+841	güneşli durgun havada birkaç dereceye kadar
+842	Bir sensör değil, sensörün onsuz yanıldığı şey. Beyaz tabaklar doğrudan ve yansıyan ışığı keser ama havaya yol bırakır. Siper olmayan bir termometrenin gündüz zayıf rüzgârdaki hatası birkaç dereceye ulaşır; iyi ve kötü sensör arasındaki farktan fazla.
+843	Pasif siper durgun havada kendi kendine ısınır. Aspirasyonlu olanı daha doğrudur ama fanının günün her saati beslenmesini gerektirir.
+844	yaklaşık ±# °C
+845	yaklaşık ±%#
+846	I²C veya SPI, # V besleme
+847	Pirinç tanesi büyüklüğünde bir pakette üç büyüklük, üç kuruşa. İstasyonumuza eklenmeye değer sensör tam da bu: pano zaten sıcaklık, nem ve basınç gösterebiliyor; aygıt yazılımı varlık bayraklarını gönderir göndermez kartlar kendiliğinden belirecek.
+848	Kendi kartından ısınır: bir ESP#'in yanına konursa sıcaklığı bir iki derece yüksek gösterir. Kablolarla dışarı alın ve mutlaka bir siperin içine koyun.
+849	±# hPa civarı
+850	Önemli
+851	istasyon yüksekliğine göre deniz seviyesine indirgeme
+852	Basıncın değeri tek başına az şey söyler; önemli olan eğilimdir. Üç saatte # hPa düşüş, bir cephenin yaklaştığını başka herhangi bir tek işaretten daha güvenilir şekilde bildirir ve uydulardan bir asır önce hava tam da böyle tahmin ediliyordu.
+853	Kurulum yüksekliğinin bilinmesini gerektirir: deniz seviyesine indirgeme olmadan okumalar komşu istasyonla bile karşılaştırılamaz.
+854	Termoelektrik
+855	ISO #'e göre A sınıfı, geniş spektrum
+856	Silikon
+857	daha ucuz ama spektrumu daha dar ve doğruluğu daha düşük
+858	Cam bir kubbenin altında bir termopil bulunur: siyah bir yüzey güneşle ısınır, eklem gerilim üretir. Kubbe gereken spektrumu geçirir ve rüzgârı dışarıda tutar; böylece cihaz esintiyi değil ışığı ölçer.
+859	Su terazisiyle yatay ayar ve temiz bir kubbe gerektirir: toz ve çiy okumaları düşürür, bir derecelik eğim bile belirgin bir hatadır.
+860	Menzil
+861	Verir
+862	fırtına cephesine olan mesafe tahmini ve deşarj enerjisi
+863	çerçeve antende elektromanyetik darbenin alınması
+864	I²C veya SPI
+865	Ev yapımı bir istasyona gerçek yıldırım tespiti kazandırmanın erişilebilir tek yolu. Deşarjın elektromanyetik darbesini yakalar ve biçiminden cephenin ne kadar uzakta olduğunu tahmin eder. Pano anemometreden bora işaretlerini hesaplar; bu sensör rüzgârdan görülemeyeni ekler.
+866	Anahtarlamalı güç kaynakları, floresan lambalar ve motor fırçaları yüzünden yanlış tetiklenir. Eşik ayarı ve elektronikten makul bir mesafe gerektirir.
+867	Wikimedia Commons
+868	Kansas Otoyol Devriyesi
+869	Craig Wedges
+870	Jason Weingart
+871	Stefan Klein
+872	Robert Day, ABD Hava Bürosu
+873	NOAA, Steve Nicklas
+874	Jessica Kortekaas
+875	ABD Hava Durumu Servisi
+876	Noel Feans
+877	ABD Orman Servisi
+878	Kaliforniya İtfaiyesi (CAL FIRE)
+879	Christian Pichner
+880	Ed Lu, NASA
+881	Alexander Gerst, ESA
+882	NASA, ISS
+883	Avrupa Uzay Ajansı
+884	NASA, Jet İtki Laboratuvarı
+885	Greg Lundeen, ABD Hava Durumu Servisi
+886	Şiddetli Fırtınalar Ulusal Laboratuvarı, NOAA
+887	Hava Durumu Servisi, Birmingham
+888	Fotoğraf yok: internet gerekiyor.
+889	Kurulum
+890	bir direk birkaç dakikada, iki kişiyle
+891	Güç
+892	otonom, fırtına boyunca
+893	Geliştirici
+894	Ulusal Rüzgâr Enstitüsü, Teksas
+895	Tam olarak «kendi sondan» denen şey, sadece seri üretime getirilmiş hâli. Direk kasırganın yoluna kurulur ve bırakılır. # yılında Laura için # adet kuruldu ve bunlardan # tanesi göz duvarına ya da gözün kendisine denk geldi; bu sayede Laura, ABD kıyısına ulaşan en ayrıntılı belgelenmiş kasırga oldu.
+896	Önceden ve körlemesine kurulur: birkaç saat ilerisi için rota tahmini cihazın fırtınaya girip girmeyeceğine ya da boşuna bekleyeceğine karar verir. Kıyıya yakın daha isabetlidir ama orada fırtına kabarması onu sürükler.
+897	çelik zırh, polikarbonat camlar
+898	Sabitleme
+899	zemine hidrolik çapalar ve indirilmiş yerden yükseklik
+900	Sean Casey
+901	Tek bir kare için yapıldı: hortumu içeriden çekmek. Çapalar yere çakılır, araç zemine oturur ve kendisi çapaya dönüşür. # yılında TIV # gerçekten bir hunin içinde kaldı ve geri döndü.
+902	Bu bir çekim ve rekor aracıdır, bilimsel bir cihaz değil. Az veri verir, risk çok büyüktür ve hazırlıksız tekrarlamak kesin bir ölüm yoludur.
+903	dakikalar, doğrudan yol kenarından
+904	Bantlar
+905	X ve Ka
+906	Projeler
+907	Hortuma kilometrelerce yaklaşan ve onu baştan sona tarayan kamyon üstü bir radar. Bridge Creek'te # km/sa ölçen, yani Dünya yüzeyine yakın kaydedilmiş en yüksek rüzgâr hızını ölçen bir DOW'du. Hortumların iç yapısına dair bilinen her şey bu tür araçlarla elde edildi.
+908	Radar hızı yerde değil, hüzme yüksekliğinde ölçer: onlarca metre ve üstü. Bu yüzden rekorları EF derecesine girmez: kategori yerdeki hasara göre verilir.
+909	yoldan yaklaşık # m yukarıda
+910	aracın kendi hızına göre düzeltme
+911	Bir fırtına çevresinde veri alanı toplamanın en erişilebilir yolu: birkaç araç yelpaze gibi açılır ve hamle cephesinden geçen bir kesit kaydeder. Arka kanat aşağı akımının hortum doğumunun anahtarı olduğu bu kesitlerden anlaşıldı.
+912	Giden bir aracın tavanındaki rüzgâr kendi akışıyla bozulur; düzeltmeler zorunludur, onlarsız veriler hiç olmamasından kötüdür.
+913	Yükseklik
+914	balon patlayana kadar #–# km'ye
+915	Fırlatma
+916	tüm gezegende aynı anda # ve # UTC'de
+917	Atmosferde yalnızca yerde değil, yükseklik boyunca neler olduğunu öğrenmenin tek yolu. Hortum olup olmayacağını belirleyen kararsızlık enerjisi radyosondalarla hesaplanır. Küresel ağ onları #'lerden beri eşzamanlı fırlatıyor: çalışan en eski küresel gözlem sistemi.
+918	Günde iki kez tek bir nokta. Fırlatmalar arasında atmosfer tamamen değişmeye fırsat bulur ve aradaki her şey kadraj dışında kalır.
+919	Uçaklar
+920	Yöntem
+921	göz duvarından uçuş, aşağı sonda bırakma
+922	Bırakma sondası
+923	suya kadar tüm yol boyunca profil iletir
+924	Uydu kasırgayı yukarıdan görür ve merkezindeki basıncı bilmez, oysa şiddet tahmini tam da ona bağlıdır. Öğrenmenin tek yolu içeri uçup bir sonda bırakmaktır. Bu uçuşlar rota tahminini belirgin biçimde iyileştirir, bu yüzden riske rağmen sürdürülür.
+925	Pahalı, tehlikeli ve yalnızca tropikal siklonlar için: uçak hortumun içine giremez, hortum çok küçük ve çok hızlıdır.
+926	Güncelleme
+927	#–# dakikada tam hacim
+928	Polarizasyon
+929	çift: yağmur, dolu ve enkazı ayırt eder
+930	Tüm uyarı sisteminin dayandığı ağ. Çift polarizasyon, getiriliş amacı olan şeyi yapar: hortumun kaldırdığı enkazı yağıştan ayırır. Böyle bir iz, hortumun zaten yerde olduğunu ve bir şeyleri yıktığını gösterir; kimse onu görmese bile.
+931	Hüzme mesafeyle yükselir: radardan # km uzakta zaten üç kilometre yukarıdan geçer ve yere yakın olanı hiç görmez. İstasyonlar arasındaki kapsama boşlukları buradan gelir.
+932	Mezosiklon boyutu
+933	Ömrü
+934	saatler, sıradan bir fırtınanın aksine
+935	Hortum üretir
+936	beş vakadan birinden az
+937	Saatlerce yaşayan tek fırtına türü: yükselen akımı döner, bu yüzden yağış onu söndürmek yerine yana düşer. Neredeyse tüm güçlü hortumlar burada doğar. Dönüş yükseklikle rüzgâr kesmesinden gelir: yerdeki ve üç kilometredeki rüzgâr farklı eser, bu fark havayı yan yatırır ve yükselen akım dönüş eksenini dikey kaldırır.
+938	Süper hücre hortum demek değildir. Çoğu hiç hortum üretmez ve sonucu tam olarak neyin belirlediği hâlâ tamamen anlaşılmış değil.
+939	Nerede
+940	Tehlike işareti
+941	döner ve yükselir
+942	Sonra ne olur
+943	huni ondan iner
+944	Fırtına tabanının geri kalanından daha alçakta duran bir parçası: yağış bölgesinden gelen nemli hava akışa çekilir ve daha erken yoğunlaşır. Duvar bulut gözle görülür şekilde döner ve yükselirse, bu hortumun habercisidir; görünenlerin en güvenilirıdır.
+945	Her alçalma duvar bulut değildir ve her duvar bulut dönmez. Anahtar, «bir şeyin daha alçakta asılı olmasında» değil, dönüş ve yükselmededir.
+946	Ne görünür
+947	Durum
+948	yalnızca yerde dolaşım varsa hortum sayılır
+949	Tehlike
+950	saniyeler içinde inebilir
+951	Resmî olarak henüz hortum değildir: kategoriyi ve adın kendisini yerle temas, daha doğrusu yerde toz kaldıran bir girdap verir. Bu ayrım bürokratik değildir: rüzgâr tam da yerde yıkar.
+952	Tersi de doğrudur ve daha tehlikelidir: hortum çoktan iş başında olabilir ama yoğunlaşma hunisi olmayabilir; hava kuruysa yalnızca aşağıda bir toz girdabı görünür.
+953	İşaret
+954	Genellikle
+955	en yıkıcıları, ama tanım gereği değil
+956	Örnek
+957	Elie, Manitoba, #: Kanada'daki tek F#
+958	Ayrı bir tür değil, görünüş tarifi: huni, yerden buluta olan yüksekliğinden daha geniş görünür. Bunlar daha sık güçlü çıkar, çünkü geniş bir hortum daha uzun sürer ve daha fazla alanı kaplar.
+959	Genişlik güç değildir. El Reno # tarihin en genişiydi, # km, ve yalnızca EF# aldı; çünkü boş arazide ilerledi ve kategori hasara göre verilir.
+960	Görülme
+961	diğer tüm görünüşlerden daha sık
+962	«Hortum» denince çizilen şey: huni buluttan yere doğru daralır ve dikey uzanır. En yaygın ve en tanıdık görünüş; kama bu yüzden koniyle sık karıştırılır, oysa kama tam tersine yüksekliğinden geniştir.
+963	Görünüş aynı hortumun ömrü boyunca değişir: koni kamaya genişleyebilir, sonunda ipe dönüşecek şekilde incelebilir. Bunlar farklı türler değil, evrelerdir.
+964	Ne zaman
+965	Görünüş
+966	ince, kıvrılan bir halat
+967	sonuna kadar tehlikeli kalır
+968	Hortum çoğunlukla böyle ölür: huni uzar, bükülür ve kopar. Güzel ve aldatıcı bir evre.
+969	İnce, zayıf demek değildir. İp evresinde girdap daralır ve açısal momentumun korunumu gereği hız artabilir bile. Hortumlar insanları tam da bu evrede öldürdü.
+970	alt girdapta ana girdaptan belirgin şekilde yüksek
+971	İz
+972	genel şerit içinde hasar şeritleri
+973	Eski bir bilmeceyi açıklar: neden bir ev temeline kadar yok olurken yanındaki sağlam kalır. Hunin içinde birkaç küçük girdap koşar ve hızları tüm sistemin dönüş hızına eklenir. Bir evin üzerinden alt girdap geçmiş, komşusunun üzerinden geçmemiş olabilir.
+974	Alt girdapları seçmek nadiren mümkündür: yalnızca huni iyi aydınlandığında ve yağmura gömülmediğinde görünürler.
+975	Açık hava türü
+976	Hortum türü
+977	suya çıkan sıradan bir hortum da aynı derecede tehlikelidir
+978	Sık görüldüğü yer
+979	Florida Keys, Adriyatik, Büyük Göller
+980	Tek bir adın altında iki farklı olay saklanır. Açık hava türü su yüzeyinde gelişir ve yukarı büyür, dakikalarca yaşar ve nadiren tehlikelidir. Hortum türü, sadece suyun üstüne denk gelmiş tam teşekküllü bir süper hücre hortumudur.
+981	Uzaktan ayırt edilemezler. Karaya çıkınca açık hava türü genellikle dağılır, hortum türü ise hiç değişmez.
+982	Doğuşu
+983	genellikle EF#–EF#
+984	Radarda
+985	neredeyse iz yok
+986	Açık hava su hortumunun karadaki ikizi: dönüş yerde, bir yakınsama hattında başlar ve büyüyen bulut onu yukarı çeker. Resmî olarak gerçek bir hortumdur ve istatistiklere girer.
+987	Göründüğünden tehlikelidir, tam da radar yüzünden: mezosiklon yok, kanca yok, uyarı çoğu zaman yayımlanmaz; ama girdap vardır.
+988	Bulutla bağlantı
+989	yok, ve belirleyici işaret budur
+990	saniyeler, nadiren bir dakika
+991	Bora hattında dönen bir toz girdabı. İkna edici görünür ve haberlere hortum olarak düşer ama hortum değildir: bulut tabanıyla bağlantısı yoktur ve tanımda asıl olan budur.
+992	Zararsız da denemez: hızları zayıf bir hortumunkine benzeyebilir ve hafif yapılara zarar verir.
+993	Neden
+994	fırtına değil, aşırı ısınmış bir yüzey
+995	genellikle onlarca metre
+996	Yerin ısınmasından doğar: yükselen hava dönmeye başlar ve tozu kaldırır. Buna hiç bulut gerekmez; hortum olmamasının nedeni de bu.
+997	Mars'ta kilometrelerce yüksekliğe ulaşırlar ve yörüngeden görülen koyu izler bırakırlar. Gezginlerin güneş panellerini defalarca temizleyip çalışmalarını planlanan süreden yıllarca uzattılar.
+998	onlarca metre, dakikalık ömür
+999	İstisna
+1000	Canberra, #: F# olarak derecelendirildi
+1001	Yangın, dönmeye başlayacak kadar güçlü kendi yükselen akımını oluşturur. Çoğu durumda bu, toz şeytanı ölçeğinde bir olaydır.
+1002	Ama her zaman değil: Canberra'da # yılında bir ateş girdabı F# derecesi aldı, yani yangının doğurduğu gerçek bir hortumdu. Böyle vakalar tek tüktür.
+1003	Nedir
+1004	Hareket
+1005	dönmez, duvar gibi ilerler
+1006	Ardından ne gelir
+1007	ani bir hamle ve sağanak
+1008	Tehditkâr görünür ve diğer her şeyin toplamından daha çok yanlış alarma yol açar. Ama duvar bulutun tersidir: orada hava fırtınanın içine çekilir, burada dışarı atılır.
+1009	Ayırt etmek kolaydır: raf bulutu düz bir duvar gibi ilerler ve dönmez, duvar bulut yerinde asılı durur ve döner. İlki bora, ikincisi olası bir hortum demektir.
+1010	yağışla birlikte alçalan soğuk hava
+1011	Anlamı
+1012	güçlü fırtına, ama genellikle zaten uzaklaşıyor
+1013	Örsün altında kese biçimli çıkıntılar. Fırtınanın güçlü olduğunun işareti ve gökyüzünün en güzel görünümlerinden biri.
+1014	Altlarında tehlike anlamına gelmezler: çoğunlukla uzaklaşan bir fırtınanın arka tarafında belirirler, bir şey olacak yerde değil.
+1015	Göz çapı
+1016	Gözde
+1017	neredeyse durgun ve çoğu zaman açık gökyüzü
+1018	Göz duvarı
+1019	tüm sistemin en güçlü rüzgârı
+1020	Merkezdeki hava alçalır, bu yüzden oradaki bulutlar dağılır ve sükûnet gelir; bazen tepede güneşle birlikte. Fotoğraf ISS'ten çekildi: yukarıdan gözün bulut duvarında gerçek bir kuyu olduğu görülür.
+1021	Sükûnet aldatır: göz geçtikten sonra rüzgâr aynı güçle ama ters yönden geri döner. İnsanlar sükûnette dışarı çıkar ve ikinci yarının altında kalır; bu klasik bir ölüm nedenidir.
+1022	Görünür
+1023	yörüngeden yüzeyde koyu izler
+1024	Yararı
+1025	gezginlerin güneş panellerindeki tozu üflerler
+1026	Mars atmosferi Dünya'nınkinden yüz kat seyrektir ama oradaki girdaplar bizimkilerden büyüktür: zayıf çekim ve yüzeyin güçlü ısınması kilometrelerce büyümelerini sağlar. Bıraktıkları izler uydudan seçilebilir.
+1027	Spirit ve Opportunity gezginleri # sol için tasarlanmıştı ama yıllarca çalıştılar; büyük ölçüde girdaplar zaman zaman panellerini temizlediği için. Başka bir gezegenin havasının bir makinenin ömrünü uzattığı bilinen tek örnek.
+1028	Önceki fotoğraf
+1029	Sonraki fotoğraf
+1030	Fotoğraf #
+1031	Özellikler
+1032	Neden önemli
+1033	Bir çekinceyle:
+1034	Kaynakta daha fazlası ↗
+1035	Fırtına avcılığı: kısaca
+1036	Bu bir başvuru kaynağıdır, bir çağrı değil: fırtına avcılığı profesyoneller için bile tehlikelidir. ABD Ulusal Hava Durumu Servisi ve deneyimli avcıların önerileri:
+1037	mobil gözlemciler için güvenlik rehberi ↗
+1038	K
+1039	G
+1040	B
+1041	D
+1042	hPa

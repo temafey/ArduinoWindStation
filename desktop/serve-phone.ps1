@@ -1,11 +1,12 @@
 ﻿# Дашборд для телефона и планшета по домашнему Wi-Fi:  .\desktop\serve-phone.ps1
 #   -Port 8765   другой порт, если этот занят
+#   -ShortPort 80  второй порт для короткого адреса http://kiwi-drop.local (0 — не нужен)
 # Раздаёт страницу-установщик desktop\site (кнопки Windows и Android) и интерфейс
 # по адресу http://<IP компьютера>:<порт>/ (интерфейс обновляет rebuild.ps1). Наружу в интернет
 # ничего не уходит: сервер слушает только свою сеть. Остановка — Ctrl+C или закрыть окно.
 #   -Autostart   запускать сервер самому при каждом входе в Windows (скрыто, без окна;
 #                упал — задача поднимет его снова через минуту). -NoAutostart — снять.
-param([int]$Port = 8765, [switch]$Autostart, [switch]$NoAutostart)
+param([int]$Port = 8765, [int]$ShortPort = 80, [switch]$Autostart, [switch]$NoAutostart)
 $ErrorActionPreference = 'Stop'
 $task = 'Weathered_Kiwi serve-phone'
 if ($NoAutostart) {
@@ -50,14 +51,22 @@ if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyCon
   throw "порт $Port уже занят (возможно, сервер уже запущен). Другой порт: .\desktop\serve-phone.ps1 -Port 8766"
 }
 
+$ports = if ($ShortPort -gt 0 -and $ShortPort -ne $Port) { "$ShortPort,$Port" } else { "$Port" }
 $url = "http://${ip}:$Port/"
 try { Set-Clipboard $url } catch { }
 Write-Host ''
 Write-Host "  Установщик Weathered_Kiwi:  $url" -ForegroundColor Green
+if ($ShortPort -gt 0) { Write-Host "  Короткий адрес:            http://kiwi-drop.local$(if ($ShortPort -ne 80) { ":$ShortPort" })/" -ForegroundColor Green }
 Write-Host '  (адрес скопирован в буфер обмена; телефон должен быть в той же сети)'
 Write-Host '  Android/Chrome: меню ⋮ → «Добавить на главный экран»'
 Write-Host '  iPhone/Safari:  «Поделиться» → «На экран “Домой”»'
 Write-Host "  Не открывается — разрешите Python в брандмауэре Windows (сеть «публичная» блокирует вход)."
 Write-Host '  Остановить: Ctrl+C' -ForegroundColor DarkGray
 Write-Host ''
-python -I "$PSScriptRoot\serve-phone.py" $Port $site
+# Сервер не должен молча пропадать: упал — запишем причину в serve-phone.log и поднимем снова.
+$log = Join-Path $PSScriptRoot 'serve-phone.log'
+while ($true) {
+  python -I "$PSScriptRoot\serve-phone.py" $ports $site 2>&1 | Out-File -FilePath $log -Append -Encoding utf8
+  "$(Get-Date -Format s) сервер остановился (код $LASTEXITCODE), перезапуск через 5 с" | Out-File -FilePath $log -Append -Encoding utf8
+  Start-Sleep 5
+}

@@ -1,7 +1,7 @@
 {
   "name": "weathered-kiwi",
   "productName": "Weathered_Kiwi",
-  "version": "0.4.29",
+  "version": "0.5.4",
   "description": "Weathered_Kiwi — настольная программа станции",
   "main": "main.js",
   "private": true,
@@ -36,7 +36,14 @@
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
-      "artifactName": "Kiwi_Drop-${version}.${ext}"
+      "artifactName": "Kiwi_Drop-${version}.${ext}",
+      "installerLanguages": [
+        "en_US",
+        "ru_RU",
+        "uk_UA"
+      ],
+      "multiLanguageInstaller": true,
+      "include": "build/installer.nsh"
     }
   }
 }

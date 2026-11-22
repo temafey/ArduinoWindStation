@@ -36,7 +36,7 @@ import { THEMES, themeCss, glassClasses, glassLevel, lensActive, startLens, moun
          GLASS_TINTS, GLASS_LEVEL_DEFAULT } from "./wind-themes.js";
 import { APP_VERSION } from "./wind-version.js";
 import { useAppUpdate, useUpdateCheck, VerFacts } from "./wind-update.jsx";
-import { Switch, Segments, SWITCH_CSS } from "./wind-switch.jsx";
+import { Switch, Segments, Reveal, SWITCH_CSS } from "./wind-switch.jsx";
 import { SystemHero, LedDeck, SYSTEM_CSS } from "./wind-system.jsx";
 import { AreaTab, AreaMode, AreaWind, WindCompass, SourceSwitch, AREA_CSS } from "./wind-area.jsx";
 import { ECO_AUTO, ecoOn, ECO_CSS, OFFSCREEN_CSS, watchOffscreen } from "./wind-perf.js";
@@ -3194,7 +3194,13 @@ export default function WindDashboard() {
   const accent = settings.customAccent || accentPick.color || bf.color;
   // Предел ширины считается здесь, а не рядом с сеткой: от него зависит фон,
   // а фон собирается до разметки. Дорожки берут это же число ниже.
-  const pageMax = (WIDTHS[settings.pageWidth] || WIDTHS.normal).px;
+  // «Обычная» ширина растёт вместе с экраном: крупные блоки прибавляют понемногу
+  // (1080 → ~1340 на 1920, ~1660 на 2560), а мелочь — шапка, значок, батарея, пульт —
+  // увеличивается сильнее через zoom (--zs: 1 → 1.25 на 1920, 1.6 на 2560 и выше).
+  // Сетка блоков при этом не масштабируется: на ней держатся перетаскивание и растягивание.
+  const pageOpt = WIDTHS[settings.pageWidth] || WIDTHS.normal;
+  const pageMax = pageOpt === WIDTHS.normal ? Math.round(1080 + Math.max(0, viewportW - 1400) * 0.5) : pageOpt.px;
+  const zs = viewportW > 1500 ? Math.round(Math.min(1.6, 1 + (viewportW - 1500) / 1000 * 0.6) * 100) / 100 : 1;
   const pageWide = { maxWidth: pageMax > 0 ? pageMax : "none" };
   const backdrop = backdropCss(settings, bgImage, pageMax);
   const hasDir = data.dirPresent && data.direction != null;
@@ -3654,6 +3660,10 @@ export default function WindDashboard() {
         .dock-row {
           position: fixed; left: 18px; bottom: 18px; z-index: 90;
           display: flex; align-items: flex-end; gap: 12px; max-width: calc(100vw - 36px);
+        }
+        @media (min-width: 1501px) {
+          .dock-row { zoom: var(--zs, 1); max-width: calc((100vw - 36px) / var(--zs, 1)) }
+          .dock-row:is(.dock-left, .dock-right) .dock { max-width: calc((100vw - 36px) / var(--zs, 1)) }
         }
         /* Капсула: внизу полоса вкладок, над ней — раздвигающаяся панель.
            Раскрытие — пружина (кривая с перелётом), сама капсула при этом
@@ -4600,7 +4610,7 @@ export default function WindDashboard() {
         + glassClasses(settings, { eco })}
       style={{
         // Сила стекла (ползунок): из неё тема выводит прозрачность, иней и фаску.
-        "--lg-k": glassLevel(settings) / 100,
+        "--lg-k": glassLevel(settings) / 100, "--zs": zs,
         // Прозрачно, когда фон рисуется слоями на body: инлайновая заливка
         // сильнее любого правила и перекрыла бы их целиком.
         minHeight: "100vh", background: backdrop ? "transparent" : BG,
@@ -4609,9 +4619,9 @@ export default function WindDashboard() {
       }}
     >
       {/* ============ ШАПКА ============ */}
-      <header style={{ padding: "18px 22px 0" }}>
+      <header style={{ padding: "18px 22px 0", zoom: zs > 1 ? zs : undefined }}>
         <div style={{
-          ...pageWide, margin: "0 auto", padding: "0 22px", boxSizing: "border-box",
+          ...pageWide, maxWidth: pageMax > 0 ? pageMax / zs : "none", margin: "0 auto", padding: "0 22px", boxSizing: "border-box",
           display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
@@ -5293,14 +5303,14 @@ export default function WindDashboard() {
             onChange={(v) => setS({ skin: v })}
             hint="Liquid Glass — стекло, блики и линзы, как в iOS 26. «Тональная» — плоские цветные поверхности, крупные скругления и пилюли, как в приложениях на Android. Анимации у обеих одни и те же. Светлая или тёмная — по «Фону»."
           />
-          {settings.skin === "material" && (
+          <Reveal open={settings.skin === "material"}>
             <Choice
               label="Цвет значков" g={g} value={settings.mdIcons === "bg" ? "bg" : "blue"}
               options={Object.entries(MATERIAL_ICONS).map(([value, t]) => ({ value, label: t.label }))}
               onChange={(v) => setS({ mdIcons: v })}
               hint="Шестерёнка, кнопки справа от пульта и выбранная вкладка. «Синие» — тон primary; «в цвет фона» — нейтральные, тем же тоном, что поверхности вокруг."
             />
-          )}
+          </Reveal>
           <Switch
             label="Liquid Glass иконка" g={g} accent={accent}
             value={tonalIcon ? "off" : "on"}
@@ -5384,8 +5394,7 @@ export default function WindDashboard() {
               ? "Системный отклик, как у клавиатуры: «мягко» — только лёгкие щелчки, «сильно» — жёстче, а упор ползунка бьёт дважды. Уважает системную настройку «Виброотклик» телефона."
               : "На этом устройстве вибромотора нет — настройка заработает на телефоне."}
           />
-          {(settings.haptics || "normal") !== "off" && (
-            <>
+          <Reveal open={(settings.haptics || "normal") !== "off"}>
               <Switch
                 label="Касание окон" g={g} accent={accent}
                 value={settings.hapTouch !== false ? "on" : "off"}
@@ -5407,8 +5416,7 @@ export default function WindDashboard() {
                 onChange={(v) => { setHapticConfig({ boot: v === "on" }); setS({ hapBoot: v === "on" }); haptic("boot"); }}
                 hint="Мягкий стук при входе в приложение и тихая дрожь, пока ставится обновление."
               />
-            </>
-          )}
+          </Reveal>
 
           <SetSection title="Уведомления и голос" />
           <Switch
@@ -5418,14 +5426,14 @@ export default function WindDashboard() {
             onChange={(v) => { setS({ notify: v === "on" }); if (v === "on") requestNotify(); }}
             hint={`Windows и Android: сводка ветра с прогнозом, станция пропала или вернулась, ветер растёт, шквал. Не больше ${DAY_LIMIT} в сутки и не чаще раза в 3 минуты — сегодня отправлено ${sentToday()}.`}
           />
-          {settings.notify && (
+          <Reveal open={!!settings.notify}>
             <Choice
               label="Сводка" g={g} value={String(settings.digestHours ?? 3)}
               options={[{ value: "0", label: "без сводок" }, { value: "1", label: "раз в час" }, { value: "3", label: "раз в 3 ч" }, { value: "6", label: "раз в 6 ч" }]}
               onChange={(v) => setS({ digestHours: +v })}
               hint="Сейчас, прогноз на 6 часов и окно для занятия из «Анализа». Новая сводка заменяет прежнюю, а не копится стопкой."
             />
-          )}
+          </Reveal>
           <Choice
             label="Голосовая сводка" g={g} value={String(settings.voiceEvery || 0)}
             options={[{ value: "0", label: "выкл" }, { value: "5", label: "5 мин" }, { value: "15", label: "15 мин" }, { value: "30", label: "30 мин" }]}
@@ -5449,8 +5457,7 @@ export default function WindDashboard() {
             onChange={(v) => setS({ quiet: v === "on" })}
             hint="Ночью без уведомлений и голоса. Что было за ночь — одной сводкой утром."
           />
-          {settings.quiet && (
-            <>
+          <Reveal open={!!settings.quiet}>
               <Choice label="С" g={g} value={String(settings.quietFrom ?? 23)}
                       options={[21, 22, 23, 0].map((h) => ({ value: String(h), label: `${h}:00` }))}
                       onChange={(v) => setS({ quietFrom: +v })} />
@@ -5461,8 +5468,7 @@ export default function WindDashboard() {
                       value={settings.morning !== false ? "on" : "off"}
                       off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
                       onChange={(v) => setS({ morning: v === "on" })} />
-            </>
-          )}
+          </Reveal>
                   </div>
                 )}
                 {dockView === "demo" && (

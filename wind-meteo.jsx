@@ -1,8 +1,10 @@
 import { useState, useMemo } from "react";
 import { Segments } from "./wind-switch.jsx";
 import {
-  BG_VAR, LINE, LINE_HI, TEXT, DIM, FAINT, MONO, SANS, NUM, glow, dropGlow,
+  BG_VAR, LINE, LINE_HI, TEXT, DIM, FAINT, MONO, SANS, NUM, glow,
 } from "./ui-kit.js";
+import { SensorArt } from "./wind-sensors-art.jsx";
+import { VehicleArt, CHASERS, CHASER_CATS, CHASE_NOTES } from "./wind-chasers.jsx";
 
 // ============================================================
 // СПРАВОЧНИК
@@ -365,7 +367,7 @@ const PHOTOS = {
 // Снимок с подписью. Пока грузится — место занято рамкой, чтобы вёрстка
 // не прыгала; если не загрузился (нет интернета или песочница режет чужие
 // домены) — вместо него честная строка, а не пустой прямоугольник.
-function Photo({ id, alt, ratio = "4 / 3", g }) {
+function Photo({ id, alt, ratio = "4 / 3", g, bare }) {
   const p = PHOTOS[id];
   const [state, setState] = useState("load");
   if (!p) return null;
@@ -373,7 +375,8 @@ function Photo({ id, alt, ratio = "4 / 3", g }) {
     <figure style={{ margin: 0 }}>
       <div style={{
         position: "relative", aspectRatio: ratio, background: "#020407",
-        border: `1px solid ${LINE}`, overflow: "hidden",
+        border: bare ? "none" : `1px solid ${LINE}`, overflow: "hidden",
+        ...(bare ? { height: "100%", aspectRatio: "auto" } : null),
       }}>
         <img src={COMMONS + p.u} alt={alt} loading="lazy"
              onLoad={() => setState("ok")} onError={() => setState("fail")}
@@ -393,11 +396,11 @@ function Photo({ id, alt, ratio = "4 / 3", g }) {
           </div>
         )}
       </div>
-      <figcaption style={{ color: FAINT, fontSize: 9, lineHeight: 1.5, marginTop: 4, fontFamily: SANS }}>
+      {!bare && <figcaption style={{ color: FAINT, fontSize: 9, lineHeight: 1.5, marginTop: 4, fontFamily: SANS }}>
         {p.by} · {p.lic} ·{" "}
         <a href={PAGE + encodeURIComponent(p.f.replace(/ /g, "_"))} target="_blank" rel="noreferrer noopener"
            style={{ color: DIM }}>Викисклад ↗</a>
-      </figcaption>
+      </figcaption>}
     </figure>
   );
 }
@@ -743,6 +746,15 @@ const STORMS = [
   },
 ];
 
+// Старые карточки зондов получают категории, а TIV заменён двумя точными карточками
+// (TIV 1 и TIV 2) — одна обобщённая рядом с ними только повторяла бы их.
+const PROBE_CAT = { sticknet: "station", dow: "radar", mesonet: "station", sonde: "air", hunters: "air", nexrad: "radar" };
+const PROBE_ART = { sticknet: "stick", dow: "dow", mesonet: "mesonet" };
+const PROBES_ALL = [
+  ...PROBES.filter((x) => x.id !== "tiv").map((x) => ({ ...x, cat: PROBE_CAT[x.id] || x.cat, vart: PROBE_ART[x.id] === "stick" ? undefined : PROBE_ART[x.id] })),
+  ...CHASERS.map((x) => (x.id === "tiv2" ? { ...x, photo: "tiv" } : x.id === "dow67" ? { ...x, photo: "dow" } : x)),
+];
+
 const STORM_CATS = [
   { id: "birth", label: "Как рождается" },
   { id: "kind",  label: "Виды смерчей" },
@@ -755,275 +767,6 @@ const VIEWS = [
   { id: "probe",   label: "Свой зонд" },
   { id: "storm",   label: "Смерчи и ураганы" },
 ];
-
-// ============================================================
-// РИСУНКИ
-// ============================================================
-// Каждый прибор — своя фигура, узнаваемая по силуэту, а не по подписи.
-// Общий приём: линия одной толщины, заливка только там, где деталь физически
-// закрывает другую, никакой светотени. Так набор читается как один чертёж,
-// а не как коллекция иконок из разных мест.
-function Art({ kind, accent, g, size = 74 }) {
-  const A = accent, S = LINE_HI, F = "rgba(var(--ink, 231,238,246),0.08)";
-  const common = {
-    width: size, height: size * 0.78, viewBox: "0 0 120 94",
-    style: { display: "block", flexShrink: 0 },
-    fill: "none", stroke: S, strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round",
-  };
-  const glowA = { filter: dropGlow(A, g, 0.7) };
-
-  switch (kind) {
-    case "propvane": // Young 05103: винт впереди, длинный хвост с пером
-      return (
-        <svg {...common}>
-          <line x1="60" y1="52" x2="60" y2="84" />
-          <line x1="48" y1="84" x2="72" y2="84" />
-          <path d="M 34 52 L 88 52" strokeWidth="4" />
-          <path d="M 34 46 L 22 44 L 22 60 L 34 58 Z" fill={F} />
-          <ellipse cx="92" cy="52" rx="3.5" ry="14" stroke={A} style={glowA} />
-          {[0, 1, 2, 3].map((i) => (
-            <path key={i} d={`M 92 52 q ${i % 2 ? 4 : -4} ${i < 2 ? -8 : 8} 0 ${i < 2 ? -13 : 13}`}
-                  stroke={A} strokeWidth="1.4" style={glowA} />
-          ))}
-        </svg>
-      );
-    case "cups": // три чашки на траверсах
-      return (
-        <svg {...common}>
-          <line x1="60" y1="46" x2="60" y2="84" />
-          <line x1="48" y1="84" x2="72" y2="84" />
-          {[0, 120, 240].map((a) => {
-            const r = ((a - 90) * Math.PI) / 180;
-            const x = 60 + 26 * Math.cos(r), y = 40 + 11 * Math.sin(r);
-            return (
-              <g key={a}>
-                <line x1="60" y1="40" x2={x} y2={y} />
-                <path d={`M ${x - 7} ${y - 6} a 7 7 0 1 0 0 12 a 5 9 0 0 1 0 -12 Z`}
-                      fill={F} stroke={A} style={glowA} />
-              </g>
-            );
-          })}
-          <circle cx="60" cy="40" r="3.4" />
-        </svg>
-      );
-    case "cupvane": // чашки и отдельный флюгер на общей траверсе
-      return (
-        <svg {...common}>
-          <line x1="60" y1="58" x2="60" y2="84" />
-          <line x1="48" y1="84" x2="72" y2="84" />
-          <line x1="26" y1="58" x2="94" y2="58" />
-          <line x1="30" y1="34" x2="30" y2="58" />
-          {[0, 120, 240].map((a) => {
-            const r = ((a - 90) * Math.PI) / 180;
-            const x = 30 + 15 * Math.cos(r), y = 30 + 6 * Math.sin(r);
-            return <g key={a}>
-              <line x1="30" y1="30" x2={x} y2={y} strokeWidth="1.2" />
-              <circle cx={x} cy={y} r="4.4" fill={F} stroke={A} style={glowA} />
-            </g>;
-          })}
-          <line x1="90" y1="30" x2="90" y2="58" />
-          <path d="M 90 30 L 108 36 L 90 42 Z" fill={F} stroke={A} style={glowA} />
-          <path d="M 90 30 L 74 24 L 74 44 L 90 38 Z" fill={F} />
-        </svg>
-      );
-    case "vane":
-      return (
-        <svg {...common}>
-          <line x1="60" y1="44" x2="60" y2="84" />
-          <path d="M 24 44 L 96 44" />
-          <path d="M 96 44 L 78 34 L 78 54 Z" fill={F} stroke={A} style={glowA} />
-          <path d="M 24 44 L 44 30 L 44 58 Z" fill={F} />
-          <circle cx="60" cy="44" r="3" />
-        </svg>
-      );
-    case "sonic2d": // две пары преобразователей под общей крышкой
-      return (
-        <svg {...common}>
-          <line x1="60" y1="66" x2="60" y2="84" />
-          <line x1="48" y1="84" x2="72" y2="84" />
-          <path d="M 34 24 L 86 24" strokeWidth="3" />
-          <path d="M 34 66 L 86 66" strokeWidth="3" />
-          <line x1="40" y1="24" x2="40" y2="66" />
-          <line x1="80" y1="24" x2="80" y2="66" />
-          {[[40, 30], [40, 60], [80, 30], [80, 60]].map(([x, y], i) => (
-            <circle key={i} cx={x} cy={y} r="4" fill={F} stroke={A} style={glowA} />
-          ))}
-          <path d="M 44 34 L 76 56" stroke={A} strokeWidth="1" strokeDasharray="3 3" opacity="0.8" />
-          <path d="M 44 56 L 76 34" stroke={A} strokeWidth="1" strokeDasharray="3 3" opacity="0.8" />
-        </svg>
-      );
-    case "sonic3d": // три пары под углом — измеряется и вертикаль
-      return (
-        <svg {...common}>
-          <line x1="60" y1="70" x2="60" y2="84" />
-          <line x1="48" y1="84" x2="72" y2="84" />
-          <path d="M 30 70 L 30 30 M 90 70 L 90 30 M 60 70 L 60 20" />
-          <path d="M 30 70 L 90 70" />
-          {[[30, 30], [90, 30], [60, 20]].map(([x, y], i) => (
-            <g key={i}>
-              <circle cx={x} cy={y} r="4" fill={F} stroke={A} style={glowA} />
-              <circle cx={x} cy={y + 22} r="4" fill={F} stroke={A} style={glowA} />
-              <line x1={x} y1={y + 4} x2={x} y2={y + 18} stroke={A} strokeWidth="0.9"
-                    strokeDasharray="3 3" opacity="0.75" />
-            </g>
-          ))}
-        </svg>
-      );
-    case "handheld": // карманный прибор с крыльчаткой сверху
-      return (
-        <svg {...common}>
-          <rect x="42" y="26" width="36" height="58" rx="4" fill={F} />
-          <circle cx="60" cy="22" r="11" stroke={A} style={glowA} />
-          {[0, 60, 120, 180, 240, 300].map((a) => {
-            const r = (a * Math.PI) / 180;
-            return <line key={a} x1="60" y1="22" x2={60 + 9 * Math.cos(r)} y2={22 + 9 * Math.sin(r)}
-                         stroke={A} strokeWidth="1" />;
-          })}
-          <rect x="48" y="34" width="24" height="18" rx="1" />
-          <line x1="52" y1="60" x2="68" y2="60" strokeWidth="1.2" />
-          <line x1="52" y1="68" x2="68" y2="68" strokeWidth="1.2" />
-        </svg>
-      );
-    case "hotwire": // щуп с нагретой нитью между вилками
-      return (
-        <svg {...common}>
-          <rect x="20" y="46" width="52" height="16" rx="3" fill={F} />
-          <line x1="72" y1="54" x2="92" y2="54" strokeWidth="2.4" />
-          <line x1="92" y1="42" x2="92" y2="66" strokeWidth="2" />
-          <line x1="92" y1="42" x2="102" y2="42" strokeWidth="2" />
-          <line x1="92" y1="66" x2="102" y2="66" strokeWidth="2" />
-          <line x1="102" y1="42" x2="102" y2="66" stroke={A} strokeWidth="1.4" style={glowA} />
-          {[48, 54, 60].map((y) => (
-            <path key={y} d={`M 106 ${y} q 5 -4 10 0`} stroke={A} strokeWidth="0.9" opacity="0.7" />
-          ))}
-        </svg>
-      );
-    case "pitot": // Г-образная трубка полного давления
-      return (
-        <svg {...common}>
-          <path d="M 100 40 L 40 40 L 40 78" strokeWidth="3" />
-          <circle cx="100" cy="40" r="3.4" fill={F} stroke={A} style={glowA} />
-          {[30, 34].map((x) => (
-            <circle key={x} cx={40 + x} cy="34" r="1.6" fill={S} stroke="none" />
-          ))}
-          <rect x="30" y="78" width="20" height="10" rx="2" fill={F} />
-          {[22, 28, 34].map((y) => (
-            <path key={y} d={`M 108 ${y + 6} L 118 ${y + 6}`} stroke={A} strokeWidth="0.9" opacity="0.7" />
-          ))}
-        </svg>
-      );
-    case "raingauge": // воронка и качелька из двух ковшей
-      return (
-        <svg {...common}>
-          <path d="M 26 20 L 94 20 L 68 48 L 52 48 Z" fill={F} />
-          <line x1="34" y1="84" x2="86" y2="84" />
-          <line x1="38" y1="84" x2="38" y2="56" />
-          <line x1="82" y1="84" x2="82" y2="56" />
-          <g transform="rotate(-9 60 66)">
-            <path d="M 40 62 L 60 62 L 60 74 L 44 74 Z" fill={F} stroke={A} style={glowA} />
-            <path d="M 80 62 L 60 62 L 60 74 L 76 74 Z" fill="none" stroke={A} style={glowA} />
-          </g>
-          <circle cx="60" cy="66" r="2.4" fill={S} stroke="none" />
-          {[54, 60, 66].map((x) => (
-            <line key={x} x1={x} y1="52" x2={x} y2="57" stroke={A} strokeWidth="1" opacity="0.8" />
-          ))}
-        </svg>
-      );
-    case "disdrometer": // лазерная пелена между двумя головками
-      return (
-        <svg {...common}>
-          <path d="M 20 34 L 34 34 L 34 62 L 20 62 Z" fill={F} />
-          <path d="M 100 34 L 86 34 L 86 62 L 100 62 Z" fill={F} />
-          <line x1="26" y1="76" x2="26" y2="86" />
-          <line x1="94" y1="76" x2="94" y2="86" />
-          <line x1="26" y1="62" x2="26" y2="76" />
-          <line x1="94" y1="62" x2="94" y2="76" />
-          <rect x="34" y="44" width="52" height="7" fill={A} opacity="0.22" stroke="none" />
-          <line x1="34" y1="47.5" x2="86" y2="47.5" stroke={A} strokeWidth="1.2" style={glowA} />
-          {[[48, 30], [62, 22], [76, 34]].map(([x, y], i) => (
-            <ellipse key={i} cx={x} cy={y} rx="2.6" ry="3.4" fill={A} opacity="0.75" stroke="none" />
-          ))}
-        </svg>
-      );
-    case "probe": // цилиндрический зонд с фильтром
-      return (
-        <svg {...common}>
-          <rect x="20" y="42" width="58" height="16" rx="3" fill={F} />
-          <rect x="78" y="39" width="24" height="22" rx="3" stroke={A} style={glowA} />
-          {[84, 90, 96].map((x) => (
-            <line key={x} x1={x} y1="42" x2={x} y2="58" stroke={A} strokeWidth="1" opacity="0.7" />
-          ))}
-          <path d="M 20 50 L 8 50" strokeWidth="2.4" />
-        </svg>
-      );
-    case "shield": // стопка тарелок радиационного экрана
-      return (
-        <svg {...common}>
-          <line x1="60" y1="72" x2="60" y2="86" />
-          <line x1="48" y1="86" x2="72" y2="86" />
-          {[26, 36, 46, 56, 66].map((y, i) => (
-            <path key={y} d={`M ${34 - i} ${y} q 26 9 ${52 + i * 2} 0`} fill={F} />
-          ))}
-          <line x1="60" y1="20" x2="60" y2="26" />
-          <circle cx="60" cy="52" r="3" stroke={A} style={glowA} />
-        </svg>
-      );
-    case "chip": // модуль на плате
-      return (
-        <svg {...common}>
-          <rect x="26" y="30" width="68" height="40" rx="2" fill={F} />
-          <rect x="48" y="42" width="20" height="16" rx="1.5" stroke={A} style={glowA} />
-          <circle cx="58" cy="48" r="2" fill={A} stroke="none" />
-          {[34, 44, 54, 64, 74, 84].map((x) => (
-            <line key={x} x1={x} y1="70" x2={x} y2="80" strokeWidth="1.4" />
-          ))}
-          <circle cx="32" cy="36" r="2" />
-          <circle cx="88" cy="36" r="2" />
-        </svg>
-      );
-    case "baro": // корпус с патрубком и шкалой
-      return (
-        <svg {...common}>
-          <rect x="26" y="34" width="68" height="34" rx="3" fill={F} />
-          <path d="M 94 46 L 108 46" strokeWidth="2.4" />
-          <circle cx="52" cy="51" r="11" stroke={A} style={glowA} />
-          <line x1="52" y1="51" x2="59" y2="45" stroke={A} strokeWidth="1.4" />
-          {[40, 48, 56, 64].map((x) => (
-            <line key={x} x1={x + 22} y1="60" x2={x + 22} y2="64" strokeWidth="1" opacity="0.7" />
-          ))}
-        </svg>
-      );
-    case "pyrano": // купол на диске с уровнем
-      return (
-        <svg {...common}>
-          <path d="M 44 56 a 16 16 0 0 1 32 0 Z" stroke={A} style={glowA} fill={F} />
-          <path d="M 30 56 L 90 56 L 86 66 L 34 66 Z" fill={F} />
-          <line x1="60" y1="66" x2="60" y2="80" />
-          <line x1="46" y1="80" x2="74" y2="80" />
-          <circle cx="80" cy="61" r="2.6" />
-          {[[46, 26], [56, 20], [66, 24]].map(([x, y], i) => (
-            <line key={i} x1={x} y1={y} x2={x + 6} y2={y + 10} stroke={A} strokeWidth="1"
-                  opacity="0.7" />
-          ))}
-        </svg>
-      );
-    case "lightning": // модуль с рамочной антенной и разрядом
-      return (
-        <svg {...common}>
-          <rect x="30" y="44" width="60" height="34" rx="2" fill={F} />
-          <rect x="40" y="52" width="24" height="18" rx="1.5" />
-          <path d="M 68 54 a 9 9 0 1 1 0 14" stroke={A} strokeWidth="1.4" style={glowA} />
-          {[38, 50, 62, 74, 82].map((x) => (
-            <line key={x} x1={x} y1="78" x2={x} y2="86" strokeWidth="1.4" />
-          ))}
-          <path d="M 58 8 L 66 26 L 60 26 L 70 42 L 52 24 L 60 24 L 52 8 Z"
-                fill={A} stroke="none" style={glowA} opacity="0.9" />
-        </svg>
-      );
-    default:
-      return <svg {...common}><rect x="30" y="34" width="60" height="34" rx="2" fill={F} /></svg>;
-  }
-}
 
 // ============================================================
 // СПРОСИТЬ CLAUDE
@@ -1175,9 +918,82 @@ function Gallery({ ids, alt, ratio, g, accent }) {
 // ============================================================
 // СПИСОК КАРТОЧЕК
 // ============================================================
+// Сетка стеклянных карточек: сверху «витрина» с большой иллюстрацией прибора
+// (или фотографией), снизу название, тип и две главные цифры. Карточка раскрывается
+// на всю ширину и показывает всё остальное. Каждая — настоящая панель (.pnl) со
+// своим стеклом, поэтому и в Liquid Glass, и в «Тональной», и на светлом фоне она
+// такая же, как остальные панели страницы; тёмной остаётся только сама витрина:
+// приборы стоят на ней как под стеклом музея, а не растворяются в белом листе.
+//
 // Один компонент на все три раздела: строение карточек одинаковое, меняются
-// только данные и набор фильтров. Плодить три почти одинаковых списка значило
-// бы чинить каждую правку трижды.
+// только данные и набор фильтров.
+const CAT_COLOR = {
+  wind: "#7dd3fc", rain: "#60a5fa", air: "#34d399", sun: "#fbbf24", storm: "#c084fc",
+  armor: "#fb923c", radar: "#38bdf8", station: "#34d399",
+  birth: "#7dd3fc", kind: "#fb923c", false: "#fbbf24", big: "#c084fc",
+};
+
+const METEO_CSS = `
+  .mgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(238px, 1fr)); gap: 14px; align-items: stretch }
+  .mcard { padding: 0; overflow: hidden }
+  .mcard.open { grid-column: 1 / -1 }
+  .mc-head { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; height: 100%; width: 100%; padding: 8px 8px 12px; background: transparent !important;
+    border: none !important; box-shadow: none !important; cursor: pointer; text-align: left; color: inherit; border-radius: 0 !important }
+  .mc-head:hover:not(:disabled) { transform: none !important; background-image: none !important }
+  .mcard.open .mc-head { height: auto; padding-bottom: 4px }
+  .mcard.open .mc-name { font-size: 16px }
+  .mc-stage { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border-radius: calc(var(--pnl-corner, 22px) - 8px);
+    background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--mc) 30%, transparent), #0d1525 58%, #060a12);
+    box-shadow: inset 0 1px 0.5px rgba(255,255,255,0.22), inset 0 0 0 1px rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: center; isolation: isolate }
+  .mc-stage::before { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .5;
+    background: linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px) 0 0 / 100% 22px,
+                linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px) 0 0 / 22px 100%;
+    -webkit-mask: radial-gradient(ellipse at 50% 55%, #000 25%, transparent 75%); mask: radial-gradient(ellipse at 50% 55%, #000 25%, transparent 75%) }
+  .mc-stage::after { content: ""; position: absolute; left: 12%; right: 12%; bottom: 7%; height: 1px; z-index: 0;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--mc) 70%, #fff), transparent); opacity: .55 }
+  .mc-stage > svg, .mc-stage > figure { position: relative; z-index: 1; transition: transform .6s var(--ease-liq, cubic-bezier(.34,1.5,.5,1)) }
+  .mcard:hover .mc-stage > svg { transform: translateY(-3px) scale(1.05) }
+  .mc-stage > figure { width: 100%; height: 100% }
+  .mc-tag { position: absolute; z-index: 2; top: 9px; left: 9px; max-width: calc(100% - 18px); overflow: hidden; text-overflow: ellipsis; padding: 2px 9px; border-radius: 999px;
+    font-family: var(--ui-mono); font-size: 9px; letter-spacing: .4px; color: #e9f1fa; white-space: nowrap;
+    background: rgba(8,12,20,0.55); border: 1px solid rgba(255,255,255,0.2); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px) }
+  .mc-body { padding: 11px 6px 0 6px; min-width: 0 }
+  .mc-name { font-family: var(--ui-sans); font-size: 13.5px; font-weight: 700; line-height: 1.25; color: ${TEXT} }
+  .mc-kind { font-family: var(--ui-sans); font-size: 11px; color: ${DIM}; margin-top: 3px; line-height: 1.4 }
+  .mc-key { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px }
+  .mc-key span { font-family: var(--ui-mono); font-size: 9.5px; padding: 3px 8px; border-radius: 999px; color: ${DIM};
+    border: 1px solid ${LINE}; max-width: 100%; line-height: 1.35; text-align: left }
+  .pnl.mcard > div.mc-more.mc-more { padding: 4px 18px 20px; display: grid; grid-template-columns: minmax(260px, 480px) minmax(0, 1fr); gap: 24px; align-items: start }
+  @media (max-width: 820px) { .pnl.mcard > div.mc-more.mc-more { grid-template-columns: minmax(0, 1fr) } }
+  .mc-more .mc-stage { aspect-ratio: 4 / 3 }
+  .mc-sub { font-family: var(--ui-sans); font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: ${FAINT}; margin: 0 0 8px }
+  .mc-link { display: inline-block; margin-top: 12px; padding: 7px 14px; border-radius: 999px; text-decoration: none; color: ${TEXT};
+    font-family: var(--ui-sans); font-size: 10.5px; letter-spacing: .6px; border: 1px solid ${LINE_HI} }
+  .mc-link:hover { background: rgba(var(--ink, 231,238,246), 0.08) }
+  .mc-intro { padding: 16px 18px; margin-bottom: 14px }
+  .mc-intro h3 { margin: 0 0 6px; font: 700 12px var(--ui-sans); letter-spacing: 1.6px; text-transform: uppercase; color: ${TEXT} }
+  .mc-intro p, .mc-intro li { font-family: var(--ui-sans); font-size: 11.5px; line-height: 1.7; color: ${DIM}; margin: 0 }
+  .mc-intro ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px }
+  .mc-intro a { color: ${TEXT} }
+  @media (prefers-reduced-motion: reduce) { .mc-stage > svg { transition: none } .mcard:hover .mc-stage > svg { transform: none } }
+`;
+
+// «Витрина»: иллюстрация (прибор или машина) либо фотография вместо неё.
+function Stage({ it, color, g, size }) {
+  const art = it.vart
+    ? <VehicleArt kind={it.vart} accent={color} size={size} title={it.name} />
+    : it.art
+      ? <SensorArt kind={it.art} accent={color} size={size} title={it.name} />
+      : null;
+  return (
+    <div className="mc-stage ink-dark" style={{ "--mc": color }}>
+      {art || <Photo id={it.photo} alt={it.name} bare g={g} />}
+      {it.tag && <span className="mc-tag">{it.tag}</span>}
+    </div>
+  );
+}
+
 function Cards({ items, cats, g, accent, motion, ratio }) {
   const [cat, setCat] = useState("all");
   const [open, setOpen] = useState(null);
@@ -1188,7 +1004,7 @@ function Cards({ items, cats, g, accent, motion, ratio }) {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {cats.length > 1 && (
         <div className="chip-row" style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <Segments variant="chips" ariaLabel="Категория" value={cat}
@@ -1200,90 +1016,90 @@ function Cards({ items, cats, g, accent, motion, ratio }) {
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column" }}>
+      <div className="mgrid">
         {list.map((it, idx) => {
           const isOpen = open === it.id;
+          const color = CAT_COLOR[it.cat] || accent;
           return (
-            <div key={it.id} className={motion === "off" ? undefined : "rowin"}
-                 style={{
-                   borderTop: idx === 0 ? `1px solid ${LINE}` : "none",
-                   borderBottom: `1px solid ${LINE}`,
-                   borderLeft: isOpen ? `2px solid ${accent}` : "2px solid transparent",
-                   animationDelay: `${Math.min(idx * 25, 300)}ms`,
-                 }}>
-              <button onClick={() => setOpen(isOpen ? null : it.id)}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 12, width: "100%",
-                        background: "transparent", border: "none", cursor: "pointer",
-                        padding: "10px", textAlign: "left",
-                      }}>
-                {/* В свёрнутом виде — чертёж, если он есть: он мелкий и
-                    читается на 60 пикселях, чего о фотографии не скажешь. */}
-                {it.art
-                  ? <Art kind={it.art} accent={accent} g={g} size={isOpen ? 90 : 60} />
-                  : <div style={{ width: 60, flexShrink: 0 }}><Photo id={it.photo} alt={it.name} ratio="1 / 1" g={g} /></div>}
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: TEXT,
-                                textShadow: glow(g, 0.45) }}>
-                    {it.name}
-                  </div>
-                  <div style={{ color: DIM, fontSize: 10.5, marginTop: 2, fontFamily: SANS }}>{it.kind}</div>
-                  <div style={{ ...NUM, color: FAINT, fontSize: 9.5, marginTop: 3, letterSpacing: 0.6 }}>
-                    {it.specs[0][1]}
-                  </div>
+            <article key={it.id} className={`pnl mcard${isOpen ? " open" : ""}${motion === "off" ? "" : " rowin"}`}
+                     style={{
+                       border: "1px solid var(--pnl-line)", borderRadius: "var(--pnl-corner)",
+                       background: "var(--pnl-bg)", boxShadow: "var(--pnl-shadow)",
+                       backdropFilter: "var(--pnl-blur)", WebkitBackdropFilter: "var(--pnl-blur)",
+                       animationDelay: `${Math.min(idx * 30, 360)}ms`,
+                     }}>
+              <button className="mc-head" onClick={() => setOpen(isOpen ? null : it.id)} aria-expanded={isOpen}>
+                {!isOpen && <Stage it={it} color={color} g={g} size="fill" />}
+                <div className="mc-body">
+                  <div className="mc-name">{it.name}</div>
+                  <div className="mc-kind">{it.kind}</div>
+                  {!isOpen && (
+                    <div className="mc-key">
+                      {it.specs.slice(0, 2).map(([k, v]) => <span key={k} title={`${k}: ${v}`}>{v}</span>)}
+                    </div>
+                  )}
                 </div>
-                <span style={{ ...NUM, fontSize: 9, color: FAINT, border: `1px solid ${LINE}`,
-                               padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>
-                  {it.tag}
-                </span>
               </button>
 
               {isOpen && (
-                <div className={motion === "off" ? undefined : "tabfade"}
-                     style={{ padding: "0 12px 14px" }}>
-                  {(it.photos || it.photo) && (
-                    <div style={{ marginBottom: 12 }}>
-                      <Gallery ids={it.photos || [it.photo]} alt={it.name}
-                               ratio={ratio} g={g} accent={accent} />
+                <div className={`mc-more${motion === "off" ? "" : " rowin"}`} style={{ "--mc": color }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {(it.art || it.vart) ? (
+                      <>
+                        <Stage it={it} color={color} g={g} size="fill" />
+                        {(it.photos || it.photo) && <Gallery ids={it.photos || [it.photo]} alt={it.name} ratio={ratio} g={g} accent={color} />}
+                      </>
+                    ) : (
+                      <Gallery ids={it.photos || [it.photo]} alt={it.name} ratio={ratio} g={g} accent={color} />
+                    )}
+                  </div>
+                  <div>
+                    <div className="mc-sub">Характеристики</div>
+                    <div style={{ marginBottom: 14 }}>
+                      {it.specs.map(([k, v]) => (
+                        <div key={k} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "4px 0" }}>
+                          <span style={{ color: DIM, fontFamily: SANS, fontSize: 11, flexShrink: 0 }}>{k}</span>
+                          <span style={{ flex: 1, minWidth: 10, borderBottom: `1px dotted ${FAINT}`, transform: "translateY(-3px)" }} />
+                          <span style={{ ...NUM, fontSize: 11, color: TEXT, textAlign: "right", maxWidth: "68%" }}>{v}</span>
+                        </div>
+                      ))}
                     </div>
-                  )}
 
-                  <div style={{ marginBottom: 10 }}>
-                    {it.specs.map(([k, v]) => (
-                      <div key={k} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "3px 0" }}>
-                        <span style={{ color: DIM, fontFamily: SANS, fontSize: 10.5, whiteSpace: "nowrap" }}>{k}</span>
-                        <span style={{ flex: 1, borderBottom: `1px dotted ${FAINT}`, transform: "translateY(-3px)" }} />
-                        <span style={{ ...NUM, fontSize: 10.5, color: TEXT, textAlign: "right", maxWidth: "66%" }}>{v}</span>
-                      </div>
-                    ))}
+                    <div className="mc-sub">Зачем это</div>
+                    <div style={{ color: DIM, fontSize: 12, lineHeight: 1.7, fontFamily: SANS }}>{it.why}</div>
+
+                    {/* Оговорка обязательна у каждой карточки: у любого прибора
+                        и у любого явления есть то, чего о них обычно не говорят. */}
+                    <div style={{ marginTop: 12, padding: "9px 12px", borderRadius: 14,
+                                  background: `color-mix(in srgb, ${color} 10%, transparent)`,
+                                  border: `1px solid color-mix(in srgb, ${color} 34%, transparent)`,
+                                  color: DIM, fontSize: 11.5, lineHeight: 1.65, fontFamily: SANS }}>
+                      <b style={{ color: TEXT, fontWeight: 600 }}>С оговоркой: </b>{it.caveat}
+                    </div>
+
+                    <a className="mc-link" href={it.url} target="_blank" rel="noreferrer noopener">
+                      Подробнее у источника ↗
+                    </a>
                   </div>
-
-                  <div style={{ color: "rgba(var(--ink, 231,238,246),0.82)", fontSize: 11.5, lineHeight: 1.65, fontFamily: SANS }}>
-                    {it.why}
-                  </div>
-
-                  {/* Оговорка обязательна у каждой карточки: у любого прибора
-                      и у любого явления есть то, чего о них обычно не говорят. */}
-                  <div style={{ marginTop: 9, paddingLeft: 9, borderLeft: `2px solid ${LINE_HI}`,
-                                color: DIM, fontSize: 10.5, lineHeight: 1.6, fontFamily: SANS }}>
-                    {it.caveat}
-                  </div>
-
-                  <a href={it.url} target="_blank" rel="noreferrer noopener"
-                     style={{ display: "inline-block", marginTop: 11, border: `1px solid ${LINE}`,
-                              padding: "5px 10px", color: TEXT, textDecoration: "none",
-                              fontFamily: SANS, fontSize: 10, letterSpacing: 1, textShadow: glow(g, 0.4) }}>
-                    ПОДРОБНЕЕ У ИСТОЧНИКА ↗
-                  </a>
                 </div>
               )}
-            </div>
+            </article>
           );
         })}
       </div>
     </div>
   );
 }
+
+const Intro = ({ title, children }) => (
+  <aside className="pnl mc-intro" style={{
+    border: "1px solid var(--pnl-line)", borderRadius: "var(--pnl-corner)", background: "var(--pnl-bg)",
+    boxShadow: "var(--pnl-shadow)", backdropFilter: "var(--pnl-blur)", WebkitBackdropFilter: "var(--pnl-blur)",
+  }}>
+    <h3>{title}</h3>
+    {children}
+  </aside>
+);
 
 // ============================================================
 // ВКЛАДКА
@@ -1299,6 +1115,7 @@ export default function Meteorology({ g, accent, motion }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <style>{METEO_CSS}</style>
       <div className="sub-row" style={{ display: "flex" }}>
         <Segments variant="tabs" ariaLabel="Раздел" value={view} onChange={pick}
                   options={VIEWS.map((v) => ({ value: v.id, label: v.label }))} />
@@ -1310,22 +1127,42 @@ export default function Meteorology({ g, accent, motion }) {
         )}
         {view === "probe" && (
           <>
-            <div style={{ color: DIM, fontSize: 11, lineHeight: 1.65, fontFamily: SANS, marginBottom: 12 }}>
-              Приборы, которые везут к погоде, а не ждут её на мачте. От переносной стойки,
-              которую ставят на пути урагана за пять минут, до бронированной машины, заезжающей
-              внутрь воронки. Общее у всех одно: данные надо снять раньше, чем прибор снесёт.
-            </div>
-            <Cards items={PROBES} cats={[]} g={g} accent={accent} motion={motion} ratio="3 / 2" />
+            <Intro title="Свой зонд">
+              <p>
+                Приборы, которые везут к погоде, а не ждут её на мачте. От переносной стойки,
+                которую ставят на пути урагана за пять минут, до бронированной машины, заезжающей
+                внутрь воронки. Общее у всех одно: данные надо снять раньше, чем прибор снесёт.
+              </p>
+            </Intro>
+            <Cards items={PROBES_ALL} cats={CHASER_CATS} g={g} accent={accent} motion={motion} ratio="3 / 2" />
+            <div style={{ height: 14 }} />
+            <Intro title="Охота за штормами: коротко">
+              <p>
+                Это справочник, а не призыв: охота за штормами опасна и для профессионалов.
+                Что советуют Национальная служба погоды США и опытные охотники:
+              </p>
+              <ul>{CHASE_NOTES.map((t) => <li key={t}>{t}</li>)}</ul>
+              <p style={{ marginTop: 10 }}>
+                Источники:{" "}
+                <a href="https://www.weather.gov/spotterguide/safetyfirst" target="_blank" rel="noreferrer noopener">NWS Spotter Guide ↗</a>
+                {" · "}
+                <a href="https://www.weather.gov/media/pah/Skywarn/SafetyForMobileSpotters.pdf" target="_blank" rel="noreferrer noopener">памятка для мобильных наблюдателей ↗</a>
+                {" · "}
+                <a href="https://stormtrack.org/threads/chase-safety-tips-guidelines-near-tornado-environments.27380" target="_blank" rel="noreferrer noopener">StormTrack ↗</a>
+              </p>
+            </Intro>
           </>
         )}
         {view === "storm" && (
           <>
-            <div style={{ color: DIM, fontSize: 11, lineHeight: 1.65, fontFamily: SANS, marginBottom: 12 }}>
-              Как рождается смерч, какие они бывают и что на них похоже, но ими не является.
-              Последнее важнее, чем кажется: половина «смерчей» в сети — это гастнадо и пыльные
-              вихри, а большинство ложных тревог вызвано шельфовым облаком, которое означает
-              шквал, а не воронку.
-            </div>
+            <Intro title="Смерчи и ураганы">
+              <p>
+                Как рождается смерч, какие они бывают и что на них похоже, но ими не является.
+                Последнее важнее, чем кажется: половина «смерчей» в сети — это гастнадо и пыльные
+                вихри, а большинство ложных тревог вызвано шельфовым облаком, которое означает
+                шквал, а не воронку.
+              </p>
+            </Intro>
             <Cards items={STORMS} cats={STORM_CATS} g={g} accent={accent} motion={motion} ratio="3 / 2" />
           </>
         )}

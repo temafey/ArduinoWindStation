@@ -634,3 +634,410 @@
 633	Noc na stacji
 634	Nie było alarmów.
 635	Wiatr się wzmaga
+636	# cm
+637	≈ #–# funtów
+638	Pojazdy opancerzone
+639	Radary na kołach
+640	Stacje i sondy
+641	Powietrze i sieć
+642	Pierwszy pancerny wóz Seana Caseya
+643	filmowanie od środka
+644	Baza
+645	Ford F-# Super Duty z # roku, podwójne koła, diesel
+646	Twórca
+647	filmowiec Sean Casey (IMAX)
+648	Deklarowana odporność
+649	wiatr do # km/h (# mph)
+650	Masa
+651	około # t, według nieoficjalnych danych
+652	Od niego zaczęła się historia pojazdów, które podjeżdżają do trąby nie po dane, lecz po ujęcie: Casey chciał sfilmować lej od środka na taśmie IMAX. TIV # pokazał, że zwykła ciężarówka z pancerzem i kotwami w ziemi zostaje na kołach tam, gdzie wszystko inne już leci.
+653	Dane o odporności to deklaracje samego zespołu; niezależnych testów nie ma. Według różnych źródeł zbudowano go na początku lat #, dokładny rok w opracowaniach się różni.
+654	Pancerny pojazd przechwytujący, druga generacja
+655	#×#, pancerz do samej ziemi
+656	według różnych źródeł: Dodge Ram #, diesel Cummins
+657	Pojawił się
+658	około # roku, zastąpił TIV #
+659	około # t po odchudzeniu (wcześniej # t i więcej)
+660	Układ
+661	trzy osie; według Wikipedii napęd na dwie (#×#), w innych źródłach inaczej
+662	Prześwit
+663	hydraulika: wysoko na drodze, nisko podczas przechwytu
+664	Przebudowany TIV: ciężkie pancerne fartuchy do ziemi, lekkie nadwozie, opuszczanie na grunt. Masę zmniejszono z # do # t dla szybkości: im szybciej taki pojazd zajmie pozycję, tym większa szansa, że zdąży. Cel ten sam: znaleźć się w leju z kamerą.
+665	Pojazd telewizyjny, nie naukowy: danych prawie nie daje, a ryzyko jest ogromne. Kotwy w ziemi pojawiają się w opisach, ale potwierdzeń w poważnych źródłach jest niewiele, więc w liczbach ich nie ma.
+666	Pancerny pikap Reeda Timmera
+667	w trąbę po dane z sond
+668	Ford F-# Super Duty, rocznik #–# (źródła się różnią)
+669	Cechy
+670	pancerz, kotwy hydrauliczne, wyciągarka, zawieszenie pneumatyczne, drzwi typu skrzydła mewy
+671	Koszt
+672	około # tys. dolarów, według doniesień prasy
+673	Epizod
+674	maj #: wjazd w trąbę koło Spalding, Nebraska
+675	Wiatr wewnątrz
+676	według zespołu #–# mph (około #–# km/h)
+677	Pierwszy Dominator nie na bazie auta General Motors. Zbudowany pod zadanie naukowe: wjechać w trąbę i zmierzyć ją od środka, unieruchamiając pojazd kotwami. Według doniesień ma też na pokładzie wyrzutnie sond, wystrzeliwanych na drogę wiru.
+678	Prędkość wiatru w środku to szacunek samego zespołu, nie pomiar w standardowej skali: ocenę EF daje oględziny zniszczeń, a nie przyrząd pokładowy. O wyrzutniach źródła piszą ostrożnie; nie należy ich odczytywać jako uzbrojenia.
+679	Dominator # i #
+680	Pierwsze pancerne wozy Timmera na bazie SUV-ów
+681	Tahoe i Yukon XL
+682	Podstawa
+683	SUV-y General Motors: Chevrolet Tahoe i GMC Yukon XL
+684	Ochrona
+685	płyty pancerne, poliwęglan, powłoka ochronna LINE-X
+686	Rola
+687	poszukiwanie trąb dla telewizji i projektów naukowych
+688	Wczesne Dominatory wyrosły ze zwykłych SUV-ów z napędem na cztery koła: dołożono im pancerz i szkło, i to wystarczyło, by podjeżdżać do trąb bliżej niż zwykli łowcy. Właśnie ich doświadczenie trafiło potem do ciężkiego Dominatora #.
+689	Szczegółowe dane wczesnych pojazdów są w otwartych źródłach skąpe: podano tylko to, co wymienia kilka publikacji naraz.
+690	DOW# i DOW#
+691	Radary dopplerowskie na ciężarówkach, pasmo X
+692	dwa nadajniki po # kW
+693	Pasmo
+694	X, #–# GHz, podwójna polaryzacja
+695	Moc
+696	dwa nadajniki po # kW, rekord wśród mobilnych radarów X
+697	Wiązka
+698	wąska, #–#°
+699	Rozdzielczość odległościowa
+700	od # do # m
+701	Operator
+702	DOW Facility przy Uniwersytecie Illinois (wcześniej CSWR, Joshua Wurman)
+703	To te słynne „radary na kołach”, które prześwietlają trąbę z odległości kilometrów i podają prędkość obrotu wiru. Na nich opiera się większość naukowych pomiarów wewnętrznej struktury trąb w USA.
+704	Radar nie widzi ziemi, tylko warstwę na wysokości wiązki, dlatego jego rekordowe prędkości nie trafiają do skali EF. Skład floty się zmienia: źródła różnie nazywają obecne pojazdy.
+705	Radar z dwunastoma wiązkami naraz
+706	skan wielokrotnie szybszy
+707	Zasada
+708	# wiązek w pionie jednocześnie, a nie jedna po kolei
+709	X, podwójna częstotliwość i polaryzacja
+710	Po co
+711	złapać trąbę, która zmienia się szybciej, niż obraca się zwykła antena
+712	Zwykły radar obchodzi niebo po jednym kącie na obrót, a trąba zdąży się zmienić. Dwanaście wiązek naraz daje przekrój przez całą wysokość w jednym obrocie: to właśnie „szybki skan”.
+713	Ceną szybkiego skanu jest inny tryb pracy: moc dzieli się między wiązki, więc używa się go na krótkich dystansach. Dokładnych liczb dla Rapid-Scan DOW tu nie podano, bo nie mają ich niezależne źródła.
+714	Szybko rozstawiany radar pasma C
+715	długość fali # cm
+716	C, długość fali # cm (w radarach X: # cm)
+717	koniec # roku
+718	Nadajniki
+719	dwa po # MW, według Wikipedii, źródło wtórne
+720	Dłuższa fala jest mniej tłumiona w silnym deszczu, więc radar widzi dalej przez ulewę. COW zajmuje miejsce między mobilnym radarem X a stacjonarnym NEXRAD: jeździ, ale sięga dalej.
+721	Deklarowane dwa megawaty pochodzą ze źródła wtórnego (Wikipedia); właściciel radaru może podawać inne liczby. Flota DOW się zmienia, więc aktualny skład sprawdzaj na stronie właściciela.
+722	Szybko obracający się radar Uniwersytetu Oklahomy
+723	jedyny egzemplarz
+724	Opracowanie
+725	ProSensing razem z Uniwersytetem Oklahomy, około # roku
+726	Częstotliwość
+727	# MHz (pasmo X)
+728	Antena
+729	czasza paraboliczna # m, podwójna polaryzacja
+730	Prędkość obrotu
+731	około #° na sekundę
+732	Pełna objętość
+733	# kątów elewacji w około # sekund
+734	#–# m
+735	Radar, który obraca się tak szybko, że w # sekund buduje przestrzenny obraz trąby, o rząd wielkości szybciej niż zwykle. W tym celu skacze po częstotliwościach, by szybko zbierać niezależne pomiary. Dane są dostępne dla badaczy przez NSF.
+736	Szczytowa moc nadajnika to # kW, a w radarach X DOW po # kW. To świadoma cena szybkiego skanu: taki radar zapewne pracuje na mniejszych dystansach, ale niezależnych porównań zasięgu w otwartych źródłach nie ma.
+737	Prototyp polowej sondy do trąb, # rok
+738	beczka z czujnikami
+739	Nazwa
+740	TOtable Tornado Observatory, „przenośne obserwatorium trąby”
+741	Twórcy
+742	Al Bedard i Carl Ramzy (NOAA)
+743	#–# funtów (około #–# kg)
+744	Budowa
+745	metalowa beczka, później pomalowana na pomarańczowo
+746	Pomysł był prosty i szalony: postawić przyrząd na drodze trąby i czekać. Beczka ważyła dość, by zostać na miejscu. Imię dano jej po piesku Toto z „Czarnoksiężnika z Krainy Oz”, a według magazynu Smithsonian zainspirowała fabułę filmu „Twister”.
+747	Według opisów beczkę pomalowano na pomarańczowo w ostatnich latach służby. To raczej historia niż narzędzie pracy: idea „przyrządu na drodze trąby” przeżyła samego TOTO, a trafienie w tor na ślepo to główna trudność tej metody.
+748	Turtle (Tim Samaras)
+749	Niska stożkowa sonda dociskana przez wiatr
+750	rekord ciśnienia
+751	Kształt
+752	spłaszczony stożek: sam wiatr dociska go do ziemi
+753	Mierzy
+754	ciśnienie, wilgotność, temperaturę, prędkość i kierunek wiatru
+755	Rekord
+756	# czerwca #, Manchester, Dakota Południowa: spadek o # hPa w # sekund
+757	Wpis
+758	Księga rekordów Guinnessa: największy zmierzony spadek ciśnienia w trąbie
+759	Tim Samaras uczynił TOTO lekkim i sprytnym: zamiast beczki niski stożek, który wiatr wciska w ziemię. Kładziono je na drodze trąby, a jeden z nich zapisał najszybszy i najgłębszy spadek ciśnienia zmierzony wewnątrz wiru.
+760	Lata w źródłach się różnią: „żółwia” datuje się na # rok i na początek lat #. Samaras zginął # maja # roku pod El Reno; jego praca żyje, ale powtarzanie tego przez innych jest niebezpieczne.
+761	Nie jeździj sam: Narodowa Służba Pogodowa USA radzi co najmniej dwie osoby w aucie.
+762	Nie ufaj radarowi w stu procentach, patrz sam: radar się spóźnia i nie widzi przy ziemi.
+763	Nie polegaj na cudzej drodze ucieczki: nawet z mapą i GPS droga może okazać się pułapką.
+764	Ulewa, mokry asfalt i porywisty wiatr są groźne także dla doświadczonych obserwatorów.
+765	Po pościgu przeanalizuj go: co można było zrobić bezpieczniej.
+766	Próg
+767	# m/s śmigło · # m/s chorągiewka
+768	Błąd
+769	±# m/s lub #% · ±#°
+770	Czujnik
+771	śmigło helikoidalne # cm, # łopaty
+772	Wymiary
+773	# × # cm, # kg
+774	Skok śmigła
+775	# cm na obrót
+776	Zaprojektowany do boi oceanicznych, więc znosi to, co zabija zwykłe przyrządy: mgłę solną, oblodzenie, lata bez serwisu. Mierzy prędkość i kierunek jednym korpusem: chorągiewka ustawia śmigło dokładnie pod prąd. Stoi na masztach na całym świecie i służy jako nieoficjalny punkt odniesienia, z którym porównuje się resztę.
+777	Próg # m/s jest dość wysoki: słabego wiatru po prostu nie widzi. Do klimatologii cisz bierze się ultradźwięki.
+778	poniżej # m/s
+779	#% lub ±# m/s (#–# m/s)
+780	Klasa
+781	# wg IEC #-#-#
+782	Branżowy wzorzec energetyki wiatrowej: z jego odczytów liczy się, czy farma wiatrowa się zwróci, dlatego wymagania co do dokładności są surowsze niż w zwykłej meteorologii. Trzy czaszki to najstarszy sposób pomiaru wiatru, który dotrwał do dziś właśnie dlatego, że nie da się go zwieść.
+783	Czaszki mają bezwładność: przy gwałtownych porywach „przestrzeliwują”, rozpędzają się szybciej, niż hamują, i lekko zawyżają średnią.
+784	# m/s
+785	#% odch. std. przy # m/s · ±#°
+786	czas przelotu dźwięku między parami przetworników
+787	Liczy prędkość z różnicy czasu, w jakim ultradźwięk przechodzi między przetwornikami z wiatrem i pod wiatr. Nic się nie rusza: brak łożysk, nic się nie zużywa i nic nie trzeba smarować. Próg # m/s: widzi ruch powietrza, którego człowiek nie czuje.
+788	Boi się przymarzniętego lodu i silnego deszczu: kropla na przetworniku psuje odczyt. Podgrzewanie mają nie wszystkie wersje.
+789	Mierzy
+790	trzy składowe prędkości i temperaturę akustyczną
+791	Zastosowanie
+792	metoda kowariancji wirów
+793	Mierzy nie średni wiatr, lecz sam wir: sto odczytów na sekundę w trzech osiach pozwala policzyć, ile ciepła, wilgoci i dwutlenku węgla przepływ unosi w górę. Na tych przyrządach opiera się cała współczesna nauka o warstwie przyziemnej.
+794	Drogi, wymaga zasilania i przechowywania gigabajtów surowych danych. Bez sensu, by „tylko popatrzeć na wiatr”.
+795	około # m/s czaszki · # m/s chorągiewka
+796	trzy czaszki i osobna chorągiewka na wspólnym wysięgniku
+797	Ten sam producent, ale czterokrotnie tańszy od # i wyraźnie czulszy przy słabym wietrze. Klasyczny układ z osobnymi czaszkami i chorągiewką: jeśli coś się zepsuje, wymienić trzeba tylko połowę.
+798	Dwie ruchome osie zamiast jednej: dwa razy więcej łożysk, o które trzeba się martwić.
+799	rzędu ±#%
+800	Interfejs
+801	kontaktron dla prędkości, potencjometr dla kierunku
+802	Najpopularniejszy anemometr w stacjach amatorskich i nie bez powodu: na wyjściu są zwykłe impulsy i napięcie, więc podłącza się go do każdej płytki dosłownie trzema przewodami. Właśnie od niego zaczyna się większość domowych stacji pogodowych.
+803	Dokładność amatorska. Świetny do obserwacji „jaka dziś pogoda”, do raportów nie.
+804	Mierzy też
+805	temperaturę, wilgotność, ciśnienie, punkt rosy
+806	Kieszonkowa stacja pogodowa: wirnik # mm i zestaw czujników w obudowie wielkości krótkofalówki. Niezastąpiona, gdy trzeba zmierzyć wiatr tam, gdzie masztu nie ma i nie będzie: na stoku, na pokładzie, na starcie.
+807	Odczyty zależą od tego, jak się go trzyma: wirnik trzeba kierować dokładnie w strumień, inaczej zaniża.
+808	Rozdzielczość
+809	do # m/s
+810	strumień chłodzi drucik; prąd utrzymujący jego temperaturę jest sygnałem
+811	Jedyny sposób, by pewnie zmierzyć ruch powietrza rzędu ułamków metra na sekundę: mechanice przy takich prędkościach brakuje momentu, by ruszyć. Główne narzędzie wentylacjonistów i aerodynamików.
+812	Nie pokazuje kierunku i nie lubi pracy na zewnątrz: kurz na druciku zmienia oddawanie ciepła i rozjeżdża kalibrację.
+813	od kilku m/s do prędkości ponaddźwiękowych
+814	Cecha
+815	prędkość rośnie jak pierwiastek z różnicy ciśnień
+816	Przyrząd, według którego latają samoloty. Żadnych ruchomych części i niemal nieograniczona górna granica, dlatego stoi na każdym skrzydle i w każdym tunelu aerodynamicznym.
+817	Na dole skali bezużyteczny: przy # m/s różnica ciśnień jest już na poziomie szumu, a oblodzona rurka kłamie po cichu; stąd kilka katastrof w historii lotnictwa.
+818	Działka
+819	Odbiornik
+820	zwykle # lub # cm²
+821	Wyjście
+822	impuls kontaktronu przy każdym przechyleniu
+823	Lejek zbiera deszcz do huśtawki z dwóch czerpaków: jeden się napełnia, przeważa, wylewa, podstawia się drugi, kontaktron daje impuls. Mechanika z dwoma ruchomymi elementami, która działa dziesięcioleciami.
+824	Wiatr zdmuchuje część kropel obok lejka; przy # m/s niedobór sięga dziesiątek procent. Śniegu bez podgrzewania nie mierzy wcale, a w ulewie zaniża: część wody wylewa się podczas przechylania.
+825	Rozróżnia
+826	deszcz, mżawkę, śnieg, krupę, grad
+827	laserowa kurtyna między dwiema głowicami
+828	Między głowicami rozpięta jest płaska laserowa kurtyna. Każda kropla, przecinając ją, zacienia wiązkę: z głębokości spadku liczy się rozmiar, z czasu trwania prędkość opadania. Stąd bierze się rozkład kropel według rozmiarów, bez którego nie da się przeliczyć odbiciowości radaru na opad.
+829	Drogi i wymaga czystych okienek. Silny wiatr znosi cząstki pod kątem i myli szacunek prędkości.
+830	Temperatura
+831	Wilgotność
+832	#–#%, około ±#% w głównym zakresie
+833	Obowiązkowo
+834	osłona radiacyjna
+835	Sonda referencyjna, według której sprawdza się pozostałe. Pojemnościowy element czuły HUMICAP to wynalazek Vaisali, który stał się standardem branży.
+836	Sam w sobie bezużyteczny: bez osłony pokaże temperaturę słońca na swojej obudowie, a nie powietrza. Osłona jest tu ważniejsza od czujnika.
+837	Zadanie
+838	Wersje
+839	pasywna, z wentylacją naturalną lub wymuszoną
+840	Błąd bez niej
+841	do kilku stopni przy słonecznej ciszy
+842	Nie czujnik, lecz to, bez czego czujnik kłamie. Białe talerze zasłaniają światło bezpośrednie i odbite, ale zostawiają powietrzu drogę. Błąd nieosłoniętego termometru w dzień przy słabym wietrze sięga kilku stopni, więcej niż różnica między dobrym a złym czujnikiem.
+843	Pasywna osłona w ciszy sama się nagrzewa. Aspirowana jest dokładniejsza, ale wymaga całodobowego zasilania wentylatora.
+844	około ±# °C
+845	około ±#%
+846	I²C lub SPI, zasilanie # V
+847	Trzy wielkości w obudowie wielkości ziarenka ryżu za grosze. Właśnie ten czujnik warto dodać do naszej stacji: panel już umie pokazywać temperaturę, wilgotność i ciśnienie; karty pojawią się same, gdy tylko firmware przyśle flagi obecności.
+848	Grzeje się od własnej płytki: posadzony obok ESP# zawyża temperaturę o stopień, dwa. Wynieść na przewodach i koniecznie do osłony.
+849	rzędu ±# hPa
+850	Ważne
+851	redukcja do poziomu morza według wysokości stacji
+852	Sama wartość ciśnienia mówi niewiele, ważna jest tendencja. Spadek o # hPa w trzy godziny zapowiada front pewniej niż jakakolwiek inna pojedyncza oznaka i właśnie z niego przewidywano pogodę sto lat przed satelitami.
+853	Wymaga znajomości wysokości instalacji: bez redukcji do poziomu morza odczyty są nieporównywalne nawet z sąsiednią stacją.
+854	Termoelektryczny
+855	klasa A wg ISO #, szerokie widmo
+856	Krzemowy
+857	tańszy, ale węższe widmo i niższa dokładność
+858	Pod szklaną kopułą leży stos termoelektryczny: czarna powierzchnia nagrzewa się od słońca, złącze daje napięcie. Kopuła przepuszcza potrzebne widmo i trzyma wiatr na zewnątrz, by przyrząd mierzył światło, a nie podmuch.
+859	Wymaga poziomowania libellą i czystej kopuły: kurz i rosa zaniżają odczyty, a przechył o stopień to już zauważalny błąd.
+860	Zasięg
+861	Podaje
+862	szacunek odległości do frontu burzy i energię wyładowania
+863	odbiór impulsu elektromagnetycznego na antenę ramową
+864	I²C lub SPI
+865	Jedyny przystępny sposób, by dać domowej stacji prawdziwe wykrywanie burz. Łapie impuls elektromagnetyczny wyładowania i z jego kształtu szacuje, jak daleko jest front. Panel liczy oznaki szkwału z anemometru; ten czujnik dodałby to, czego po wietrze nie widać.
+866	Fałszywie reaguje na zasilacze impulsowe, świetlówki i szczotki silników. Wymaga ustawienia progu i rozsądnej odległości od elektroniki.
+867	Wikimedia Commons
+868	Patrol drogowy Kansas
+869	Craig Wedges
+870	Jason Weingart
+871	Stefan Klein
+872	Robert Day, Biuro Pogody USA
+873	NOAA, Steve Nicklas
+874	Jessica Kortekaas
+875	Służba Pogodowa USA
+876	Noel Feans
+877	Służba Leśna USA
+878	Straż pożarna Kalifornii (CAL FIRE)
+879	Christian Pichner
+880	Ed Lu, NASA
+881	Alexander Gerst, ESA
+882	NASA, ISS
+883	Europejska Agencja Kosmiczna
+884	NASA, Jet Propulsion Laboratory
+885	Greg Lundeen, Służba Pogodowa USA
+886	National Severe Storms Laboratory, NOAA
+887	Służba Pogodowa, Birmingham
+888	Brak zdjęcia: potrzebny internet.
+889	Rozstawienie
+890	jeden maszt w kilka minut, siłami dwóch osób
+891	Zasilanie
+892	autonomiczne, na cały czas sztormu
+893	Twórca
+894	National Wind Institute, Teksas
+895	Dokładnie to, co nazywa się „własną sondą”, tylko doprowadzone do serii. Maszt stawia się na drodze huraganu i odjeżdża. W # roku dla Laury wystawiono # sztuk, a # z nich trafiło w ścianę oka lub w samo oko; dzięki temu Laura stała się najdokładniej udokumentowanym huraganem, który uderzył w wybrzeże USA.
+896	Stawia się go zawczasu i na ślepo: prognoza toru na kilka godzin naprzód decyduje, czy przyrząd trafi w sztorm, czy przestoi na próżno. Bliżej brzegu jest dokładniej, ale tam porywa go cofka sztormowa.
+897	stalowy pancerz, szyby z poliwęglanu
+898	Utrzymanie
+899	hydrauliczne kotwy w grunt i obniżony prześwit
+900	Sean Casey
+901	Zbudowany dla jednego ujęcia: sfilmować trąbę od środka. Kotwy wbija się w ziemię, pojazd osiada na gruncie i staje się kotwicą. W # roku TIV # rzeczywiście znalazł się wewnątrz leja i wrócił.
+902	To pojazd filmowy i rekordowy, a nie przyrząd naukowy. Daje mało danych, ryzyko jest ogromne, a powtarzanie tego bez przygotowania to pewny sposób, by zginąć.
+903	minuty, prosto z pobocza
+904	Pasma
+905	X i Ka
+906	Projekty
+907	Radar na ciężarówce, który podjeżdża do trąby na kilometry i prześwietla ją na wylot. To właśnie DOW zmierzył # km/h w Bridge Creek, najwyższą prędkość wiatru przy powierzchni Ziemi w historii. Wszystko, co wiadomo o wewnętrznej strukturze trąb, zdobyto takimi pojazdami.
+908	Radar mierzy prędkość nie przy ziemi, lecz na wysokości wiązki, dziesiątki metrów i wyżej. Dlatego jego rekordy nie trafiają do skali EF: kategorię przyznaje się za zniszczenia na ziemi.
+909	około # m nad drogą
+910	poprawka na własną prędkość pojazdu
+911	Najprzystępniejszy sposób, by zebrać pole danych wokół burzy: kilka aut rozjeżdża się wachlarzem i zapisuje przekrój przez front porywów. Z tych przekrojów ustalono, że prąd zstępujący z tyłu to klucz do narodzin trąby.
+912	Wiatr na dachu jadącego auta jest zniekształcony przez jego własny opływ; poprawki są obowiązkowe, a bez nich dane są gorsze niż żadne.
+913	Wysokość
+914	do #–# km, aż balon pęknie
+915	Start
+916	o # i # UTC jednocześnie na całej planecie
+917	Jedyny sposób, by dowiedzieć się, co dzieje się w atmosferze na wysokości, a nie przy ziemi. Właśnie z radiosondaży liczy się energię chwiejności, od której zależy, czy będzie trąba. Światowa sieć wypuszcza je synchronicznie od lat #: to najstarszy działający system globalnych obserwacji.
+918	Jeden punkt dwa razy na dobę. Między startami atmosfera zdąży się całkowicie zmienić, a wszystko, co dzieje się w przerwie, zostaje poza kadrem.
+919	Samoloty
+920	Metoda
+921	przelot przez ścianę oka, zrzut sond w dół
+922	Dropsonda
+923	przesyła profil przez całą drogę do wody
+924	Satelita widzi huragan z góry i nie zna ciśnienia w jego centrum, a prognoza siły zależy właśnie od niego. Jedyny sposób, by je poznać, to wlecieć do środka i zrzucić sondę. Te loty wyraźnie poprawiają prognozę toru, dlatego kontynuuje się je mimo ryzyka.
+925	Drogo, niebezpiecznie i tylko dla cyklonów tropikalnych: do trąby samolot nie wleci, jest za mała i za szybka.
+926	Odświeżanie
+927	pełna objętość w #–# minut
+928	Polaryzacja
+929	podwójna: odróżnia deszcz, grad i szczątki
+930	Sieć, na której opiera się cały system ostrzeżeń. Podwójna polaryzacja umie to, dla czego ją wprowadzono: odróżnić szczątki podniesione przez trąbę od opadów. Taka sygnatura oznacza, że trąba jest już na ziemi i coś niszczy, nawet jeśli nikt jej nie widzi.
+931	Wiązka wznosi się z odległością: # km od radaru biegnie już na trzech kilometrach i tego, co dzieje się przy ziemi, nie widzi wcale. Stąd dziury w pokryciu między stacjami.
+932	Rozmiar mezocyklonu
+933	Żyje
+934	godzinami, w odróżnieniu od zwykłej burzy
+935	Daje trąbę
+936	w mniej niż jednym przypadku na pięć
+937	Jedyny typ burzy, który żyje godzinami: jej prąd wstępujący się obraca, dlatego opady padają z boku, a nie gaszą go. Prawie wszystkie silne trąby rodzą się właśnie tu. Obrót bierze się z uskoku wiatru z wysokością: wiatr przy ziemi i na trzech kilometrach wieje inaczej, ta różnica kładzie powietrze na bok, a prąd wstępujący podnosi oś obrotu do pionu.
+938	Superkomórka to nie trąba. Większość ich nie daje wcale, a co dokładnie przesądza o wyniku, do dziś nie wyjaśniono do końca.
+939	Gdzie
+940	Oznaka zagrożenia
+941	obraca się i unosi
+942	Co dalej
+943	z niej opuszcza się lej
+944	Fragment podstawy burzy obniżony względem reszty: wilgotne powietrze ze strefy opadów jest wciągane w prąd i kondensuje wcześniej. Jeśli chmura ściana obraca się na oczach i unosi, to właśnie zwiastun trąby, najpewniejszy z widocznych.
+945	Nie każde obniżenie to chmura ściana i nie każda się obraca. Klucz tkwi w obrocie i unoszeniu, a nie w tym, że „coś wisi niżej”.
+946	Co widać
+947	Status
+948	za trąbę uchodzi tylko przy cyrkulacji przy gruncie
+949	Zagrożenie
+950	może zejść w kilka sekund
+951	Formalnie to jeszcze nie trąba: kategorię i samą nazwę daje kontakt z ziemią, a ściślej wir przy gruncie podnoszący pył. Różnica nie jest biurokratyczna: to przy ziemi wiatr niszczy.
+952	Odwrotnie też bywa, i to groźniej: trąba może już działać, a leja kondensacyjnego nie ma; przy suchym powietrzu widać będzie tylko pyłowy wir na dole.
+953	Oznaka
+954	Zwykle
+955	najbardziej niszczycielskie, ale nie z definicji
+956	Przykład
+957	Elie, Manitoba, #: jedyne F# w Kanadzie
+958	Nie osobny rodzaj, lecz opis wyglądu: lej wydaje się szerszy niż wysokość od ziemi do chmury. Takie częściej okazują się silne po prostu dlatego, że szeroka trąba dłużej się utrzymuje i obejmuje więcej.
+959	Szerokość to nie siła. El Reno # była najszersza w historii, # km, i dostała tylko EF#, bo szła przez pustkowie, a kategorię przyznaje się za zniszczenia.
+960	Występowanie
+961	częściej niż każdy inny wygląd
+962	To, co się rysuje, mówiąc „trąba”: lej zwęża się od chmury ku ziemi i jest wydłużony w pionie. Najzwyklejszy i najbardziej rozpoznawalny wygląd; właśnie przez niego klin tak często myli się ze stożkiem, choć klin jest dokładnie odwrotnie szerszy niż wyższy.
+963	Wygląd zmienia się w trakcie życia tej samej trąby: stożek może rozszerzyć się w klin, a pod koniec wyciągnąć w linę. To nie różne rodzaje, lecz stadia.
+964	Kiedy
+965	Wygląd
+966	cienki, wijący się sznur
+967	pozostaje groźna do samego końca
+968	Tak trąba najczęściej umiera: lej się wydłuża, wygina i rwie. Piękne i zwodnicze stadium.
+969	Cienki nie znaczy słaby. W stadium liny wir się zaciska i zgodnie z zasadą zachowania momentu pędu prędkość może nawet wzrosnąć. Trąby zabijały ludzi właśnie w tej fazie.
+970	w subwirze wyraźnie wyższa niż w głównym
+971	Ślad
+972	pasy zniszczeń wewnątrz ogólnego pasa
+973	Wyjaśnia starą zagadkę: dlaczego jeden dom zmieciony jest do fundamentów, a sąsiedni cały. Wewnątrz leja krąży kilka małych wirów, a ich prędkość dodaje się do prędkości obrotu całego układu. Przez jeden dom mógł przejść subwir, a przez sąsiedni nie.
+974	Subwiry rzadko udaje się dostrzec: widać je tylko wtedy, gdy lej jest dobrze oświetlony i nie zalany deszczem.
+975	Typ pogodny
+976	Typ trąbowy
+977	zwykła trąba, która weszła na wodę, jest tak samo groźna
+978	Gdzie często
+979	Florida Keys, Adriatyk, Wielkie Jeziora
+980	Pod jedną nazwą kryją się dwa różne zjawiska. Pogodny rozwija się na granicy wody i rośnie w górę, żyje minuty i rzadko bywa groźny. Trąbowy to pełnoprawna trąba superkomórki, która po prostu znalazła się nad wodą.
+981	Z daleka są nie do odróżnienia. Wychodząc na brzeg, pogodny zwykle się rozpada, a trąbowy nie zmienia się wcale.
+982	Powstaje
+983	zwykle EF#–EF#
+984	Na radarze
+985	prawie bez sygnatury
+986	Lądowy bliźniak pogodnej trąby wodnej: obrót bierze się przy ziemi, na linii zbieżności, a rosnąca chmura wyciąga go w górę. Formalnie to prawdziwa trąba i wlicza się ją do statystyk.
+987	Groźniejsza, niż się wydaje, właśnie przez radar: mezocyklonu nie ma, haka nie ma, ostrzeżenie często nie jest wydawane, a wir jest.
+988	Związek z chmurą
+989	brak, i to jest oznaka rozstrzygająca
+990	sekundy, rzadziej minuta
+991	Pyłowy wir kręcący się na linii szkwału. Wygląda przekonująco, trafia do wiadomości jako trąba, ale trąbą nie jest: nie jest związany z podstawą chmury, a to w definicji najważniejsze.
+992	Nieszkodliwym też go nie nazwiesz: prędkości bywają jak u słabej trąby, a lekkie budowle uszkadza.
+993	Przyczyna
+994	przegrzana powierzchnia, a nie burza
+995	zwykle kilkadziesiąt metrów
+996	Powstaje od nagrzania ziemi: wznoszące się powietrze skręca się i porywa pył. Chmura nie jest do tego wcale potrzebna, dlatego to nie trąba.
+997	Na Marsie osiągają kilometry wysokości i zostawiają ciemne ślady widoczne z orbity. Łazikom nieraz czyściły panele słoneczne i przedłużały ich pracę o lata ponad planowany okres.
+998	kilkadziesiąt metrów, minuty życia
+999	Wyjątek
+1000	Canberra, #: oceniony na F#
+1001	Pożar tworzy własny prąd wstępujący o takiej sile, że ten zaczyna się skręcać. W większości przypadków to zjawisko w skali pyłowego wiru.
+1002	Ale nie zawsze: w Canberze w # roku ognisty wir dostał ocenę F#, czyli był prawdziwą trąbą zrodzoną przez pożar. Takie przypadki są pojedyncze.
+1003	Co to jest
+1004	Ruch
+1005	nie obraca się, lecz nasuwa ścianą
+1006	Co potem
+1007	gwałtowny poryw i ulewa
+1008	Wygląda groźnie i wywołuje więcej fałszywych alarmów niż wszystko inne razem. Ale to przeciwieństwo chmury ściany: tam powietrze jest wciągane do wnętrza burzy, tu wyrzucane na zewnątrz.
+1009	Odróżnić łatwo: chmura szelfowa nasuwa się równą ścianą i się nie obraca, chmura ściana wisi w miejscu i kręci się. Pierwsze oznacza szkwał, drugie możliwą trąbę.
+1010	opadające zimne powietrze z opadami
+1011	Oznacza
+1012	burza silna, ale zwykle już odchodzi
+1013	Workowate narośla pod kowadłem. Znak, że burza jest potężna, i jeden z najpiękniejszych widoków nieba.
+1014	Nie oznaczają zagrożenia pod sobą: najczęściej pojawiają się z tyłu odchodzącej burzy, a nie tam, gdzie coś się wydarzy.
+1015	Średnica oka
+1016	W oku
+1017	prawie cisza i często czyste niebo
+1018	Ściana oka
+1019	najsilniejszy wiatr całego układu
+1020	Powietrze w centrum opada, dlatego chmury się tam rozpadają i nastaje cisza, czasem ze słońcem nad głową. Zdjęcie zrobiono z ISS: z góry widać, że oko to prawdziwa studnia w ścianie chmur.
+1021	Cisza oszukuje: po przejściu oka wiatr wraca z tą samą siłą, ale z przeciwnej strony. Ludzie wychodzą na zewnątrz w ciszy i trafiają pod drugą połowę; to klasyczna przyczyna śmierci.
+1022	Widać
+1023	ciemne ślady na powierzchni z orbity
+1024	Pożytek
+1025	zdmuchują pył z paneli słonecznych łazików
+1026	Atmosfera Marsa jest sto razy rzadsza od ziemskiej, ale wiry są tam większe od naszych: słabe przyciąganie i silne nagrzewanie powierzchni pozwalają im rosnąć na kilometry. Ślady, które zostawiają, widać z satelity.
+1027	Łaziki Spirit i Opportunity zaprojektowano na # soli, a pracowały latami, w dużej mierze dlatego, że wiry od czasu do czasu czyściły im panele. Jedyny znany przypadek, gdy pogoda obcej planety przedłużyła życie maszynie.
+1028	Poprzednie zdjęcie
+1029	Następne zdjęcie
+1030	Zdjęcie #
+1031	Dane techniczne
+1032	Po co to
+1033	Z zastrzeżeniem:
+1034	Więcej u źródła ↗
+1035	Łowienie burz w skrócie
+1036	To kompendium, a nie zachęta: łowienie burz jest niebezpieczne nawet dla zawodowców. Co radzą Narodowa Służba Pogodowa USA i doświadczeni łowcy:
+1037	poradnik dla mobilnych obserwatorów ↗
+1038	N
+1039	S
+1040	W
+1041	E
+1042	hPa

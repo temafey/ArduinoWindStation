@@ -634,3 +634,410 @@
 633	Night at the station
 634	No alerts.
 635	Wind is picking up
+636	# cm
+637	≈ #–# lb
+638	Armored vehicles
+639	Radars on wheels
+640	Stations and probes
+641	Air and networks
+642	Sean Casey's first armored vehicle
+643	filming from the inside
+644	Base
+645	Ford F-# Super Duty, # model year, dual rear wheels, diesel
+646	Builder
+647	filmmaker Sean Casey (IMAX)
+648	Claimed resistance
+649	winds up to # km/h (# mph)
+650	Weight
+651	about # t, unofficial figure
+652	This is where the story of vehicles that drive up to a tornado for the shot, not the data, began: Casey wanted to film a funnel from the inside on IMAX film. TIV # showed that an ordinary truck with armor and ground anchors stays on its wheels where everything else is already flying.
+653	The resistance figures are the team's own claims; there have been no independent tests. Sources disagree on when it was built, somewhere in the early #s, so the exact year varies between references.
+654	Armored intercept vehicle, second generation
+655	#×#, armor down to the ground
+656	sources differ: Dodge Ram #, Cummins diesel
+657	Introduced
+658	around #, replaced TIV #
+659	about # t after weight reduction (previously # t or more)
+660	Layout
+661	three axles; Wikipedia says two are driven (#×#), other sources differ
+662	Ground clearance
+663	hydraulics: high on the road, low during an intercept
+664	A rebuilt TIV: heavy armored skirts down to the ground, a lighter body and the ability to drop onto the ground. The weight was cut from # to # t for speed: the faster such a vehicle gets into position, the better its chance to make it in time. The goal is the same: to be inside the funnel with a camera.
+665	A TV vehicle, not a scientific one: it yields almost no data and the risk is enormous. Ground anchors are mentioned in descriptions, but there is little confirmation in serious sources, so they are not in the figures.
+666	Reed Timmer's armored pickup
+667	into the tornado for probe data
+668	Ford F-# Super Duty, #–# model year (sources disagree)
+669	Features
+670	armor, hydraulic anchors, winch, air suspension, gull-wing doors
+671	Cost
+672	about # thousand dollars, according to press reports
+673	Episode
+674	May #: drove into a tornado near Spalding, Nebraska
+675	Wind inside
+676	team estimate: #–# mph (about #–# km/h)
+677	The first Dominator not built on a General Motors vehicle. It was built for a scientific goal: drive into a tornado and measure it from the inside, with the vehicle anchored in place. It reportedly also carries launch tubes for probes that are fired into the path of the vortex.
+678	The wind speed inside is the team's own estimate, not a measurement on a standard scale: an EF rating comes from a damage survey, not an onboard instrument. Sources are cautious about the launch tubes; they should not be read as weapons.
+679	Dominator # and #
+680	Timmer's first armored vehicles, built on SUVs
+681	Tahoe and Yukon XL
+682	Base
+683	General Motors SUVs: Chevrolet Tahoe and GMC Yukon XL
+684	Protection
+685	armor plates, polycarbonate, LINE-X protective coating
+686	Role
+687	tornado hunting for a TV show and science projects
+688	The early Dominators grew out of ordinary four-wheel-drive SUVs: armor and glass were added, and that was enough to get closer to tornadoes than ordinary chasers. Their experience later went into the heavy Dominator #.
+689	Detailed specifications of the early vehicles are scarce in open sources: only what several publications agree on is listed.
+690	DOW# and DOW#
+691	Truck-mounted Doppler radars, X-band
+692	two # kW transmitters
+693	Band
+694	X, #–# GHz, dual polarization
+695	Power
+696	two # kW transmitters, a record among mobile X-band radars
+697	Beam
+698	narrow, #–#°
+699	Range resolution
+700	from # to # m
+701	Operator
+702	DOW Facility at the University of Illinois (formerly CSWR, Joshua Wurman)
+703	These are the very "radars on wheels" that scan a tornado from kilometers away and give the rotation speed of the vortex. Most scientific measurements of the internal structure of tornadoes in the US rely on them.
+704	The radar sees not the ground but a layer at beam height, so its record speeds do not count toward the EF rating. The fleet changes: sources name the current vehicles differently.
+705	Radar with twelve beams at once
+706	scans many times faster
+707	Principle
+708	# beams stacked in elevation at once, not one beam at a time
+709	X, dual frequency and polarization
+710	Why
+711	to catch a tornado that changes faster than an ordinary antenna rotates
+712	An ordinary radar scans the sky one elevation angle per rotation, and the tornado has time to change. Twelve beams at once give a slice through the whole height in a single rotation; that is what "rapid scan" means.
+713	The price of rapid scanning is a different way of operating: the power is split among the beams, so it is used at short ranges. Exact figures for the Rapid-Scan DOW are not given here because independent sources do not have them.
+714	Rapidly deployable C-band radar
+715	# cm wavelength
+716	C, # cm wavelength (X-band radars: # cm)
+717	late #
+718	Transmitters
+719	two at # MW, according to Wikipedia, a secondary source
+720	A longer wavelength means less attenuation in heavy rain, so the radar sees farther through a downpour. COW sits between a mobile X-band radar and a fixed NEXRAD: it drives, but reaches farther.
+721	The claimed two megawatts come from a secondary source (Wikipedia); the radar's owner may state the figures differently. The DOW fleet changes, so check the current lineup on the owner's website.
+722	University of Oklahoma's rapidly rotating radar
+723	one of a kind
+724	Development
+725	ProSensing together with the University of Oklahoma, around #
+726	Frequency
+727	# MHz (X-band)
+728	Antenna
+729	# m parabolic dish, dual polarization
+730	Rotation speed
+731	about #° per second
+732	Full volume
+733	# elevation angles in about # seconds
+734	#–# m
+735	A radar that spins so fast it builds a 3D picture of a tornado in # seconds, an order of magnitude faster than usual. To do this it hops between frequencies to quickly accumulate independent measurements. Researchers can access the data through NSF.
+736	Peak transmitter power is # kW, versus # kW for each DOW X-band radar. That is the deliberate price of rapid scanning: such a radar probably works at shorter ranges, but there are no independent range comparisons in open sources.
+737	Prototype field probe for tornadoes, #
+738	a barrel full of sensors
+739	Named
+740	TOtable Tornado Observatory, a "portable tornado observatory"
+741	Creators
+742	Al Bedard and Carl Ramzy (NOAA)
+743	#–# lb (about #–# kg)
+744	Construction
+745	a metal barrel, later painted orange
+746	The idea was simple and crazy: put an instrument in a tornado's path and wait. The barrel was heavy enough to stay put. It was named after Toto the dog from "The Wizard of Oz", and according to Smithsonian magazine it inspired the plot of the film "Twister".
+747	According to descriptions, the barrel was painted orange in its final years of service. It is more history than a working tool: the "instrument in the path" idea outlived TOTO itself, and hitting the track blindly is the main difficulty of this method.
+748	Turtle (Tim Samaras)
+749	Low cone-shaped probe pressed down by the wind
+750	pressure record
+751	Shape
+752	a flattened cone: the wind itself presses it to the ground
+753	Measures
+754	pressure, humidity, temperature, wind speed and direction
+755	Record
+756	June #, #, Manchester, South Dakota: a # hPa drop in # seconds
+757	Entry
+758	Guinness World Records: the largest pressure drop measured in a tornado
+759	Tim Samaras made TOTO light and smart: instead of a barrel, a low cone that the wind presses into the ground. They were dropped in a tornado's path, and one of them recorded the fastest and deepest pressure drop ever measured inside a vortex.
+760	Sources disagree on the years: the "turtle" is dated to # and to the early #s. Samaras died on May #, # near El Reno; his work lives on, but repeating it is dangerous for others.
+761	Don't chase alone: the US National Weather Service advises at least two people in the vehicle.
+762	Don't trust radar one hundred percent; look for yourself: radar lags and cannot see near the ground.
+763	Don't rely on someone else's escape route: even with a map and GPS, a road can turn out to be a trap.
+764	Downpours, wet pavement and gusty winds are dangerous even for experienced spotters.
+765	After the chase, review it: what could have been done more safely.
+766	Threshold
+767	# m/s propeller · # m/s vane
+768	Accuracy
+769	±# m/s or #% · ±#°
+770	Sensor
+771	# cm helicoid propeller, # blades
+772	Dimensions
+773	# × # cm, # kg
+774	Propeller pitch
+775	# cm per revolution
+776	Designed for ocean buoys, so it survives what kills ordinary instruments: salt spray, icing, years without maintenance. It measures speed and direction with one body: the vane turns the propeller straight into the flow. It stands on masts all over the world and serves as the unofficial reference the others are compared against.
+777	A threshold of # m/s is a bit high: it simply does not see light winds. Ultrasonic sensors are used for calm-weather climatology.
+778	less than # m/s
+779	#% or ±# m/s (#–# m/s)
+780	Class
+781	# per IEC #-#-#
+782	The wind energy industry reference: wind farm payback is calculated from its readings, so accuracy requirements are stricter than in ordinary meteorology. Three cups are the oldest scheme for measuring wind, and it has survived to this day precisely because it cannot be fooled.
+783	Cups have inertia: in sharp gusts they "overspeed", spinning up faster than they slow down, and slightly overestimate the average.
+784	# m/s
+785	#% RMS at # m/s · ±#°
+786	time of flight of sound between pairs of transducers
+787	It calculates speed from the difference in the time ultrasound takes to travel between transducers with and against the wind. Nothing moves: no bearings, nothing to wear out and nothing to lubricate. A # m/s threshold: it sees air movement a person cannot feel.
+788	It dislikes ice buildup and heavy rain: a drop on a transducer spoils the reading. Not all versions have heating.
+789	Measures
+790	three velocity components and sonic temperature
+791	Application
+792	eddy covariance method
+793	It measures not the average wind but the eddies themselves: a hundred readings per second on three axes make it possible to calculate how much heat, moisture and carbon dioxide the flow carries upward. All modern surface-layer science relies on these instruments.
+794	Expensive, needs power and storage for gigabytes of raw data. Pointless for "just looking at the wind".
+795	about # m/s cups · # m/s vane
+796	three cups and a separate vane on a shared crossarm
+797	Same manufacturer, but four times cheaper than the # and noticeably more sensitive in light winds. The classic layout with separate cups and vane: if something breaks, only half needs replacing.
+798	Two moving axes instead of one means twice as many bearings to worry about.
+799	about ±#%
+800	Interface
+801	reed switch for speed, potentiometer for direction
+802	The most common anemometer on hobby stations, and for good reason: the output is ordinary pulses and voltage, so it connects to any board with literally three wires. Most homemade weather stations start with this one.
+803	Hobby-grade accuracy. Great for "what's the weather today", not for official reporting.
+804	Also measures
+805	temperature, humidity, pressure, dew point
+806	A pocket weather station: a # mm impeller and a set of sensors in a case the size of a walkie-talkie. Indispensable when you need to measure wind where there is no mast and never will be: on a slope, on a deck, at a launch site.
+807	Readings depend on how you hold it: the impeller must face straight into the flow, otherwise it reads low.
+808	Resolution
+809	up to # m/s
+810	the flow cools the wire; the current that holds its temperature is the signal
+811	The only way to reliably measure air movement of a fraction of a meter per second: at such speeds mechanical sensors lack the torque to start moving. The main tool of ventilation engineers and aerodynamicists.
+812	It does not show direction and does not like the outdoors: dust on the wire changes heat transfer and throws off the calibration.
+813	from a few m/s to supersonic
+814	Characteristic
+815	speed grows as the square root of the pressure difference
+816	The instrument airplanes fly by. No moving parts and an almost unlimited upper limit, which is why it is on every wing and in every wind tunnel.
+817	Useless at the low end of the scale: at # m/s the pressure difference is already at noise level, and an iced-up tube lies silently; this has caused several disasters in aviation history.
+818	Resolution per tip
+819	Collector
+820	usually # or # cm²
+821	Output
+822	a reed switch pulse on every tip
+823	A funnel collects rain into a seesaw of two small buckets: one fills, tips over, empties and the second takes its place, and the reed switch gives a pulse. Mechanics with two moving parts that work for decades.
+824	Wind blows some drops past the funnel; at # m/s the undercatch reaches tens of percent. Without heating it does not measure snow at all, and in a downpour it reads low: some water spills during the tipping.
+825	Distinguishes
+826	rain, drizzle, snow, graupel, hail
+827	a laser sheet between two heads
+828	A flat laser sheet is stretched between the heads. Each drop crossing it shadows the beam: the depth of the dip gives the size, the duration gives the fall speed. This yields the drop size distribution, without which radar reflectivity cannot be converted into precipitation.
+829	Expensive and needs clean windows. Strong wind carries particles at an angle and confuses the speed estimate.
+830	Temperature
+831	Humidity
+832	#–#%, about ±#% in the main range
+833	Required
+834	radiation shield
+835	The reference probe others are checked against. The HUMICAP capacitive sensing element is a Vaisala invention that became an industry standard.
+836	Useless on its own: without a shield it shows the temperature of the sun on its housing, not of the air. Here the shield matters more than the sensor.
+837	Task
+838	Versions
+839	passive, naturally or forcibly ventilated
+840	Error without it
+841	up to several degrees in sunny calm weather
+842	Not a sensor, but the thing without which a sensor lies. The white plates block direct and reflected light but leave a path for the air. The error of an unshielded thermometer in daytime with light wind reaches several degrees, more than the difference between a good and a bad sensor.
+843	A passive shield heats up by itself in calm weather. An aspirated one is more accurate but needs power for its fan around the clock.
+844	about ±# °C
+845	about ±#%
+846	I²C or SPI, # V supply
+847	Three quantities in a package the size of a grain of rice, for pennies. This is the sensor worth adding to our station: the dashboard can already show temperature, humidity and pressure; the cards will appear by themselves as soon as the firmware sends the presence flags.
+848	It is heated by its own board: placed next to an ESP#, it reads a degree or two high. Mount it on wires and always in a shield.
+849	about ±# hPa
+850	Important
+851	reduction to sea level using the station's altitude
+852	The pressure value by itself says little; the trend matters. A drop of # hPa in three hours signals an approaching front more reliably than any other single sign, and that is how weather was forecast a century before satellites.
+853	Requires knowing the installation altitude: without reduction to sea level the readings are not comparable even with a neighboring station.
+854	Thermoelectric
+855	class A per ISO #, broad spectrum
+856	Silicon
+857	cheaper, but narrower spectrum and lower accuracy
+858	Under a glass dome lies a thermopile: a black surface is heated by the sun and the junction produces a voltage. The dome passes the right spectrum and keeps the wind outside, so the instrument measures light, not airflow.
+859	Requires leveling with a bubble level and a clean dome: dust and dew lower the readings, and a tilt of one degree is a noticeable error.
+860	Range
+861	Outputs
+862	an estimate of the distance to the storm front and the strike energy
+863	reception of the electromagnetic pulse on a loop antenna
+864	I²C or SPI
+865	The only affordable way to give a homemade station real thunderstorm detection. It catches the electromagnetic pulse of a strike and estimates from its shape how far away the front is. The dashboard computes squall signs from the anemometer; this sensor would add what wind alone cannot show.
+866	False triggers from switching power supplies, fluorescent lamps and motor brushes. Needs threshold tuning and reasonable distance from electronics.
+867	Wikimedia Commons
+868	Kansas Highway Patrol
+869	Craig Wedges
+870	Jason Weingart
+871	Stefan Klein
+872	Robert Day, US Weather Bureau
+873	NOAA, Steve Nicklas
+874	Jessica Kortekaas
+875	US National Weather Service
+876	Noel Feans
+877	US Forest Service
+878	CAL FIRE
+879	Christian Pichner
+880	Ed Lu, NASA
+881	Alexander Gerst, ESA
+882	NASA, ISS
+883	European Space Agency
+884	NASA, Jet Propulsion Laboratory
+885	Greg Lundeen, US National Weather Service
+886	National Severe Storms Laboratory, NOAA
+887	National Weather Service, Birmingham
+888	No photo: internet needed.
+889	Deployment
+890	one mast in a matter of minutes, by two people
+891	Power
+892	self-contained, for the entire storm
+893	Developer
+894	National Wind Institute, Texas
+895	Exactly what "your own probe" means, only turned into a series product. The mast is set up in a hurricane's path and left behind. In # they deployed # of them for Laura, and # ended up in the eyewall or the eye itself; thanks to this, Laura became the most thoroughly documented hurricane to make landfall in the US.
+896	It is deployed in advance and blindly: the track forecast several hours ahead decides whether the instrument ends up in the storm or stands idle. Closer to the shore is more accurate, but there the storm surge washes it away.
+897	steel armor, polycarbonate windows
+898	Anchoring
+899	hydraulic ground anchors and lowered clearance
+900	Sean Casey
+901	Built for a single shot: to film a tornado from the inside. The anchors are driven into the ground, the vehicle drops onto it and becomes an anchor itself. In # TIV # really did end up inside a funnel and came back.
+902	This is a filming and record-setting vehicle, not a scientific instrument. It gives little data, the risk is enormous, and repeating this without preparation is a sure way to die.
+903	minutes, right from the roadside
+904	Bands
+905	X and Ka
+906	Projects
+907	A truck-mounted radar that drives to within kilometers of a tornado and sees right through it. It was a DOW that measured # km/h at Bridge Creek, the highest wind speed near the Earth's surface ever recorded. Everything known about the internal structure of tornadoes was obtained by such vehicles.
+908	The radar measures speed not at the ground but at beam height, tens of meters and higher. That is why its records do not count toward the EF rating: the category is assigned by damage on the ground.
+909	about # m above the road
+910	correction for the vehicle's own speed
+911	The most affordable way to collect a data field around a storm: several vehicles fan out and record a cross-section through the gust front. These cross-sections revealed that the rear-flank downdraft is key to tornado formation.
+912	Wind on the roof of a moving car is distorted by its own airflow; corrections are mandatory, and without them the data is worse than none.
+913	Altitude
+914	up to #–# km, until the balloon bursts
+915	Launch
+916	# and # UTC simultaneously all over the planet
+917	The only way to know what is happening in the atmosphere with height, not just at the ground. Instability energy, which determines whether there will be a tornado, is calculated from radiosondes. The global network has launched them in sync since the #s; it is the oldest working system of global observations.
+918	One point twice a day. Between launches the atmosphere has time to change completely, and everything that happens in between stays off-screen.
+919	Aircraft
+920	Method
+921	flying through the eyewall, dropping probes down
+922	Dropsonde
+923	transmits a profile all the way down to the water
+924	A satellite sees a hurricane from above and does not know the pressure at its center, yet the intensity forecast depends on exactly that. The only way to find out is to fly inside and drop a probe. These flights noticeably improve the track forecast, which is why they continue despite the risk.
+925	Expensive, dangerous and only for tropical cyclones: an aircraft cannot fly into a tornado, which is too small and too fast.
+926	Update
+927	full volume in #–# minutes
+928	Polarization
+929	dual: distinguishes rain, hail and debris
+930	The network the entire warning system rests on. Dual polarization does what it was introduced for: it tells debris lofted by a tornado from precipitation. Such a signature means the tornado is already on the ground and breaking things, even if no one sees it.
+931	The beam rises with distance: # km from the radar it is already three kilometers up and cannot see what happens near the ground at all. Hence the coverage gaps between stations.
+932	Mesocyclone size
+933	Lifetime
+934	hours, unlike an ordinary thunderstorm
+935	Produces a tornado
+936	in fewer than one case in five
+937	The only type of thunderstorm that lives for hours: its updraft rotates, so precipitation falls to the side instead of killing it. Almost all strong tornadoes are born here. The rotation comes from wind shear with height: the wind at the ground and at three kilometers blows differently, this difference tips the air onto its side, and the updraft lifts the axis of rotation vertical.
+938	A supercell does not equal a tornado. Most of them produce none at all, and what exactly decides the outcome is still not fully understood.
+939	Where
+940	Danger sign
+941	rotates and rises
+942	What comes next
+943	the funnel descends from it
+944	A part of the storm base lowered below the rest: moist air from the precipitation area is drawn into the flow and condenses earlier. If the wall visibly rotates and rises, that is the precursor of a tornado, the most reliable of the visible ones.
+945	Not every lowering is a wall cloud, and not every wall cloud rotates. The key is the rotation and the rising, not that "something is hanging lower".
+946	What you see
+947	Status
+948	counts as a tornado only with circulation at the ground
+949	Danger
+950	can touch down in seconds
+951	Formally this is not yet a tornado: the category and the name itself come from contact with the ground, or more precisely a vortex at the ground lifting dust. The distinction is not bureaucratic: it is at the ground that the wind does the damage.
+952	The reverse is also true and more dangerous: a tornado may already be at work without a condensation funnel; if the air is dry, only a dust whirl at the bottom will be visible.
+953	Sign
+954	Usually
+955	the most destructive, but not by definition
+956	Example
+957	Elie, Manitoba, #: the only F# in Canada
+958	Not a separate type but a description of appearance: the funnel looks wider than the height from the ground to the cloud. These more often turn out strong simply because a wide tornado lasts longer and covers more.
+959	Width is not strength. El Reno # was the widest in history, # km, and got only EF#, because it crossed empty land and the category is assigned by damage.
+960	Occurrence
+961	more common than any other appearance
+962	What people draw when they say "tornado": the funnel narrows from the cloud to the ground and is elongated vertically. The most common and most recognizable look; because of it a wedge is so often confused with a cone, although a wedge is exactly the opposite, wider than it is tall.
+963	The appearance changes over the life of the same tornado: a cone can widen into a wedge and stretch into a rope at the end. These are not different types but stages.
+964	When
+965	Appearance
+966	a thin, twisting rope
+967	remains dangerous to the very end
+968	This is how a tornado most often dies: the funnel stretches, bends and breaks apart. A beautiful and deceptive stage.
+969	Thin does not mean weak. At the rope stage the vortex contracts, and by conservation of angular momentum the speed may even increase. Tornadoes have killed people in exactly this phase.
+970	noticeably higher in a subvortex than in the main one
+971	Track
+972	damage swaths inside the overall path
+973	This explains an old puzzle: why one house is swept to its foundation while the next one is intact. Several small vortices run around inside the funnel, and their speed adds to the rotation speed of the whole system. A subvortex may have passed over one house but not the one next door.
+974	Subvortices are rarely seen: they are only visible when the funnel is well lit and not wrapped in rain.
+975	Fair-weather type
+976	Tornadic type
+977	an ordinary tornado moving over water is just as dangerous
+978	Common in
+979	Florida Keys, the Adriatic, the Great Lakes
+980	Two different phenomena hide under one name. The fair-weather type forms at the water surface and grows upward, lives for minutes and is rarely dangerous. The tornadic type is a full supercell tornado that just happened to be over water.
+981	From a distance they are indistinguishable. Coming ashore, the fair-weather type usually falls apart, while the tornadic one does not change at all.
+982	Origin
+983	usually EF#–EF#
+984	On radar
+985	almost no signature
+986	The land twin of the fair-weather waterspout: the rotation starts at the ground along a convergence line, and the growing cloud stretches it upward. Formally it is a real tornado and counts in the statistics.
+987	More dangerous than it seems, precisely because of radar: there is no mesocyclone, no hook, a warning is often not issued, and yet the vortex is there.
+988	Connection to the cloud
+989	none, and that is the deciding sign
+990	seconds, rarely a minute
+991	A dust whirl spinning along a squall line. It looks convincing and makes the news as a tornado, but it is not one: it is not connected to the cloud base, and that is the key part of the definition.
+992	It cannot be called harmless either: its speeds can match a weak tornado, and it damages light structures.
+993	Cause
+994	an overheated surface, not a thunderstorm
+995	usually tens of meters
+996	It forms from heating of the ground: rising air starts to spin and picks up dust. No cloud is needed at all, which is why it is not a tornado.
+997	On Mars they reach kilometers in height and leave dark tracks visible from orbit. More than once they cleaned the rovers' solar panels and extended their work for years beyond the planned lifetime.
+998	tens of meters, minutes of life
+999	Exception
+1000	Canberra, #: rated F#
+1001	A fire creates its own updraft so strong that it starts to spin. In most cases this is a phenomenon on the scale of a dust devil.
+1002	But not always: in Canberra in # a fire whirl was rated F#, meaning it was a real tornado spawned by a fire. Such cases are rare.
+1003	What it is
+1004	Movement
+1005	does not rotate but advances like a wall
+1006	What follows
+1007	a sharp gust and a downpour
+1008	It looks menacing and causes more false alarms than everything else combined. But it is the opposite of a wall cloud: there air is drawn into the storm, here it is pushed out.
+1009	Telling them apart is simple: a shelf cloud advances as an even wall and does not rotate, a wall cloud hangs in place and spins. The first means a squall, the second a possible tornado.
+1010	sinking cold air with precipitation
+1011	Means
+1012	a strong storm, but usually already leaving
+1013	Pouch-like bulges under the anvil. A sign that the storm is powerful, and one of the most beautiful sights in the sky.
+1014	They do not mean danger beneath them: most often they appear on the back side of a departing storm, not where something is about to happen.
+1015	Eye diameter
+1016	In the eye
+1017	almost calm and often clear sky
+1018	Eyewall
+1019	the strongest wind of the whole system
+1020	Air in the center sinks, so the clouds there break up and a lull sets in, sometimes with the sun overhead. The photo was taken from the ISS: from above you can see that the eye is a real well in the wall of clouds.
+1021	The lull is deceptive: after the eye passes, the wind returns with the same force but from the opposite direction. People go outside during the lull and are caught by the second half; this is a classic cause of death.
+1022	Visible
+1023	dark tracks on the surface from orbit
+1024	Benefit
+1025	they blow dust off the rovers' solar panels
+1026	The Martian atmosphere is a hundred times thinner than Earth's, yet the whirls there are bigger than ours: weak gravity and strong surface heating let them grow kilometers high. The tracks they leave can be seen from a satellite.
+1027	The Spirit and Opportunity rovers were designed for # sols but worked for years, largely because the whirls cleaned their panels from time to time. The only known case of another planet's weather extending the life of machinery.
+1028	Previous photo
+1029	Next photo
+1030	Photo #
+1031	Specifications
+1032	Why it matters
+1033	With a caveat:
+1034	More at the source ↗
+1035	Storm chasing in brief
+1036	This is a reference, not an invitation: storm chasing is dangerous even for professionals. What the US National Weather Service and experienced chasers advise:
+1037	safety guide for mobile spotters ↗
+1038	N
+1039	S
+1040	W
+1041	E
+1042	hPa

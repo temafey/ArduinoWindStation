@@ -634,3 +634,410 @@
 633	Noite na estação
 634	Nenhum alerta.
 635	O vento está aumentando
+636	# cm
+637	≈ #–# libras
+638	Veículos blindados
+639	Radares sobre rodas
+640	Estações e sondas
+641	Ar e redes
+642	O primeiro blindado de Sean Casey
+643	filmar por dentro
+644	Base
+645	Ford F-# Super Duty de #, rodas traseiras duplas, diesel
+646	Criador
+647	cineasta Sean Casey (IMAX)
+648	Resistência declarada
+649	vento até # km/h (# mph)
+650	Massa
+651	cerca de # t, segundo dados não oficiais
+652	Com ele começou a história dos veículos que se aproximam de um tornado não pelos dados, mas pela imagem: Casey queria filmar um funil por dentro em película IMAX. O TIV # mostrou que um caminhão comum com blindagem e âncoras no chão continua sobre as rodas onde todo o resto já voa.
+653	Os números de resistência são declarações da própria equipe; não há testes independentes. Segundo fontes diversas, foi construído no início dos anos #, e o ano exato varia entre as referências.
+654	Interceptador blindado de segunda geração
+655	#×#, blindagem até o chão
+656	segundo fontes diversas: Dodge Ram #, diesel Cummins
+657	Surgiu
+658	por volta de #, substituiu o TIV #
+659	cerca de # t após o alívio de peso (antes # t ou mais)
+660	Configuração
+661	três eixos; segundo a Wikipédia, tração em dois (#×#), outras fontes divergem
+662	Altura livre
+663	hidráulica: alta na estrada, baixa na interceptação
+664	Um TIV refeito: pesadas saias blindadas até o chão, carroceria leve, descida até o solo. O peso caiu de # para # t por causa da velocidade: quanto mais rápido um veículo assim se posiciona, maior a chance de chegar a tempo. O objetivo é o mesmo: estar dentro do funil com uma câmera.
+665	Um veículo de televisão, não científico: quase não fornece dados e o risco é enorme. As âncoras no chão aparecem nas descrições, mas há poucas confirmações em fontes sérias, por isso não estão nos números.
+666	A picape blindada de Reed Timmer
+667	dentro do tornado pelos dados das sondas
+668	Ford F-# Super Duty, modelo #–# (as fontes divergem)
+669	Características
+670	blindagem, âncoras hidráulicas, guincho, suspensão pneumática, portas asa de gaivota
+671	Custo
+672	cerca de # mil dólares, segundo a imprensa
+673	Episódio
+674	maio de #: entrada em um tornado perto de Spalding, Nebraska
+675	Vento dentro
+676	segundo a equipe, #–# mph (cerca de #–# km/h)
+677	O primeiro Dominator não baseado em um veículo da General Motors. Foi construído com um objetivo científico: entrar em um tornado e medi-lo por dentro, com o veículo ancorado. Segundo relatos, também leva tubos de lançamento de sondas, disparadas na trajetória do vórtice.
+678	A velocidade do vento dentro é uma estimativa da própria equipe, não uma medição em escala padrão: a classificação EF vem de uma vistoria de danos, não de um instrumento a bordo. As fontes são cautelosas sobre os tubos de lançamento; não devem ser lidos como armamento.
+679	Dominator # e #
+680	Os primeiros blindados de Timmer sobre utilitários
+681	Tahoe e Yukon XL
+682	Base
+683	utilitários da General Motors: Chevrolet Tahoe e GMC Yukon XL
+684	Proteção
+685	placas de blindagem, policarbonato, revestimento protetor LINE-X
+686	Função
+687	caça a tornados para a TV e projetos científicos
+688	Os primeiros Dominator nasceram de SUVs comuns com tração integral: receberam blindagem e vidros, e isso bastou para chegar mais perto dos tornados do que os caçadores comuns. Essa experiência depois foi parar no pesado Dominator #.
+689	As características detalhadas dos primeiros veículos são escassas nas fontes abertas: só está listado o que várias publicações citam ao mesmo tempo.
+690	DOW# e DOW#
+691	Radares Doppler em caminhões, banda X
+692	dois transmissores de # kW
+693	Banda
+694	X, #–# GHz, dupla polarização
+695	Potência
+696	dois transmissores de # kW, recorde entre radares X móveis
+697	Feixe
+698	estreito, #–#°
+699	Resolução em distância
+700	de # a # m
+701	Responsável
+702	DOW Facility da Universidade de Illinois (antes CSWR, Joshua Wurman)
+703	São os famosos «radares sobre rodas», que examinam um tornado a quilômetros de distância e dão a velocidade de rotação do vórtice. Neles se apoia a maior parte das medições científicas da estrutura interna dos tornados nos EUA.
+704	O radar não vê o chão, mas uma camada na altura do feixe, por isso suas velocidades recordes não entram na escala EF. A frota muda: as fontes chamam os veículos atuais de formas diferentes.
+705	Radar com doze feixes ao mesmo tempo
+706	varredura várias vezes mais rápida
+707	Princípio
+708	# feixes em elevação ao mesmo tempo, não um feixe de cada vez
+709	X, dupla frequência e polarização
+710	Para quê
+711	captar um tornado que muda mais rápido do que gira uma antena comum
+712	Um radar comum percorre o céu um ângulo por volta, e o tornado tem tempo de mudar. Doze feixes ao mesmo tempo dão um corte de toda a altura em uma só volta: essa é a «varredura rápida».
+713	O preço da varredura rápida é outro modo de funcionamento: a potência é dividida entre os feixes, por isso ele é usado a distâncias curtas. Os números exatos do Rapid-Scan DOW não estão aqui porque as fontes independentes não os têm.
+714	Radar de banda C de implantação rápida
+715	comprimento de onda de # cm
+716	C, comprimento de onda de # cm (nos radares X: # cm)
+717	final de #
+718	Transmissores
+719	dois de # MW, segundo a Wikipédia, fonte secundária
+720	Uma onda mais longa é menos atenuada pela chuva forte, então o radar enxerga mais longe através do aguaceiro. O COW fica entre um radar X móvel e um NEXRAD fixo: anda, mas alcança mais longe.
+721	Os dois megawatts declarados vêm de uma fonte secundária (Wikipédia); o dono do radar pode apresentar outros números. A frota DOW muda, então confira a composição atual no site do responsável.
+722	Radar de rotação rápida da Universidade de Oklahoma
+723	exemplar único
+724	Desenvolvimento
+725	ProSensing com a Universidade de Oklahoma, por volta de #
+726	Frequência
+727	# MHz (banda X)
+728	Antena
+729	prato parabólico de # m, dupla polarização
+730	Velocidade de rotação
+731	cerca de #° por segundo
+732	Volume completo
+733	# ângulos de elevação em cerca de # segundos
+734	#–# m
+735	Um radar que gira tão rápido que em # segundos monta uma imagem volumétrica do tornado, uma ordem de grandeza mais rápido que o normal. Para isso ele salta entre frequências e acumula rapidamente medições independentes. Os pesquisadores acessam os dados pela NSF.
+736	A potência de pico do transmissor é de # kW, contra # kW em cada radar X dos DOW. É o preço consciente da varredura rápida: um radar assim provavelmente trabalha a distâncias menores, mas não há comparações independentes de alcance nas fontes abertas.
+737	Protótipo de sonda de campo para tornados, #
+738	um barril cheio de sensores
+739	Nome
+740	TOtable Tornado Observatory, «observatório portátil de tornados»
+741	Criadores
+742	Al Bedard e Carl Ramzy (NOAA)
+743	#–# libras (cerca de #–# kg)
+744	Construção
+745	um barril de metal, mais tarde pintado de laranja
+746	A ideia era simples e maluca: colocar um instrumento na trajetória de um tornado e esperar. O barril pesava o bastante para ficar no lugar. O nome veio do cachorrinho Totó de «O Mágico de Oz» e, segundo a revista Smithsonian, ele inspirou o enredo do filme «Twister».
+747	Segundo as descrições, o barril foi pintado de laranja nos últimos anos de serviço. É mais história do que ferramenta: a ideia do «instrumento na trajetória» sobreviveu ao próprio TOTO, e acertar a trajetória às cegas é a principal dificuldade desse método.
+748	Turtle (Tim Samaras)
+749	Sonda cônica baixa, pressionada contra o chão pelo vento
+750	recorde de pressão
+751	Forma
+752	um cone achatado: o próprio vento o pressiona contra o chão
+753	Mede
+754	pressão, umidade, temperatura, velocidade e direção do vento
+755	Recorde
+756	# de junho de #, Manchester, Dakota do Sul: queda de # hPa em # segundos
+757	Registro
+758	Guinness World Records: a maior queda de pressão medida em um tornado
+759	Tim Samaras tornou o TOTO leve e inteligente: em vez de um barril, um cone baixo que o vento empurra contra o chão. Eles eram deixados na trajetória do tornado, e um deles registrou a queda de pressão mais rápida e profunda já medida dentro de um vórtice.
+760	As fontes divergem quanto aos anos: a «tartaruga» é datada de # e do início dos anos #. Samaras morreu em # de maio de # perto de El Reno; seu trabalho continua vivo, mas repeti-lo é perigoso para outras pessoas.
+761	Não saia sozinho: o Serviço Meteorológico Nacional dos EUA recomenda pelo menos duas pessoas no veículo.
+762	Não confie cem por cento no radar, olhe você mesmo: o radar tem atraso e não vê perto do chão.
+763	Não dependa da rota de fuga de outra pessoa: mesmo com mapa e GPS, uma estrada pode virar uma armadilha.
+764	Aguaceiros, asfalto molhado e vento com rajadas são perigosos até para observadores experientes.
+765	Depois da caçada, analise-a: o que poderia ter sido feito com mais segurança.
+766	Limiar
+767	# m/s hélice · # m/s cata-vento
+768	Erro
+769	±# m/s ou #% · ±#°
+770	Sensor
+771	hélice helicoidal de # cm, # pás
+772	Dimensões
+773	# × # cm, # kg
+774	Passo da hélice
+775	# cm por volta
+776	Projetado para boias oceânicas, por isso aguenta o que mata os instrumentos comuns: névoa salina, gelo, anos sem manutenção. Mede velocidade e direção com um só corpo: o cata-vento vira a hélice exatamente contra o fluxo. Está em mastros do mundo todo e serve como referência informal com a qual os outros são comparados.
+777	Um limiar de # m/s é um tanto alto: ele simplesmente não vê o vento fraco. Para a climatologia das calmarias usam-se os ultrassônicos.
+778	menos de # m/s
+779	#% ou ±# m/s (#–# m/s)
+780	Classe
+781	# pela IEC #-#-#
+782	A referência do setor eólico: é pelas suas leituras que se calcula se um parque eólico vai se pagar, por isso as exigências de precisão são mais rígidas que na meteorologia comum. Três conchas são o esquema mais antigo de medir o vento, e ele chegou até hoje justamente porque não há como enganá-lo.
+783	As conchas têm inércia: em rajadas bruscas elas «disparam», aceleram mais rápido do que freiam e superestimam levemente a média.
+784	# m/s
+785	#% RMS a # m/s · ±#°
+786	tempo de voo do som entre pares de transdutores
+787	Calcula a velocidade pela diferença de tempo que o ultrassom leva entre transdutores a favor e contra o vento. Nada se move: sem rolamentos, nada para desgastar nem lubrificar. Limiar de # m/s: vê movimentos de ar que uma pessoa não sente.
+788	Teme gelo grudado e chuva forte: uma gota no transdutor estraga a leitura. Nem todas as versões têm aquecimento.
+789	Mede
+790	três componentes da velocidade e a temperatura acústica
+791	Aplicação
+792	método de covariância de vórtices
+793	Não mede o vento médio, mas o próprio redemoinho: cem leituras por segundo em três eixos permitem calcular quanto calor, umidade e dióxido de carbono o fluxo leva para cima. Toda a ciência moderna da camada superficial se apoia nesses instrumentos.
+794	Caro, exige alimentação e armazenamento de gigabytes de séries brutas. Sem sentido para «só olhar o vento».
+795	cerca de # m/s conchas · # m/s cata-vento
+796	três conchas e um cata-vento separado numa travessa comum
+797	O mesmo fabricante, mas quatro vezes mais barato que o # e bem mais sensível com vento fraco. O esquema clássico com conchas e cata-vento separados: se algo quebrar, só metade precisa ser trocada.
+798	Dois eixos móveis em vez de um: o dobro de rolamentos com que se preocupar.
+799	da ordem de ±#%
+800	Interface
+801	reed para a velocidade, potenciômetro para a direção
+802	O anemômetro mais comum em estações amadoras, e não à toa: a saída são pulsos e tensão comuns, por isso ele se liga a qualquer placa com literalmente três fios. A maioria das estações meteorológicas caseiras começa por ele.
+803	Precisão amadora. Ótimo para «como está o tempo hoje», não para relatórios oficiais.
+804	Também mede
+805	temperatura, umidade, pressão, ponto de orvalho
+806	Uma estação meteorológica de bolso: uma ventoinha de # mm e um conjunto de sensores num corpo do tamanho de um rádio comunicador. Indispensável quando é preciso medir o vento onde não há mastro nem haverá: numa encosta, num convés, numa largada.
+807	As leituras dependem de como você o segura: a ventoinha precisa apontar exatamente para o fluxo, senão mede de menos.
+808	Resolução
+809	até # m/s
+810	o fluxo esfria o fio; a corrente que mantém sua temperatura é o sinal
+811	A única forma confiável de medir movimentos de ar de frações de metro por segundo: nessas velocidades falta torque à mecânica para começar a girar. A principal ferramenta de técnicos de ventilação e aerodinamicistas.
+812	Não mostra a direção e não gosta de ficar ao ar livre: a poeira no fio muda a troca de calor e desajusta a calibração.
+813	de alguns m/s ao supersônico
+814	Particularidade
+815	a velocidade cresce com a raiz da diferença de pressão
+816	O instrumento com que os aviões voam. Nenhuma peça móvel e um limite superior quase ilimitado; por isso está em toda asa e em todo túnel de vento.
+817	Inútil na parte baixa da escala: a # m/s a diferença de pressão já está no nível do ruído, e um tubo congelado mente em silêncio; daí várias catástrofes na história da aviação.
+818	Resolução por basculamento
+819	Coletor
+820	geralmente # ou # cm²
+821	Saída
+822	um pulso do reed a cada basculamento
+823	Um funil recolhe a chuva numa gangorra de duas conchinhas: uma enche, pesa, vira, esvazia e a outra entra no lugar, e o reed dá um pulso. Uma mecânica de duas peças móveis que funciona por décadas.
+824	O vento sopra parte das gotas para fora do funil; a # m/s a perda chega a dezenas por cento. Sem aquecimento não mede neve de jeito nenhum, e no aguaceiro mede de menos: parte da água se derrama durante o basculamento.
+825	Distingue
+826	chuva, garoa, neve, granizo miúdo, granizo
+827	uma lâmina de laser entre duas cabeças
+828	Entre as cabeças há uma lâmina de laser plana. Cada gota que a cruza faz sombra no feixe: pela profundidade da queda calcula-se o tamanho, pela duração a velocidade de queda. Daí se obtém a distribuição das gotas por tamanho, sem a qual não se converte a refletividade do radar em precipitação.
+829	Caro e exige janelinhas limpas. Vento forte arrasta as partículas em ângulo e confunde a estimativa de velocidade.
+830	Temperatura
+831	Umidade
+832	#–#%, cerca de ±#% na faixa principal
+833	Obrigatório
+834	abrigo contra radiação
+835	A sonda de referência com a qual se aferem as outras. O elemento sensor capacitivo HUMICAP é uma invenção da Vaisala que virou padrão do setor.
+836	Sozinho é inútil: sem abrigo, mostra a temperatura do sol no seu invólucro, não a do ar. Aqui o abrigo importa mais que o sensor.
+837	Função
+838	Versões
+839	passivo, com ventilação natural ou forçada
+840	Erro sem ele
+841	até vários graus em calmaria ensolarada
+842	Não é um sensor, mas aquilo sem o qual o sensor mente. Os pratos brancos barram a luz direta e refletida, mas deixam o ar passar. O erro de um termômetro sem abrigo durante o dia com vento fraco chega a vários graus, mais que a diferença entre um sensor bom e um ruim.
+843	Um abrigo passivo esquenta sozinho na calmaria. Um aspirado é mais preciso, mas precisa alimentar o ventilador o tempo todo.
+844	cerca de ±# °C
+845	cerca de ±#%
+846	I²C ou SPI, alimentação de # V
+847	Três grandezas num encapsulamento do tamanho de um grão de arroz, por centavos. É esse o sensor que vale a pena adicionar à nossa estação: o painel já sabe mostrar temperatura, umidade e pressão; os cartões aparecem sozinhos assim que o firmware enviar os indicadores de presença.
+848	Esquenta com a própria placa: colocado ao lado de um ESP#, a temperatura sai um ou dois graus acima. Leve-o para fora com fios e sempre dentro de um abrigo.
+849	da ordem de ±# hPa
+850	Importante
+851	redução ao nível do mar pela altitude da estação
+852	O valor da pressão sozinho diz pouco; o que importa é a tendência. Uma queda de # hPa em três horas indica a chegada de uma frente com mais segurança que qualquer outro sinal isolado, e era assim que se previa o tempo um século antes dos satélites.
+853	Exige saber a altitude da instalação: sem redução ao nível do mar, as leituras não se comparam nem com a estação vizinha.
+854	Termoelétrico
+855	classe A pela ISO #, espectro amplo
+856	De silício
+857	mais barato, mas espectro mais estreito e precisão menor
+858	Sob uma cúpula de vidro há uma termopilha: uma superfície preta esquenta com o sol e a junção gera tensão. A cúpula deixa passar o espectro necessário e mantém o vento do lado de fora, para que o instrumento meça a luz e não a ventilação.
+859	Exige nivelamento com bolha de nível e cúpula limpa: poeira e orvalho reduzem as leituras, e uma inclinação de um grau já é um erro perceptível.
+860	Alcance
+861	Fornece
+862	uma estimativa da distância até a frente de tempestade e a energia da descarga
+863	recepção do pulso eletromagnético numa antena de quadro
+864	I²C ou SPI
+865	A única forma acessível de dar a uma estação caseira uma detecção real de tempestades. Capta o pulso eletromagnético da descarga e, pela forma dele, estima a que distância está a frente. O painel calcula sinais de rajada pelo anemômetro; este sensor acrescentaria o que o vento não mostra.
+866	Dispara à toa com fontes chaveadas, lâmpadas fluorescentes e escovas de motores. Exige ajuste do limiar e distância razoável da eletrônica.
+867	Wikimedia Commons
+868	Patrulha Rodoviária do Kansas
+869	Craig Wedges
+870	Jason Weingart
+871	Stefan Klein
+872	Robert Day, Departamento Meteorológico dos EUA
+873	NOAA, Steve Nicklas
+874	Jessica Kortekaas
+875	Serviço Meteorológico dos EUA
+876	Noel Feans
+877	Serviço Florestal dos EUA
+878	Bombeiros da Califórnia (CAL FIRE)
+879	Christian Pichner
+880	Ed Lu, NASA
+881	Alexander Gerst, ESA
+882	NASA, ISS
+883	Agência Espacial Europeia
+884	NASA, Jet Propulsion Laboratory
+885	Greg Lundeen, Serviço Meteorológico dos EUA
+886	National Severe Storms Laboratory, NOAA
+887	Serviço Meteorológico, Birmingham
+888	Sem foto: precisa de internet.
+889	Instalação
+890	um mastro em poucos minutos, por duas pessoas
+891	Alimentação
+892	autônoma, para toda a tempestade
+893	Desenvolvedor
+894	National Wind Institute, Texas
+895	Exatamente o que se chama «sonda própria», só que levado à produção em série. O mastro é instalado na trajetória do furacão e deixado lá. Em # foram colocados # para o Laura, e # deles ficaram na parede do olho ou no próprio olho; graças a isso, o Laura se tornou o furacão mais detalhadamente documentado a atingir o litoral dos EUA.
+896	É instalado com antecedência e às cegas: a previsão de trajetória com algumas horas de antecedência decide se o instrumento vai pegar a tempestade ou ficar parado à toa. Perto da costa é mais preciso, mas lá a maré de tempestade o arrasta.
+897	blindagem de aço, vidros de policarbonato
+898	Fixação
+899	âncoras hidráulicas no solo e rebaixamento da altura livre
+900	Sean Casey
+901	Construído para uma única cena: filmar um tornado por dentro. As âncoras são cravadas no chão, o veículo desce até o solo e vira ele mesmo uma âncora. Em # o TIV # realmente ficou dentro de um funil e voltou.
+902	É um veículo de filmagem e de recordes, não um instrumento científico. Dá poucos dados, o risco é enorme, e repetir isso sem preparo é um jeito certo de morrer.
+903	minutos, direto do acostamento
+904	Bandas
+905	X e Ka
+906	Projetos
+907	Um radar em caminhão que chega a poucos quilômetros de um tornado e o atravessa com o feixe. Foi um DOW que mediu # km/h em Bridge Creek, a maior velocidade de vento perto da superfície da Terra já registrada. Tudo o que se sabe sobre a estrutura interna dos tornados foi obtido com veículos assim.
+908	O radar mede a velocidade não no chão, mas na altura do feixe, dezenas de metros ou mais. Por isso seus recordes não entram na escala EF: a categoria é dada pelos danos no solo.
+909	cerca de # m acima da estrada
+910	correção pela velocidade do próprio veículo
+911	A forma mais acessível de coletar um campo de dados em torno de uma tempestade: vários veículos se abrem em leque e registram um corte através da frente de rajada. Foi com esses cortes que se descobriu que a corrente descendente do flanco traseiro é a chave para o nascimento de um tornado.
+912	O vento no teto de um carro em movimento é distorcido pelo próprio fluxo dele; correções são obrigatórias, e sem elas os dados são piores do que nenhum.
+913	Altitude
+914	até #–# km, até o balão estourar
+915	Lançamento
+916	às # e às # UTC simultaneamente no planeta inteiro
+917	A única forma de saber o que acontece na atmosfera em altitude, e não só perto do chão. É pelas radiossondas que se calcula a energia de instabilidade, da qual depende se haverá tornado. A rede mundial as lança de forma sincronizada desde os anos #: é o sistema de observação global em funcionamento mais antigo.
+918	Um ponto duas vezes por dia. Entre os lançamentos a atmosfera tem tempo de mudar por completo, e tudo o que acontece no intervalo fica fora de quadro.
+919	Aviões
+920	Método
+921	voo através da parede do olho, lançamento de sondas para baixo
+922	Sonda de lançamento
+923	transmite o perfil durante toda a descida até a água
+924	O satélite vê o furacão de cima e não sabe a pressão no centro, mas a previsão de intensidade depende justamente dela. A única forma de saber é voar para dentro e soltar uma sonda. Esses voos melhoram bastante a previsão de trajetória, por isso continuam apesar do risco.
+925	Caro, perigoso e só para ciclones tropicais: um avião não consegue entrar num tornado, pequeno e rápido demais.
+926	Atualização
+927	volume completo em #–# minutos
+928	Polarização
+929	dupla: distingue chuva, granizo e detritos
+930	A rede em que se apoia todo o sistema de alertas. A dupla polarização faz aquilo para que foi introduzida: distinguir os detritos levantados por um tornado da precipitação. Essa assinatura significa que o tornado já está no chão e destruindo algo, mesmo que ninguém o veja.
+931	O feixe sobe com a distância: a # km do radar ele já passa a três quilômetros de altura e não vê nada do que acontece perto do chão. Daí os buracos de cobertura entre as estações.
+932	Tamanho do mesociclone
+933	Duração
+934	horas, ao contrário de uma tempestade comum
+935	Gera tornado
+936	em menos de um caso a cada cinco
+937	O único tipo de tempestade que vive por horas: sua corrente ascendente gira, por isso a precipitação cai de lado em vez de apagá-la. Quase todos os tornados fortes nascem aqui. A rotação vem do cisalhamento do vento com a altura: o vento junto ao chão e a três quilômetros sopra de forma diferente, essa diferença deita o ar de lado, e a corrente ascendente ergue o eixo de rotação na vertical.
+938	Uma supercélula não é um tornado. A maioria não gera nenhum, e o que exatamente decide o resultado ainda não foi totalmente esclarecido.
+939	Onde
+940	Sinal de perigo
+941	gira e sobe
+942	O que vem depois
+943	é dela que desce o funil
+944	Um pedaço da base da tempestade mais baixo que o resto: o ar úmido da zona de precipitação é puxado para o fluxo e se condensa antes. Se a nuvem parede gira a olhos vistos e sobe, é o prenúncio de um tornado, o mais confiável dos visíveis.
+945	Nem todo rebaixamento é uma nuvem parede, e nem toda nuvem parede gira. A chave está na rotação e na subida, não no fato de «algo estar pendurado mais baixo».
+946	O que se vê
+947	Status
+948	só conta como tornado com circulação no solo
+949	Perigo
+950	pode descer em segundos
+951	Formalmente ainda não é um tornado: a categoria e o próprio nome vêm do contato com o chão, mais exatamente de um vórtice junto ao solo que levanta poeira. A diferença não é burocrática: é junto ao chão que o vento destrói.
+952	O inverso também vale e é mais perigoso: um tornado pode já estar ativo sem funil de condensação; se o ar estiver seco, só se verá um redemoinho de poeira embaixo.
+953	Sinal
+954	Geralmente
+955	os mais destrutivos, mas não por definição
+956	Exemplo
+957	Elie, Manitoba, #: o único F# do Canadá
+958	Não é um tipo à parte, e sim uma descrição da aparência: o funil parece mais largo do que a altura do chão até a nuvem. Esses costumam ser fortes simplesmente porque um tornado largo dura mais e abrange mais.
+959	Largura não é força. O de El Reno # foi o mais largo da história, # km, e recebeu só EF#, porque passou por área vazia e a categoria é dada pelos danos.
+960	Frequência
+961	mais comum que qualquer outra aparência
+962	O que se desenha quando se diz «tornado»: o funil se estreita da nuvem até o chão e é alongado na vertical. A aparência mais comum e reconhecível; por isso a cunha é tão confundida com o cone, embora a cunha seja justamente o contrário, mais larga do que alta.
+963	A aparência muda ao longo da vida de um mesmo tornado: um cone pode se alargar em cunha e, no fim, se esticar em corda. Não são tipos diferentes, mas fases.
+964	Quando
+965	Aparência
+966	uma corda fina e retorcida
+967	continua perigoso até o fim
+968	É assim que um tornado costuma morrer: o funil se estica, se curva e se rompe. Uma fase bonita e enganosa.
+969	Fino não quer dizer fraco. Na fase de corda o vórtice se contrai e, pela conservação do momento angular, a velocidade pode até aumentar. Tornados já mataram pessoas justamente nessa fase.
+970	bem mais alta num subvórtice do que no principal
+971	Rastro
+972	faixas de danos dentro da faixa geral
+973	Explica um velho enigma: por que uma casa é arrasada até a fundação e a vizinha fica intacta. Dentro do funil correm vários vórtices pequenos, e a velocidade deles se soma à rotação de todo o sistema. Um subvórtice pode ter passado por uma casa e não pela vizinha.
+974	É raro distinguir subvórtices: eles só aparecem quando o funil está bem iluminado e não encoberto pela chuva.
+975	Tipo de bom tempo
+976	Tipo tornádico
+977	um tornado comum que passa para a água é tão perigoso quanto
+978	Onde é comum
+979	Florida Keys, Adriático, Grandes Lagos
+980	Sob um só nome se escondem dois fenômenos diferentes. O de bom tempo se forma na superfície da água e cresce para cima, vive minutos e raramente é perigoso. O tornádico é um tornado de supercélula completo que só calhou de estar sobre a água.
+981	De longe são indistinguíveis. Ao chegar à terra, o de bom tempo costuma se desfazer, enquanto o tornádico não muda nada.
+982	Origem
+983	geralmente EF#–EF#
+984	No radar
+985	quase sem assinatura
+986	O gêmeo terrestre da tromba-d'água de bom tempo: a rotação surge junto ao chão, numa linha de convergência, e a nuvem que cresce a estica para cima. Formalmente é um tornado de verdade e entra nas estatísticas.
+987	Mais perigoso do que parece, justamente por causa do radar: não há mesociclone nem gancho, muitas vezes não sai alerta, e mesmo assim o vórtice existe.
+988	Ligação com a nuvem
+989	nenhuma, e esse é o sinal decisivo
+990	segundos, raramente um minuto
+991	Um redemoinho de poeira girando numa linha de rajada. Parece convincente e aparece no noticiário como tornado, mas não é: não está ligado à base da nuvem, e isso é o principal na definição.
+992	Também não dá para chamá-lo de inofensivo: as velocidades podem ser como as de um tornado fraco, e ele danifica construções leves.
+993	Causa
+994	uma superfície superaquecida, não uma tempestade
+995	geralmente dezenas de metros
+996	Surge do aquecimento do solo: o ar que sobe começa a girar e levanta poeira. Não é preciso nuvem nenhuma, por isso não é tornado.
+997	Em Marte eles chegam a quilômetros de altura e deixam rastros escuros visíveis da órbita. Mais de uma vez limparam os painéis solares dos rovers e prolongaram o trabalho deles por anos além do previsto.
+998	dezenas de metros, minutos de vida
+999	Exceção
+1000	Canberra, #: classificado como F#
+1001	Um incêndio cria sua própria corrente ascendente tão forte que ela começa a girar. Na maioria dos casos é um fenômeno na escala de um redemoinho de poeira.
+1002	Mas nem sempre: em Canberra, em #, um redemoinho de fogo recebeu a classificação F#, ou seja, foi um tornado de verdade gerado por um incêndio. São casos isolados.
+1003	O que é
+1004	Movimento
+1005	não gira, avança como uma parede
+1006	O que vem depois
+1007	uma rajada brusca e um aguaceiro
+1008	Parece ameaçador e causa mais alarmes falsos do que todo o resto junto. Mas é o oposto da nuvem parede: lá o ar é puxado para dentro da tempestade, aqui é expulso para fora.
+1009	Distinguir é simples: a nuvem prateleira avança como uma parede regular e não gira; a nuvem parede fica parada no lugar e gira. A primeira indica rajada, a segunda um possível tornado.
+1010	ar frio descendente com precipitação
+1011	Significa
+1012	tempestade forte, mas geralmente já indo embora
+1013	Protuberâncias em forma de bolsa sob a bigorna. Sinal de que a tempestade é forte, e um dos céus mais bonitos que existem.
+1014	Não indicam perigo embaixo delas: costumam aparecer na parte de trás de uma tempestade que se afasta, não onde algo vai acontecer.
+1015	Diâmetro do olho
+1016	No olho
+1017	quase calmaria e muitas vezes céu limpo
+1018	Parede do olho
+1019	o vento mais forte de todo o sistema
+1020	O ar no centro desce, por isso as nuvens ali se desfazem e vem a calmaria, às vezes com sol sobre a cabeça. A foto foi tirada da ISS: de cima se vê que o olho é um verdadeiro poço na parede de nuvens.
+1021	A calmaria engana: depois que o olho passa, o vento volta com a mesma força, mas do lado oposto. As pessoas saem durante a calmaria e são pegas pela segunda metade; é uma causa clássica de morte.
+1022	Visível
+1023	rastros escuros na superfície vistos da órbita
+1024	Utilidade
+1025	sopram a poeira dos painéis solares dos rovers
+1026	A atmosfera de Marte é cem vezes mais rarefeita que a da Terra, mas os redemoinhos lá são maiores que os nossos: a gravidade fraca e o forte aquecimento da superfície deixam que cresçam por quilômetros. Os rastros que deixam são visíveis de um satélite.
+1027	Os rovers Spirit e Opportunity foram projetados para # sóis, mas funcionaram por anos, em grande parte porque os redemoinhos limpavam seus painéis de vez em quando. O único caso conhecido em que o clima de outro planeta prolongou a vida de uma máquina.
+1028	Foto anterior
+1029	Próxima foto
+1030	Foto #
+1031	Características
+1032	Para que serve
+1033	Com uma ressalva:
+1034	Mais na fonte ↗
+1035	Caça a tempestades: resumo
+1036	Isto é um guia de referência, não um convite: caçar tempestades é perigoso até para profissionais. O que recomendam o Serviço Meteorológico Nacional dos EUA e caçadores experientes:
+1037	guia para observadores móveis ↗
+1038	N
+1039	S
+1040	O
+1041	L
+1042	hPa

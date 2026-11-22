@@ -209,7 +209,78 @@ export const SWITCH_CSS = `
     border: 1.5px solid var(--pc, #67e8f9); box-shadow: 0 0 10px var(--pc, #67e8f9); animation: swRing .95s var(--ease-out) forwards }
   .mo-off .gpill-ring { display: none }
   .mo-off .seg-drop { transition: none } .mo-off .seg-drop i { animation: none !important }
+
+  /* Бульбашка дополнительных настроек (Reveal): то, что открывает тумблер,
+     не выскакивает, а выдувается из него. Высота раскрывается через
+     grid-template-rows 0fr → 1fr (без замера), сама бульбашка — пружиной из
+     точки под тумблером: растёт, всплывает и проясняется, пункты внутри
+     поднимаются друг за другом. Закрытие — то же назад, узел живёт до конца. */
+  .rv { display: grid; grid-template-rows: 0fr; margin: -10px 0 0; opacity: 0;
+    transition: grid-template-rows .5s var(--ease-out), margin .5s var(--ease-out), opacity .35s ease }
+  .rv.rv-open { grid-template-rows: 1fr; margin: -6px 0 18px; opacity: 1;
+    transition: grid-template-rows .6s var(--ease-out), margin .6s var(--ease-out), opacity .25s ease }
+  .rv-clip { min-height: 0; overflow: hidden; padding: 0 3px; margin: 0 -3px }
+  .rv-clip > .rv-bub { margin: 9px 0 6px; width: fit-content; min-width: min(100%, 300px); max-width: 100%; box-sizing: border-box }
+  .rv-bub { position: relative; border-radius: 20px; padding: 16px 16px 14px;
+    background: linear-gradient(180deg, rgba(var(--ink, 231,238,246),0.075), rgba(var(--ink, 231,238,246),0.03));
+    border: 0.5px solid rgba(var(--ink, 231,238,246),0.16);
+    box-shadow: inset 0 1px 0.5px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(255,255,255,0.05), 0 6px 18px -10px rgba(0,0,0,0.55);
+    transform-origin: 34px 0; transform: translateY(-10px) scale(.82, .55);
+    filter: blur(calc(var(--mb, 1) * 6px));
+    transition: transform .55s var(--ease-out), filter .4s ease }
+  .rv-open .rv-bub { transform: none; filter: none;
+    transition: transform .85s var(--ease-spring), filter .5s ease }
+  /* Хвостик к тумблеру — бульбашка «выдута» из него. */
+  .rv-bub::before { content: ""; position: absolute; top: -6px; left: 28px; width: 11px; height: 11px;
+    background: inherit; border: inherit; border-right: 0; border-bottom: 0;
+    border-radius: 3px 0 0 0; transform: rotate(45deg); clip-path: polygon(0 0, 100% 0, 0 100%) }
+  .rv-bub > * { opacity: 0; transform: translateY(8px);
+    transition: opacity .2s ease, transform .3s var(--ease-out) }
+  .rv-open .rv-bub > * { opacity: 1; transform: none;
+    transition: opacity .45s ease calc(var(--rv-i, 0) * 70ms + 120ms), transform .8s var(--ease-spring) calc(var(--rv-i, 0) * 70ms + 120ms) }
+  .rv-bub > :nth-child(2) { --rv-i: 1 } .rv-bub > :nth-child(3) { --rv-i: 2 } .rv-bub > :nth-child(4) { --rv-i: 3 }
+  .rv-bub > :nth-child(n+5) { --rv-i: 4 }
+  .rv-bub > :last-child { margin-bottom: 0 !important }
+  .app.sk-material.sk-material .rv-bub { background: var(--md-c-high); border: 0; box-shadow: none; border-radius: 24px }
+  .app.sk-material.sk-material .rv-bub::before { background: var(--md-c-high); border: 0 }
+  .mo-off .rv, .mo-off .rv-bub, .mo-off .rv-bub > * { transition: none !important }
+  @media (prefers-reduced-motion: reduce) { .rv, .rv-bub, .rv-bub > * { transition-duration: .01s !important; transition-delay: 0s !important } }
 `;
+
+// ------------------------------------------------------------
+// Дополнительные настройки в бульбашке
+// ------------------------------------------------------------
+// Всё, что появляется только при включённом тумблере («Тихие часы» → «С»,
+// «До», «Утренняя сводка»), ставится внутрь <Reveal open={…}>, а не
+// условным рендером: так оно выдувается бульбашкой из тумблера и так же
+// уходит обратно. Пока идёт закрытие, показываются прежние дети — иначе
+// бульбашка схлопывалась бы уже пустой.
+export function Reveal({ open, children }) {
+  const [mounted, setMounted] = useState(open);
+  const [shown, setShown] = useState(open);
+  const last = useRef(children);
+  if (open) last.current = children;
+  useLayoutEffect(() => {
+    if (open) {
+      setMounted(true);
+      // Два кадра: первый рисует закрытое, второй запускает переход.
+      let r2 = 0;
+      const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setShown(true)); });
+      return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2); };
+    }
+    setShown(false);
+    const t = setTimeout(() => setMounted(false), 620);
+    return () => clearTimeout(t);
+  }, [open]);
+  if (!mounted && !open) return null;
+  return (
+    <div className={`rv${shown ? " rv-open" : ""}`} aria-hidden={!open || undefined} inert={!open || undefined}>
+      <div className="rv-clip">
+        <div className="rv-bub">{open ? children : last.current}</div>
+      </div>
+    </div>
+  );
+}
 
 // Счётчик переключений: растёт, когда положение отличается от прошлого.
 // По нему включается анимация броска (не при первом показе — иначе каждый

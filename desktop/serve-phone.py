@@ -13,7 +13,11 @@ import time
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
+# Порты через запятую: 80 — для короткого адреса http://kiwi-drop.local, 8765 — прежний
+# (его знают уже установленные программы и приложения, лента обновлений ходит по нему).
+PORTS = [int(x) for x in (sys.argv[1] if len(sys.argv) > 1 else "8765").split(",")]
+PORT = PORTS[0]
+MDNS_NAME = "kiwi-drop.local"
 ROOT = os.path.abspath(sys.argv[2]) if len(sys.argv) > 2 else os.getcwd()
 LATEST = os.path.join(ROOT, "feed", "latest.json")
 
@@ -132,10 +136,81 @@ class Handler(SimpleHTTPRequestHandler):
             return
 
 
-if __name__ == "__main__":
-    srv = ThreadingHTTPServer(("0.0.0.0", PORT), partial(Handler, directory=ROOT))
-    srv.daemon_threads = True
+def lan_ip():
+    """Адрес, с которого компьютер выходит в сеть (пакеты никуда не уходят)."""
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        srv.serve_forever()
+        s.connect(("192.0.2.1", 9))
+        return s.getsockname()[0]
+    finally:
+        s.close()
+
+
+def mdns():
+    """Отвечает на mDNS-вопрос «kiwi-drop.local?» адресом этого компьютера."""
+    import socket
+    import struct
+    want = [p.encode() for p in MDNS_NAME.split(".")]
+    while True:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind(("", 5353))
+            ip = lan_ip()
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP,
+                            socket.inet_aton("224.0.0.251") + socket.inet_aton(ip))
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255)
+            sock.settimeout(30)
+            while True:
+                try:
+                    data, addr = sock.recvfrom(1500)
+                except socket.timeout:
+                    if lan_ip() != ip:
+                        break  # сеть сменилась — подписаться заново
+                    continue
+                if len(data) < 12 or data[2] & 0x80:
+                    continue  # не вопрос
+                qd = struct.unpack(">H", data[4:6])[0]
+                i = 12
+                for _ in range(qd):
+                    labels = []
+                    while i < len(data) and data[i]:
+                        n = data[i]
+                        labels.append(data[i + 1:i + 1 + n].lower())
+                        i += n + 1
+                    i += 1
+                    qtype, _c = struct.unpack(">HH", data[i:i + 4])
+                    i += 4
+                    if labels == want and qtype in (1, 255):
+                        name = b"".join(bytes([len(l)]) + l for l in want) + b"\x00"
+                        resp = (struct.pack(">HHHHHH", 0, 0x8400, 0, 1, 0, 0) + name +
+                                struct.pack(">HHIH", 1, 0x8001, 120, 4) + socket.inet_aton(ip))
+                        sock.sendto(resp, ("224.0.0.251", 5353))
+                        sock.sendto(resp, addr)
+        except OSError:
+            pass
+        time.sleep(10)
+
+
+if __name__ == "__main__":
+    import threading
+    servers = []
+    for port in PORTS:
+        try:
+            srv = ThreadingHTTPServer(("0.0.0.0", port), partial(Handler, directory=ROOT))
+        except OSError as e:
+            print("порт %d не открылся: %s" % (port, e), file=sys.stderr)
+            continue
+        srv.daemon_threads = True
+        servers.append(srv)
+    if not servers:
+        sys.exit(1)
+    if 80 in PORTS:
+        threading.Thread(target=mdns, daemon=True).start()
+    for srv in servers[1:]:
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        servers[0].serve_forever()
     except KeyboardInterrupt:
         pass

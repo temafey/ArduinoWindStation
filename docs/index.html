@@ -44,6 +44,13 @@
   .nav nav a { text-decoration: none; font-size: 13px; color: var(--dim); padding: 6px 11px; border-radius: 999px }
   .nav nav a:hover { color: var(--fg); background: rgba(255,255,255,.08) }
   @media (max-width: 640px) { .nav nav a.opt { display: none } }
+  .langs { display: flex; gap: 2px; padding: 2px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid var(--line) }
+  .langs button { font: 600 11px var(--mono); letter-spacing: .6px; color: var(--faint); background: none; border: 0;
+    padding: 5px 8px; border-radius: 999px; cursor: pointer }
+  .langs button:hover { color: var(--fg) }
+  .langs button[aria-pressed="true"] { color: #08101f; background: var(--acc) }
+  @media (max-width: 640px) { .nav { flex-wrap: wrap; border-radius: 22px } .langs { margin-left: auto }
+    .nav nav { order: 3; width: 100%; margin-left: 0; justify-content: center } }
 
   /* первый экран */
   .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding: 56px 0 40px }
@@ -149,6 +156,9 @@
         <a class="opt" href="#faq">Вопросы</a>
         <a href="app/">Открыть в браузере</a>
       </nav>
+      <div class="langs" translate="no" role="group" aria-label="Мова · Язык · Language">
+        <button data-lang="uk" title="Українська">UA</button><button data-lang="ru" title="Русский">RU</button><button data-lang="en" title="English">EN</button>
+      </div>
     </div>
   </div>
 </header>
@@ -344,6 +354,620 @@
 </footer>
 
 <script>
+  // ===== Язык страницы =====
+  // По региону, как установщик Kiwi_Drop: Украина — украинский; Россия, Беларусь, Казахстан — русский;
+  // все остальные — английский. Региона браузер не сообщает, поэтому берётся часовой пояс системы.
+  // Выбор кнопкой в шапке запоминается; ?lang=uk|ru|en — для проверки.
+  // Исходник страницы — русский. TR: русский innerHTML блока (пробелы схлопнуты) → [uk, en];
+  // блок переводится целиком вместе с <b>/<code>/<a> внутри, поэтому разметка в переводе — та же.
+  var UA_TZ = /^Europe\/(Kyiv|Kiev|Uzhgorod|Zaporozhye)$/;
+  var RU_TZ = /^(Europe\/(Moscow|Kaliningrad|Samara|Volgograd|Saratov|Ulyanovsk|Astrakhan|Kirov|Minsk)|Asia\/(Yekaterinburg|Omsk|Novosibirsk|Barnaul|Tomsk|Novokuznetsk|Krasnoyarsk|Irkutsk|Chita|Yakutsk|Khandyga|Vladivostok|Ust-Nera|Magadan|Sakhalin|Srednekolymsk|Kamchatka|Anadyr|Almaty|Qostanay|Qyzylorda|Aqtobe|Aqtau|Atyrau|Oral))$/;
+  function autoLang() {
+    var tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) {}
+    return UA_TZ.test(tz) ? "uk" : RU_TZ.test(tz) ? "ru" : "en";
+  }
+  var LANG = (function () {
+    var q = /[?&]lang=(uk|ru|en)/.exec(location.search); if (q) return q[1];
+    try { var v = localStorage.getItem("wk_site_lang"); if (/^(uk|ru|en)$/.test(v)) return v; } catch (e) {}
+    return autoLang();
+  })();
+  var LI = { uk: 0, en: 1 }[LANG];
+  var TR = /*TR*/{
+"Weathered_Kiwi — станция ветра": [
+"Weathered_Kiwi — станція вітру",
+"Weathered_Kiwi — wind station"
+],
+"Скачать": [
+"Завантажити",
+"Download"
+],
+"Установка": [
+"Встановлення",
+"Install"
+],
+"Возможности": [
+"Можливості",
+"Features"
+],
+"Вопросы": [
+"Питання",
+"FAQ"
+],
+"Открыть в браузере": [
+"Відкрити в браузері",
+"Open in browser"
+],
+"Станция ветра · <span id=\"ver\">Beta #</span>": [
+"Станція вітру · <span id=\"ver\">Beta #</span>",
+"Wind station · <span id=\"ver\">Beta #</span>"
+],
+"Ветер с вашей мачты — <span class=\"k\">на любом экране</span>": [
+"Вітер з вашої щогли — <span class=\"k\">на будь-якому екрані</span>",
+"Wind from your mast — <span class=\"k\">on any screen</span>"
+],
+"Скорость и порывы в реальном времени, журнал и статистика, прогноз с поправкой под вашу мачту, карта бурь и спутник. Интерфейс на # языках. Одна программа для Windows, macOS, Linux, Android, iPhone и iPad.": [
+"Швидкість і пориви в реальному часі, журнал і статистика, прогноз із поправкою під вашу щоглу, мапа бур і супутник. Інтерфейс # мовами. Одна програма для Windows, macOS, Linux, Android, iPhone та iPad.",
+"Live speed and gusts, a log and statistics, a forecast corrected for your own mast, a storm map and satellite imagery. The interface speaks # languages. One app for Windows, macOS, Linux, Android, iPhone and iPad."
+],
+"<span id=\"hero-t\">Скачать</span><small id=\"hero-s\">выберите систему ниже</small>": [
+"<span id=\"hero-t\">Завантажити</span><small id=\"hero-s\">оберіть систему нижче</small>",
+"<span id=\"hero-t\">Download</span><small id=\"hero-s\">pick your system below</small>"
+],
+"Без установки<small>прямо в браузере</small>": [
+"Без встановлення<small>просто в браузері</small>",
+"No install<small>right in the browser</small>"
+],
+"Файлы раздаются с Google Диска. Перед .exe/.apk/.zip Диск предупредит, что не может проверить файл на вирусы, — нажмите «Всё равно скачать».": [
+"Файли роздаються з Google Диска. Перед .exe/.apk/.zip Диск попередить, що не може перевірити файл на віруси, — натисніть «Усе одно завантажити».",
+"Files are served from Google Drive. Before an .exe/.apk/.zip, Drive will warn that it can't scan the file for viruses — click “Download anyway”."
+],
+"Все версии одинаковые внутри — тот же дашборд. Обновления интерфейса приходят сами, переустанавливать ничего не нужно.": [
+"Усі версії однакові всередині — той самий дашборд. Оновлення інтерфейсу приходять самі, нічого перевстановлювати не треба.",
+"Every version is the same inside — the same dashboard. Interface updates arrive on their own, nothing to reinstall."
+],
+"Windows # и #, # бита. Виджеты на рабочем столе, уведомления, самообновление.": [
+"Windows # і #, # біти. Віджети на робочому столі, сповіщення, самооновлення.",
+"Windows # and #, #-bit. Desktop widgets, notifications, self-update."
+],
+"установщик .exe · версия #": [
+"інсталятор .exe · версія #",
+"installer .exe · version #"
+],
+"Скачать .exe": [
+"Завантажити .exe",
+"Download .exe"
+],
+"macOS # и новее. Отдельные сборки для Apple Silicon (M#–M#) и для Mac на Intel.": [
+"macOS # і новіші. Окремі збірки для Apple Silicon (M#–M#) і для Mac на Intel.",
+"macOS # and later. Separate builds for Apple Silicon (M#–M#) and Intel Macs."
+],
+"архив .zip · без подписи Apple · версия #": [
+"архів .zip · без підпису Apple · версія #",
+"archive .zip · not signed by Apple · version #"
+],
+"Ubuntu, Debian, Fedora, Mint и другие. ARM# — для Raspberry Pi #/# и ARM-ноутбуков.": [
+"Ubuntu, Debian, Fedora, Mint та інші. ARM# — для Raspberry Pi #/# і ARM-ноутбуків.",
+"Ubuntu, Debian, Fedora, Mint and others. ARM# — for Raspberry Pi #/# and ARM laptops."
+],
+"архив .tar.gz · версия #": [
+"архів .tar.gz · версія #",
+"archive .tar.gz · version #"
+],
+"Телефоны и планшеты на Android #+. Виджеты на главном экране, уведомления о шквале.": [
+"Телефони й планшети на Android #+. Віджети на головному екрані, сповіщення про шквал.",
+"Phones and tablets on Android #+. Home-screen widgets, squall alerts."
+],
+"приложение .apk · версия #": [
+"застосунок .apk · версія #",
+"app .apk · version #"
+],
+"Скачать .apk": [
+"Завантажити .apk",
+"Download .apk"
+],
+"iPhone и iPad": [
+"iPhone та iPad",
+"iPhone and iPad"
+],
+"Веб-приложение на экране «Домой»: свой значок, во весь экран, без App Store.": [
+"Вебзастосунок на екрані «Додому»: свій значок, на весь екран, без App Store.",
+"A web app on the Home Screen: its own icon, full screen, no App Store."
+],
+"через Safari": [
+"через Safari",
+"via Safari"
+],
+"Как поставить": [
+"Як встановити",
+"How to install"
+],
+"Открыть": [
+"Відкрити",
+"Open"
+],
+"Хромбуки: веб-приложение одной кнопкой «Установить» в Chrome или Linux-версия в среде Linux.": [
+"Хромбуки: вебзастосунок однією кнопкою «Установити» в Chrome або Linux-версія в середовищі Linux.",
+"Chromebooks: the web app with one “Install” button in Chrome, or the Linux version in the Linux environment."
+],
+"через Chrome": [
+"через Chrome",
+"via Chrome"
+],
+"Любой браузер": [
+"Будь-який браузер",
+"Any browser"
+],
+"Chrome, Edge, Safari, Firefox — на чём угодно, ничего не устанавливая.": [
+"Chrome, Edge, Safari, Firefox — на чому завгодно, нічого не встановлюючи.",
+"Chrome, Edge, Safari, Firefox — on anything, with nothing to install."
+],
+"без установки": [
+"без встановлення",
+"no install"
+],
+"Открыть дашборд": [
+"Відкрити дашборд",
+"Open the dashboard"
+],
+"Коротко, по шагам. Программа не просит прав администратора, кроме как на Linux для ярлыка — и там не просит.": [
+"Коротко, крок за кроком. Програма не просить прав адміністратора, крім як на Linux для ярлика — і там не просить.",
+"Short and step by step. The app never asks for administrator rights — not even on Linux for the shortcut."
+],
+"Скачайте <b>.exe</b> и запустите.": [
+"Завантажте <b>.exe</b> і запустіть.",
+"Download the <b>.exe</b> and run it."
+],
+"Если появится «Windows защитила ваш компьютер» — «Подробнее» → «Выполнить в любом случае». У программы нет платного сертификата, отсюда и предупреждение.": [
+"Якщо з’явиться «Windows захистила ваш комп’ютер» — «Докладніше» → «Усе одно запустити». У програми немає платного сертифіката, звідси й попередження.",
+"If you see “Windows protected your PC”, click “More info” → “Run anyway”. The app has no paid certificate, hence the warning."
+],
+"Ярлык появится на рабочем столе и в «Пуске». Дальше программа обновляется сама.": [
+"Ярлик з’явиться на робочому столі та в «Пуску». Далі програма оновлюється сама.",
+"A shortcut appears on the desktop and in the Start menu. From then on the app updates itself."
+],
+"Скачайте zip для своего Mac: Apple → «Об этом Mac»: «Apple M…» — Apple Silicon, «Intel» — Intel.": [
+"Завантажте zip для свого Mac: Apple → «Про цей Mac»: «Apple M…» — Apple Silicon, «Intel» — Intel.",
+"Download the zip for your Mac: Apple menu → “About This Mac”: “Apple M…” means Apple Silicon, “Intel” means Intel."
+],
+"Распакуйте и перетащите <b>Weathered_Kiwi</b> в «Программы».": [
+"Розпакуйте й перетягніть <b>Weathered_Kiwi</b> у «Програми».",
+"Unzip it and drag <b>Weathered_Kiwi</b> into Applications."
+],
+"Первый запуск — <b>правой кнопкой → «Открыть»</b> → «Открыть». Сборка не подписана в Apple, поэтому обычный двойной щелчок система не пустит.": [
+"Перший запуск — <b>правою кнопкою → «Відкрити»</b> → «Відкрити». Збірку не підписано в Apple, тому звичайне подвійне клацання система не пропустить.",
+"First launch: <b>right-click → “Open”</b> → “Open”. The build isn't signed by Apple, so a plain double-click won't get past the system."
+],
+"Если macOS пишет «повреждено, переместите в корзину» — это то же самое. Один раз в Терминале:<br><code>xattr -cr /Applications/Weathered_Kiwi.app</code>": [
+"Якщо macOS пише «пошкоджено, перемістіть у кошик» — це те саме. Один раз у Терміналі:<br><code>xattr -cr /Applications/Weathered_Kiwi.app</code>",
+"If macOS says the app “is damaged and should be moved to the Trash”, it's the same thing. Run this once in Terminal:<br><code>xattr -cr /Applications/Weathered_Kiwi.app</code>"
+],
+"Скачайте архив (x# — обычный компьютер, ARM# — Raspberry Pi и ARM).": [
+"Завантажте архів (x# — звичайний комп’ютер, ARM# — Raspberry Pi та ARM).",
+"Download the archive (x# for a regular computer, ARM# for Raspberry Pi and ARM)."
+],
+"Распакуйте: <code>tar xzf Weathered_Kiwi-linux-*.tar.gz</code>": [
+"Розпакуйте: <code>tar xzf Weathered_Kiwi-linux-*.tar.gz</code>",
+"Unpack it: <code>tar xzf Weathered_Kiwi-linux-*.tar.gz</code>"
+],
+"Ярлык в меню приложений: <code>Weathered_Kiwi/install.sh</code>": [
+"Ярлик у меню застосунків: <code>Weathered_Kiwi/install.sh</code>",
+"Shortcut in the app menu: <code>Weathered_Kiwi/install.sh</code>"
+],
+"Или запуск без ярлыка: <code>Weathered_Kiwi/weathered-kiwi.sh</code>": [
+"Або запуск без ярлика: <code>Weathered_Kiwi/weathered-kiwi.sh</code>",
+"Or run without a shortcut: <code>Weathered_Kiwi/weathered-kiwi.sh</code>"
+],
+"На Ubuntu # и новее песочница Chromium без root не поднимается — <code>weathered-kiwi.sh</code> это видит и запускает программу без неё. Запускать сам файл <code>weathered_kiwi</code> напрямую там не стоит.": [
+"На Ubuntu # і новіших пісочниця Chromium без root не піднімається — <code>weathered-kiwi.sh</code> це бачить і запускає програму без неї. Запускати сам файл <code>weathered_kiwi</code> напряму там не варто.",
+"On Ubuntu # and later the Chromium sandbox won't start without root — <code>weathered-kiwi.sh</code> detects this and runs the app without it. Don't launch the <code>weathered_kiwi</code> file directly there."
+],
+"Скачайте <b>.apk</b> на телефоне.": [
+"Завантажте <b>.apk</b> на телефоні.",
+"Download the <b>.apk</b> on your phone."
+],
+"Откройте файл. Android спросит разрешение на установку из браузера — разрешите.": [
+"Відкрийте файл. Android запитає дозвіл на встановлення з браузера — дозвольте.",
+"Open the file. Android will ask for permission to install from the browser — allow it."
+],
+"Нажмите «Установить». Виджеты «Ветер» — долгим нажатием на главном экране → «Виджеты».": [
+"Натисніть «Установити». Віджети «Вітер» — довгим натисканням на головному екрані → «Віджети».",
+"Tap “Install”. For the Wind widgets, long-press the home screen → “Widgets”."
+],
+"В версии # сменилась сама оболочка приложения (значок можно переключать), поэтому поверх старой Android предложит установить новый .apk, а «Play Защита» один раз предупредит — это нормально, нажмите «Всё равно установить».": [
+"У версії # змінилася сама оболонка застосунку (значок можна перемикати), тому поверх старої Android запропонує встановити новий .apk, а «Play Захист» один раз попередить — це нормально, натисніть «Усе одно встановити».",
+"In version # the app shell itself changed (the icon can now be switched), so Android will offer to install the new .apk over the old one and Play Protect will warn once — that's normal, tap “Install anyway”."
+],
+"Откройте эту страницу в <b>Safari</b> (в Chrome на iPhone на экран «Домой» добавить нельзя).": [
+"Відкрийте цю сторінку в <b>Safari</b> (у Chrome на iPhone додати на екран «Додому» не можна).",
+"Open this page in <b>Safari</b> (Chrome on iPhone can't add to the Home Screen)."
+],
+"Нажмите <a href=\"app/\">«Открыть дашборд»</a>.": [
+"Натисніть <a href=\"app/\">«Відкрити дашборд»</a>.",
+"Tap <a href=\"app/\">“Open the dashboard”</a>."
+],
+"Кнопка «Поделиться» <span aria-hidden=\"true\">⬆︎</span> → <b>«На экран “Домой”»</b> → «Добавить».": [
+"Кнопка «Поділитися» <span aria-hidden=\"true\">⬆︎</span> → <b>«На екран “Додому”»</b> → «Додати».",
+"The Share button <span aria-hidden=\"true\">⬆︎</span> → <b>“Add to Home Screen”</b> → “Add”."
+],
+"Значок киви откроет программу во весь экран, как обычное приложение.": [
+"Значок ківі відкриє програму на весь екран, як звичайний застосунок.",
+"The kiwi icon opens the app full screen, just like a regular app."
+],
+"<b>Живой ветер с мачты</b> на iPhone — рядом со станцией: подключитесь к Wi-Fi <b>WindStation</b> и откройте <code>http://MyWindProbeBETA.org</code>, его тоже можно добавить на экран «Домой». Версия с этого сайта показывает демо, погоду района, карту, анализ и прогноз — откуда угодно.": [
+"<b>Живий вітер зі щогли</b> на iPhone — поруч зі станцією: під’єднайтеся до Wi-Fi <b>WindStation</b> і відкрийте <code>http://MyWindProbeBETA.org</code>, його теж можна додати на екран «Додому». Версія з цього сайту показує демо, погоду району, мапу, аналіз і прогноз — звідусіль.",
+"<b>Live wind from the mast</b> on iPhone works next to the station: join the <b>WindStation</b> Wi-Fi and open <code>http://MyWindProbeBETA.org</code> — you can add it to the Home Screen too. The version from this site shows the demo, local weather, the map, analysis and forecast — from anywhere."
+],
+"Откройте <a href=\"app/\">дашборд</a> в Chrome.": [
+"Відкрийте <a href=\"app/\">дашборд</a> у Chrome.",
+"Open the <a href=\"app/\">dashboard</a> in Chrome."
+],
+"Меню ⋮ → «Трансляция, сохранение и отправка» → <b>«Установить страницу как приложение»</b> (или значок установки в адресной строке).": [
+"Меню ⋮ → «Трансляція, збереження та надсилання» → <b>«Установити сторінку як застосунок»</b> (або значок встановлення в адресному рядку).",
+"Menu ⋮ → “Cast, save and share” → <b>“Install page as app”</b> (or the install icon in the address bar)."
+],
+"Нужны виджеты и полный набор — включите «Среду разработки Linux» в настройках и поставьте Linux-версию (вкладка Linux).": [
+"Потрібні віджети й повний набір — увімкніть «Середовище розробки Linux» у налаштуваннях і поставте Linux-версію (вкладка Linux).",
+"Need widgets and the full set? Turn on the “Linux development environment” in settings and install the Linux version (Linux tab)."
+],
+"Что внутри": [
+"Що всередині",
+"What's inside"
+],
+"Станция — самодельная, на ESP#: чашечный анемометр, батарея, своя точка Wi-Fi и облачный канал через #G.": [
+"Станція — саморобна, на ESP#: чашковий анемометр, батарея, своя точка Wi-Fi і хмарний канал через #G.",
+"The station is home-made, built on an ESP#: a cup anemometer, a battery, its own Wi-Fi hotspot and a cloud link over #G."
+],
+"Живой ветер": [
+"Живий вітер",
+"Live wind"
+],
+"Поток # раз в секунду напрямую со станции, порывы, тренд, тревога «ветер растёт».": [
+"Потік # разів на секунду напряму зі станції, пориви, тренд, тривога «вітер посилюється».",
+"A stream # times a second straight from the station, gusts, trend, and a “wind is rising” alarm."
+],
+"Анализ": [
+"Аналіз",
+"Analysis"
+],
+"Журнал за # дней, распределение Вейбулла, рекорды, календарь, экспорт CSV/JSON.": [
+"Журнал за # днів, розподіл Вейбулла, рекорди, календар, експорт CSV/JSON.",
+"A #-day log, Weibull distribution, records, calendar, CSV/JSON export."
+],
+"Прогноз под вашу мачту": [
+"Прогноз під вашу щоглу",
+"A forecast for your mast"
+],
+"Приложение само замечает, насколько Open-Meteo завышает или занижает ветер именно у вас, и исправляет окна и сводки.": [
+"Застосунок сам помічає, наскільки Open-Meteo завищує чи занижує вітер саме у вас, і виправляє вікна та зведення.",
+"The app notices on its own how much Open-Meteo over- or underestimates the wind at your spot and corrects the windows and summaries."
+],
+"Окно для вашего занятия": [
+"Вікно для вашого заняття",
+"A window for your activity"
+],
+"Кайт, виндсерф, парусник, дрон, параплан или работа на высоте: уведомление, когда ветер вошёл в ваш коридор и когда он скоро уйдёт.": [
+"Кайт, віндсерф, вітрильник, дрон, параплан чи робота на висоті: сповіщення, коли вітер увійшов у ваш коридор і коли він скоро піде.",
+"Kite, windsurf, sailing, drone, paraglider or work at height: a notification when the wind enters your range and when it's about to leave."
+],
+"Отчёт за неделю": [
+"Звіт за тиждень",
+"Weekly report"
+],
+"Одной картинкой: средний ветер, порывы, часы в вашем коридоре, ветер по дням, роза и лучшие часы суток. Можно отправить в чат.": [
+"Однією картинкою: середній вітер, пориви, години у вашому коридорі, вітер по днях, роза й найкращі години доби. Можна надіслати в чат.",
+"In a single picture: average wind, gusts, hours in your range, wind by day, a wind rose and the best hours of the day. Ready to send to a chat."
+],
+"Карта бурь": [
+"Мапа бур",
+"Storm map"
+],
+"Предупреждения NWS, донесения SPC, радар по всему миру, суперклеточный экран, облака со спутника.": [
+"Попередження NWS, донесення SPC, радар по всьому світу, суперкомірковий екран, хмари із супутника.",
+"NWS warnings, SPC reports, worldwide radar, a supercell screen, satellite clouds."
+],
+"Эфир": [
+"Ефір",
+"Live feed"
+],
+"Живые снимки GOES-#/# и радарные петли.": [
+"Живі знімки GOES-#/# і радарні петлі.",
+"Live GOES-#/# imagery and radar loops."
+],
+"Уведомления": [
+"Сповіщення",
+"Notifications"
+],
+"Шквал, утренняя сводка, потеря связи — с тихими часами и без спама.": [
+"Шквал, ранкове зведення, втрата зв’язку — з тихими годинами й без спаму.",
+"Squalls, a morning summary, lost connection — with quiet hours and no spam."
+],
+"Виджеты": [
+"Віджети",
+"Widgets"
+],
+"На рабочем столе Windows и на главном экране Android.": [
+"На робочому столі Windows і на головному екрані Android.",
+"On the Windows desktop and the Android home screen."
+],
+"Три темы": [
+"Три теми",
+"Three themes"
+],
+"Liquid Glass (стекло и линзы), светлая «По умолчанию» и плоская «Тональная» в духе Material; эко-режим включается сам на слабых устройствах.": [
+"Liquid Glass (скло й лінзи), світла «За замовчуванням» і пласка «Тональна» в дусі Material; еко-режим вмикається сам на слабких пристроях.",
+"Liquid Glass (glass and lenses), a light Default theme and a flat Tonal one in the spirit of Material; eco mode turns on by itself on weak devices."
+],
+"# языков": [
+"# мов",
+"# languages"
+],
+"Русский, английский, украинский, испанский, французский, немецкий, итальянский, португальский, польский, турецкий, китайский, японский, корейский. По умолчанию — язык системы.": [
+"Українська, російська, англійська, іспанська, французька, німецька, італійська, португальська, польська, турецька, китайська, японська, корейська. За замовчуванням — мова системи.",
+"English, Ukrainian, Russian, Spanish, French, German, Italian, Portuguese, Polish, Turkish, Chinese, Japanese, Korean. Your system language by default."
+],
+"Вибрация": [
+"Вібрація",
+"Haptics"
+],
+"На телефоне касания и ползунки отзываются мягким щелчком — силу и что вибрирует можно настроить.": [
+"На телефоні дотики й повзунки відгукуються м’яким клацанням — силу й те, що вібрує, можна налаштувати.",
+"On a phone, taps and sliders answer with a soft click — you can set the strength and what vibrates."
+],
+"Где что работает": [
+"Де що працює",
+"What works where"
+],
+"Браузер": [
+"Браузер",
+"Browser"
+],
+"Дашборд целиком": [
+"Дашборд повністю",
+"Full dashboard"
+],
+"да": [
+"так",
+"yes"
+],
+"Обновления сами": [
+"Оновлення самі",
+"Self-updates"
+],
+"интерфейс": [
+"інтерфейс",
+"interface"
+],
+"рабочий стол": [
+"робочий стіл",
+"desktop"
+],
+"главный экран": [
+"головний екран",
+"home screen"
+],
+"по HTTPS": [
+"через HTTPS",
+"over HTTPS"
+],
+"нет": [
+"ні",
+"no"
+],
+"Chrome на телефоне": [
+"Chrome на телефоні",
+"Chrome on a phone"
+],
+"Прямая связь со станцией": [
+"Прямий зв’язок зі станцією",
+"Direct link to the station"
+],
+"с адреса станции": [
+"з адреси станції",
+"from the station address"
+],
+"Что нового": [
+"Що нового",
+"What's new"
+],
+"Версия # — большое обновление": [
+"Версія # — велике оновлення",
+"Version # — a big update"
+],
+"Интерфейс на # языках — по умолчанию на языке вашей системы, в настройках можно выбрать другой.": [
+"Інтерфейс # мовами — за замовчуванням мовою вашої системи, у налаштуваннях можна обрати іншу.",
+"The interface in # languages — your system language by default, another one can be picked in settings."
+],
+"Значок можно переключать: стеклянная долька киви или плоская тональная — в шапке, на компьютере и на телефоне.": [
+"Значок можна перемикати: скляна часточка ківі або пласка тональна — у шапці, на комп’ютері й на телефоні.",
+"The icon can be switched: a glass kiwi slice or a flat tonal one — in the header, on the computer and on the phone."
+],
+"Настройки разложены по разделам: «Система», «Тема», «Пульт и раскладка», «Экран», «Вибрация», «Уведомления и голос».": [
+"Налаштування розкладено по розділах: «Система», «Тема», «Пульт і розкладка», «Екран», «Вібрація», «Сповіщення й голос».",
+"Settings are grouped into sections: System, Theme, Dock and layout, Screen, Haptics, Notifications and voice."
+],
+"Три темы: Liquid Glass, светлая «По умолчанию» и «Тональная»; растянутое «тягучее» стекло теперь не пропадает.": [
+"Три теми: Liquid Glass, світла «За замовчуванням» і «Тональна»; розтягнуте «тягуче» скло тепер не зникає.",
+"Three themes: Liquid Glass, a light Default and Tonal; stretched “gooey” glass no longer disappears."
+],
+"«Анализ»: прогноз с поправкой под вашу мачту, уведомление об окне для вашего занятия, недельный отчёт одной картинкой.": [
+"«Аналіз»: прогноз із поправкою під вашу щоглу, сповіщення про вікно для вашого заняття, тижневий звіт однією картинкою.",
+"Analysis: a forecast corrected for your mast, a notification about the window for your activity, a weekly report in one picture."
+],
+"Вибрация на телефоне с настройками силы; карта с облаками и точным берегом; всё стало плавнее.": [
+"Вібрація на телефоні з налаштуваннями сили; мапа з хмарами й точним берегом; усе стало плавнішим.",
+"Phone haptics with strength settings; a map with clouds and a precise coastline; everything got smoother."
+],
+"Почему нет приложения в App Store и Google Play?": [
+"Чому немає застосунку в App Store і Google Play?",
+"Why isn't the app in the App Store or Google Play?"
+],
+"Это самодельный проект, а не магазинный продукт. Публикация в App Store требует Mac, Xcode и платного аккаунта разработчика Apple. На iPhone веб-приложение с экрана «Домой» ведёт себя почти как обычное: свой значок, во весь экран, без адресной строки.": [
+"Це саморобний проєкт, а не магазинний продукт. Публікація в App Store вимагає Mac, Xcode і платного акаунта розробника Apple. На iPhone вебзастосунок з екрана «Додому» поводиться майже як звичайний: свій значок, на весь екран, без адресного рядка.",
+"It's a home-made project, not a store product. Publishing to the App Store needs a Mac, Xcode and a paid Apple developer account. On iPhone the web app from the Home Screen behaves almost like a regular one: its own icon, full screen, no address bar."
+],
+"Система предупреждает, что файл опасный. Это нормально?": [
+"Система попереджає, що файл небезпечний. Це нормально?",
+"The system warns the file is dangerous. Is that normal?"
+],
+"Да. У сборок нет платных сертификатов Microsoft и Apple, а Google Диск не проверяет на вирусы файлы больше # МБ — отсюда предупреждения. Обновления, которые программа ставит сама, подписаны ключом проекта и проверяются перед установкой.": [
+"Так. У збірок немає платних сертифікатів Microsoft і Apple, а Google Диск не перевіряє на віруси файли понад # МБ — звідси попередження. Оновлення, які програма встановлює сама, підписані ключем проєкту й перевіряються перед встановленням.",
+"Yes. The builds have no paid Microsoft or Apple certificates, and Google Drive doesn't virus-scan files over # MB — hence the warnings. Updates the app installs by itself are signed with the project key and checked before installing."
+],
+"Нужна ли сама станция?": [
+"Чи потрібна сама станція?",
+"Do I need the station itself?"
+],
+"Нет. Без станции работают демо-режим, погода района по вашему месту, карта бурь, спутник и прогноз. Со станцией — живые показания с мачты.": [
+"Ні. Без станції працюють демо-режим, погода району за вашим місцем, мапа бур, супутник і прогноз. Зі станцією — живі показники зі щогли.",
+"No. Without a station you get demo mode, local weather for your location, the storm map, satellite and forecast. With a station — live readings from the mast."
+],
+"Как подключиться к станции?": [
+"Як під’єднатися до станції?",
+"How do I connect to the station?"
+],
+"Станция раздаёт свою сеть Wi-Fi <b>WindStation</b>, дашборд — по адресу <code>http://MyWindProbeBETA.org</code> или <code>#</code>. Программа на компьютере и телефоне находит станцию сама во вкладке «Станция → Подключение».": [
+"Станція роздає свою мережу Wi-Fi <b>WindStation</b>, дашборд — за адресою <code>http://MyWindProbeBETA.org</code> або <code>#</code>. Програма на комп’ютері й телефоні знаходить станцію сама у вкладці «Станція → Підключення».",
+"The station broadcasts its own <b>WindStation</b> Wi-Fi network; the dashboard is at <code>http://MyWindProbeBETA.org</code> or <code>#</code>. The computer and phone apps find the station themselves under Station → Connection."
+],
+"Как поменять язык или значок?": [
+"Як змінити мову чи значок?",
+"How do I change the language or the icon?"
+],
+"Настройки → «Система» → «Язык»: по умолчанию берётся язык вашей системы, «Выбрать другой» открывает список из # языков. Значок — «Тема» → «Liquid Glass иконка»: выключите, и вместо стеклянной дольки появится плоская тональная.": [
+"Налаштування → «Система» → «Мова»: за замовчуванням береться мова вашої системи, «Обрати іншу» відкриває список із # мов. Значок — «Тема» → «Liquid Glass іконка»: вимкніть, і замість скляної часточки з’явиться пласка тональна.",
+"Settings → System → Language: your system language is used by default, “Choose another” opens a list of # languages. The icon: Theme → “Liquid Glass icon” — turn it off and a flat tonal icon replaces the glass slice."
+],
+"Что за «поправка прогноза» и «окно»?": [
+"Що таке «поправка прогнозу» і «вікно»?",
+"What are the “forecast correction” and the “window”?"
+],
+"Модель погоды считает ветер для большой ячейки карты, а мачта стоит у домов и деревьев. Приложение сравнивает свой журнал с моделью и считает, во сколько раз она ошибается у вас. С этим множителем считаются «окна по прогнозу» и сводки. «Окно» — время, когда ветер подходит для вашего занятия (Анализ → «Сейчас»); уведомление включается переключателем под ним.": [
+"Модель погоди рахує вітер для великої клітинки мапи, а щогла стоїть біля будинків і дерев. Застосунок порівнює свій журнал із моделлю й рахує, у скільки разів вона помиляється у вас. З цим множником рахуються «вікна за прогнозом» і зведення. «Вікно» — час, коли вітер підходить для вашого заняття (Аналіз → «Зараз»); сповіщення вмикається перемикачем під ним.",
+"A weather model computes wind for a large map cell, while your mast stands among houses and trees. The app compares its log with the model and works out how many times off it is at your spot. That factor is applied to the forecast windows and summaries. A “window” is a time when the wind suits your activity (Analysis → Now); the notification is turned on with the switch below it."
+],
+"Какой Mac у меня?": [
+"Який у мене Mac?",
+"Which Mac do I have?"
+],
+"Меню Apple → «Об этом Mac». Написано «Chip Apple M#/M#/M#/M#» — берите Apple Silicon, «Processor Intel» — Intel.": [
+"Меню Apple → «Про цей Mac». Написано «Chip Apple M#/M#/M#/M#» — беріть Apple Silicon, «Processor Intel» — Intel.",
+"Apple menu → “About This Mac”. If it says “Chip Apple M#/M#/M#/M#”, take Apple Silicon; “Processor Intel” — Intel."
+],
+"Weathered_Kiwi · самодельная станция ветра на ESP# · <a href=\"https://github.com/temafey/ArduinoWindStation\">исходники на GitHub</a><br> Сделано с помощью <span class=\"claude\">Claude</span>": [
+"Weathered_Kiwi · саморобна станція вітру на ESP# · <a href=\"https://github.com/temafey/ArduinoWindStation\">вихідний код на GitHub</a><br> Зроблено за допомогою <span class=\"claude\">Claude</span>",
+"Weathered_Kiwi · a home-made ESP# wind station · <a href=\"https://github.com/temafey/ArduinoWindStation\">source on GitHub</a><br> Made with <span class=\"claude\">Claude</span>"
+],
+"скоро": [
+"незабаром",
+"soon"
+],
+"установщик .exe · версия": [
+"інсталятор .exe · версія",
+"installer .exe · version"
+],
+"приложение .apk · версия": [
+"застосунок .apk · версія",
+"app .apk · version"
+],
+"Файлы — с домашнего компьютера, по своей сети.": [
+"Файли — з домашнього комп’ютера, через свою мережу.",
+"Files come from the home computer over your own network."
+],
+"Версия": [
+"Версія",
+"Version"
+],
+"Скачать для Windows": [
+"Завантажити для Windows",
+"Download for Windows"
+],
+"установщик .exe": [
+"інсталятор .exe",
+"installer .exe"
+],
+"Скачать для macOS": [
+"Завантажити для macOS",
+"Download for macOS"
+],
+"Apple Silicon · Intel — ниже": [
+"Apple Silicon · Intel — нижче",
+"Apple Silicon · Intel — below"
+],
+"Скачать для Linux": [
+"Завантажити для Linux",
+"Download for Linux"
+],
+"x64 · ARM64 — ниже": [
+"x64 · ARM64 — нижче",
+"x64 · ARM64 — below"
+],
+"Скачать для Android": [
+"Завантажити для Android",
+"Download for Android"
+],
+"приложение .apk": [
+"застосунок .apk",
+"app .apk"
+],
+"Поставить на iPhone": [
+"Встановити на iPhone",
+"Install on iPhone"
+],
+"через Safari, 30 секунд": [
+"через Safari, 30 секунд",
+"via Safari, 30 seconds"
+],
+"Поставить на Chromebook": [
+"Встановити на Chromebook",
+"Install on Chromebook"
+],
+"Киви в разрезе — знак Weathered_Kiwi": [
+"Ківі в розрізі — знак Weathered_Kiwi",
+"A sliced kiwi — the Weathered_Kiwi logo"
+],
+"Weathered_Kiwi — приложение самодельной станции ветра: скорость, порывы, анализ, прогноз и карта. Windows, macOS, Linux, Android, iPhone и iPad.": [
+"Weathered_Kiwi — застосунок саморобної станції вітру: швидкість, пориви, аналіз, прогноз і мапа. Windows, macOS, Linux, Android, iPhone та iPad.",
+"Weathered_Kiwi — the app for a home-made wind station: speed, gusts, analysis, forecast and map. Windows, macOS, Linux, Android, iPhone and iPad."
+]
+}/*/TR*/;
+  // Числа (версии, «13 языков») — в ключе «#» и подставляются по порядку: версия в теге сменится, перевод останется.
+  var NUM = /\d+(?:\.\d+)*/g;
+  function look(s) {
+    if (LI == null) return null;
+    var t = TR[s]; if (t) return t[LI];
+    var n = s.match(NUM); t = n && TR[s.replace(NUM, "#")]; if (!t) return null;
+    var i = 0; return t[LI].replace(/#/g, function () { return n[i++]; });
+  }
+  function T(s) { var t = look(s); return t == null ? s : t; }
+  var BLOCKS = "title, nav a, .eyebrow, h1, h2, h3, p, li, summary, .tag, .btn > span, .chipbtn, .tab, th, td, .meta, .note, footer, .feat b, .feat span, #news-v, .sec-sub";
+  var CYR = /[А-Яа-яЁёІіЇїЄєҐґ]/;
+  function blocks(doc) {
+    var out = [];
+    Array.prototype.forEach.call((doc || document).querySelectorAll(BLOCKS), function (el) {
+      if (el.closest("[translate=no]")) return;
+      for (var i = 0; i < out.length; i++) if (out[i].contains(el)) return;
+      var k = el.innerHTML.replace(/\s+/g, " ").trim();
+      if (CYR.test(k)) out.push(el), el._k = k;
+    });
+    return out;
+  }
+  (function () {
+    document.documentElement.lang = LANG;
+    if (LI != null) {
+      blocks().forEach(function (el) { var t = look(el._k); if (t != null) el.innerHTML = t; });
+      var m = document.querySelector('meta[name="description"]'); if (m) m.content = T(m.content);
+      Array.prototype.forEach.call(document.querySelectorAll("img[alt]"), function (i) { i.alt = T(i.alt); });
+    }
+    Array.prototype.forEach.call(document.querySelectorAll("[data-lang]"), function (b) {
+      var c = b.getAttribute("data-lang");
+      b.setAttribute("aria-pressed", c === LANG);
+      b.onclick = function () {
+        try { localStorage.setItem("wk_site_lang", c); } catch (e) {}
+        location.href = location.pathname + "?lang=" + c + location.hash;
+      };
+    });
+  })();
+
   // Файлы — с Google Диска, папка Kiwi_Drop/updates (доступ «все, у кого есть ссылка»).
   // id постоянные: сборка перезаписывает файлы на месте (см. desktop/drive-feed.json).
   var DRIVE = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=";
@@ -360,7 +984,7 @@
       var k = a.getAttribute("data-dl");
       if (local) { a.href = NAMES[k]; a.setAttribute("download", ""); a.classList.remove("off"); }
       else if (ID[k]) a.href = DRIVE + ID[k];
-      else { a.classList.add("off"); a.title = "скоро"; }
+      else { a.classList.add("off"); a.title = T("скоро"); }
     });
   }
   setLinks(false);
@@ -373,6 +997,7 @@
   var HERO = { win: ["Скачать для Windows", "установщик .exe", "exe"], mac: ["Скачать для macOS", "Apple Silicon · Intel — ниже", "macArm"],
     lin: ["Скачать для Linux", "x64 · ARM64 — ниже", "linX64"], and: ["Скачать для Android", "приложение .apk", "apk"],
     ios: ["Поставить на iPhone", "через Safari, 30 секунд", ""], cros: ["Поставить на Chromebook", "через Chrome", ""] };
+  for (var h in HERO) HERO[h] = [T(HERO[h][0]), T(HERO[h][1]), HERO[h][2]];
   var card = os && document.querySelector('[data-os="' + os + '"]');
   if (card) { card.classList.add("me"); card.parentNode.insertBefore(card, card.parentNode.firstChild); }
   function hero() {
@@ -406,12 +1031,14 @@
   if (/^https?:$/.test(location.protocol) && !/github\.io$/.test(location.hostname)) {
     get("feed/shell.json", 2500).then(function (r) { return r.json(); }).then(function (j) {
       setLinks(true); hero();
-      if (j.exe) document.getElementById("v-exe").textContent = "установщик .exe · версия " + j.exe.version;
-      if (j.apk) document.getElementById("v-apk").textContent = "приложение .apk · версия " + j.apk.version;
-      document.getElementById("src").textContent = "Файлы — с домашнего компьютера, по своей сети.";
+      if (j.exe) document.getElementById("v-exe").textContent = T("установщик .exe · версия") + " " + j.exe.version;
+      if (j.apk) document.getElementById("v-apk").textContent = T("приложение .apk · версия") + " " + j.apk.version;
+      document.getElementById("src").textContent = T("Файлы — с домашнего компьютера, по своей сети.");
       return get("feed/latest.json", 2500).then(function (r) { return r.json(); }).then(function (l) {
-        if (l.version) { document.getElementById("ver").textContent = "Beta " + l.version; document.getElementById("news-v").textContent = "Версия " + l.version; }
-        if (l.notes && l.notes.length) {
+        if (l.version) document.getElementById("ver").textContent = "Beta " + l.version;
+        // Заметки к обновлению пишутся только по-русски: на других языках остаётся переведённый список.
+        if (l.version && LANG === "ru") document.getElementById("news-v").textContent = "Версия " + l.version;
+        if (l.notes && l.notes.length && LANG === "ru") {
           var ul = document.getElementById("news-list"); ul.innerHTML = "";
           l.notes.forEach(function (n) { var li = document.createElement("li"); li.textContent = n; ul.appendChild(li); });
         }

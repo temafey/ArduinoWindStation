@@ -80,17 +80,32 @@ let observer = null;
 const textMemo = new WeakMap();   // узел → { src, out }
 const attrMemo = new WeakMap();   // элемент → { [атрибут]: { src, out } }
 
+function lookup(t) {
+  const hit = dict.get(t);
+  if (hit != null) return hit;
+  const nums = t.match(NUM);
+  if (!nums) return null;
+  const tpl = dict.get(t.replace(NUM, "#"));
+  if (tpl == null) return null;
+  let i = 0;
+  return tpl.replace(/#/g, () => (i < nums.length ? nums[i++] : "#"));
+}
+
+// Часть без кириллицы («Ford F-450», «X и Ka» — нет) переводить не нужно.
+const part = (s) => (CYR.test(s) ? lookup(s) : s);
+
 function translate(src) {
   const t = src.trim();
   if (!t || !CYR.test(t)) return null;
-  let hit = dict.get(t);
+  let hit = lookup(t);
+  // Склейка «Подпись: значение» (подсказки характеристик) — каждую половину отдельно,
+  // и только если переведены обе: полурусская строка хуже целиком русской.
   if (hit == null) {
-    const nums = t.match(NUM);
-    if (!nums) return null;
-    const tpl = dict.get(t.replace(NUM, "#"));
-    if (tpl == null) return null;
-    let i = 0;
-    hit = tpl.replace(/#/g, () => (i < nums.length ? nums[i++] : "#"));
+    const i = t.indexOf(": ");
+    if (i < 1) return null;
+    const a = part(t.slice(0, i)), b = part(t.slice(i + 2));
+    if (a == null || b == null) return null;
+    hit = a + ": " + b;
   }
   if (hit === t) return null;
   // Пробелы по краям — часть вёрстки («Сейчас решает устройство: » + число).
