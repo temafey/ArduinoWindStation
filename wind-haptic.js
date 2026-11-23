@@ -22,7 +22,7 @@ let last = 0;
 // принимает), а сдвиг вида на ступень: «мягко» заменяет каждый вид более лёгким
 // (щелчок шага ползунка пропадает совсем), «сильно» — более жёстким, а упор
 // ползунка бьёт дважды. Группы выключаются каждая отдельно.
-let cfg = { level: "normal", touch: true, sliders: true, boot: true };
+let cfg = { level: "normal", touch: true, sliders: true, boot: true, quiet: false };   // quiet — тихие часы: вибрации нет вовсе
 const GROUP = { tick: "sliders", edge: "sliders", tap: "touch", boot: "boot" };
 const SHIFT = {
   soft:   { tick: null, tap: "tick", edge: "tap", boot: "tick" },
@@ -51,7 +51,7 @@ export function canVibrate() {
 
 export function haptic(kind = "tap") {
   if (typeof window === "undefined") return;
-  if (cfg.level === "off" || cfg[GROUP[kind] || "touch"] === false) return;
+  if (cfg.quiet || cfg.level === "off" || cfg[GROUP[kind] || "touch"] === false) return;
   const now = performance.now();
   if (now - last < (GAP[kind] ?? 60)) return;
   const shift = SHIFT[cfg.level] || {};
@@ -85,6 +85,24 @@ export function hapticLong(ms) {
   if (!touchScreen() || typeof navigator.vibrate !== "function") return;
   const pat = [];
   for (let t = 0; t < n; t += 140) pat.push(12, 128);
+  try { navigator.vibrate(pat); } catch { /* до первого касания нельзя */ }
+}
+
+// Нарастающая вибрация на запуск: от почти неощутимой до заметной, плавно (по
+// кривой x^2.2, а не ступенькой). Сила — предел, до которого она доходит; уровень
+// «Вибрации» сдвигает его, а «выкл» и тихие часы глушат совсем.
+const PEAK = { soft: 90, normal: 150, strong: 220 };
+export function hapticRamp(ms) {
+  if (typeof window === "undefined" || !(ms > 0)) return;
+  if (cfg.quiet || cfg.level === "off" || cfg.boot === false) return;
+  const n = Math.round(Math.min(30000, ms)), peak = PEAK[cfg.level] || PEAK.normal;
+  try {
+    if (window.WKNative && typeof window.WKNative.hapticRamp === "function") { window.WKNative.hapticRamp(n, peak); return; }
+  } catch { /* старая оболочка */ }
+  if (!touchScreen() || typeof navigator.vibrate !== "function") return;
+  // Без управления амплитудой — «мурлыканье»: импульсы всё длиннее, паузы всё короче.
+  const pat = [], k = Math.max(4, Math.round(n / 90));
+  for (let i = 0; i < k; i++) { const x = (i + 1) / k; pat.push(Math.round(6 + 54 * x * x), Math.round(80 - 50 * x)); }
   try { navigator.vibrate(pat); } catch { /* до первого касания нельзя */ }
 }
 

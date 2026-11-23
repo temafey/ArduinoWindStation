@@ -1,8 +1,8 @@
-import { Component, Suspense, lazy, memo, useState, useMemo, useEffect } from "react";
+import { Component, Suspense, lazy, memo, useState, useMemo, useEffect, useRef } from "react";
 import { LINE, TEXT, DIM, MONO } from "./ui-kit.js";
 import { APP_VERSION } from "./wind-version.js";
 import { Liquid } from "./wind-liquid.jsx";
-import { haptic, hapticLong, hapticStop } from "./wind-haptic.js";
+import { hapticRamp, hapticStop } from "./wind-haptic.js";
 
 // ============================================================
 // СТРАХОВКА
@@ -230,6 +230,9 @@ export function Boot() {
   // сбрасывается, а не прячет заставку. Новый ключ корня (ниже) заставляет
   // заставку смонтироваться заново, с начала всех своих анимаций.
   const [up, setUp] = useState(readPostUpdate);
+  // Обновление молчит целиком, вместе с «повторным запуском» после полосы: вибрация
+  // — только у обычного входа.
+  const afterUpdate = useRef(!!up);
   // 5 с на любое обновление плюс 10 мс на каждый килобайт: файл в 600 КБ — около
   // 11 с, а «тяжёлое» обновление в несколько мегабайт — до потолка в 25 с.
   const dur = up ? Math.min(25000, 5000 + ((up.size || 600000) / 1024) * 10 + (up.notes || 0) * 150) : BOOT_MS;
@@ -240,26 +243,20 @@ export function Boot() {
   useEffect(() => {
     if (gone) return undefined;
     if (!up) {
-      // Заставка входа «стучит» вместе с рисунком: появление знака, имя,
-      // замыкание дуги. После обновления заставка другая — там тишина.
-      const taps = [[60, "boot"], [700, "tick"], [Math.max(900, dur - 450), "boot"]]
-        .map(([at, k]) => setTimeout(() => haptic(k), at));
+      // Обычный вход: одна длинная вибрация, которая нарастает вместе с загрузкой —
+      // от самой слабой до заметной к моменту, когда заставка заканчивается.
+      if (!afterUpdate.current) hapticRamp(dur);
       const id = setTimeout(() => setGone(true), dur);
-      return () => { clearTimeout(id); taps.forEach(clearTimeout); };
+      return () => { clearTimeout(id); hapticStop(); };
     }
     const t0 = Date.now();
-    // Тихий гул на всё время полосы — и ни мгновением дольше: глушится и по
-    // концу, и при уходе со страницы, и при размонтировании.
-    hapticLong(dur);
-    const onHide = () => { if (document.hidden) hapticStop(); };
-    document.addEventListener("visibilitychange", onHide);
     const id = setInterval(() => {
       const x = Math.min(1, (Date.now() - t0) / dur);
       setP(x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);   // плавный разгон и торможение
-      if (x >= 1) { clearInterval(id); hapticStop(); }
+      if (x >= 1) clearInterval(id);
     }, 50);
-    const end = setTimeout(() => { hapticStop(); setP(0); setUp(null); }, dur + 450);
-    return () => { clearInterval(id); clearTimeout(end); hapticStop(); document.removeEventListener("visibilitychange", onHide); };
+    const end = setTimeout(() => { setP(0); setUp(null); }, dur + 450);
+    return () => { clearInterval(id); clearTimeout(end); };
   }, [gone, up, dur]);
 
   if (gone) return null;

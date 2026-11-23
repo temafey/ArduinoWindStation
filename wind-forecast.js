@@ -31,11 +31,11 @@ export function useForecast(coords) {
     let dead = false;
     // 14 прошедших суток нужны поправке: по ним модель сверяется со станцией.
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat.toFixed(3)}&longitude=${coords.lon.toFixed(3)}` +
-      "&hourly=wind_speed_10m,wind_gusts_10m&wind_speed_unit=ms&past_days=14&forecast_days=3&timeformat=unixtime";
+      "&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m&wind_speed_unit=ms&past_days=14&forecast_days=3&timeformat=unixtime";
     fetch(url).then((r) => r.json()).then((j) => {
       const h = j && j.hourly;
       if (!h || !Array.isArray(h.time)) return;
-      const v = h.time.map((t, i) => ({ t: t * 1000, s: h.wind_speed_10m[i], g: h.wind_gusts_10m[i] }));
+      const v = h.time.map((t, i) => ({ t: t * 1000, s: h.wind_speed_10m[i], g: h.wind_gusts_10m[i], d: h.wind_direction_10m ? h.wind_direction_10m[i] : null }));
       fcCache.set(key, { at: Date.now(), v });
       if (!dead) setRaw(v);
     }).catch(() => {});

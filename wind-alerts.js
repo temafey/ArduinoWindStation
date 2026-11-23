@@ -11,6 +11,7 @@ import { useEffect, useRef } from "react";
 import { logEvent } from "./wind-log.js";
 import { pushNote } from "./wind-notify.js";
 import { ACTIVITIES, verdict, windows } from "./wind-forecast.js";
+import { stepRules, ruleText } from "./wind-rules.js";
 
 export const ALERT_DEFAULTS = {
   voiceEvery: 0,        // минут между голосовыми сводками; 0 — только по кнопке
@@ -22,6 +23,10 @@ export const ALERT_DEFAULTS = {
   morning: true,        // утренняя сводка по окончании тихих часов
   winAlert: false,      // сообщать, когда у выбранного занятия открылось «окно»
   winHold: 15,          // минут подряд, сколько ветер должен продержаться в коридоре
+  rules: [],            // свои тревоги (wind-rules.js)
+  stormMode: false,     // при шторме само открывать экран во весь экран
+  stormGust: 15,        // порыв, м/с, с которого начинается «шторм»
+  quietDim: true,       // в тихие часы приглушать экран и вибрацию
 };
 
 export function quietNow(s, d = new Date()) {
@@ -120,18 +125,21 @@ export function stepWindow(w, { s, data, history, fc, quiet, logKey }, now) {
   }
 }
 
-export function useAlerts({ settings, data, history, connected, desc, logKey, fc }) {
+export function useAlerts({ settings, data, history, connected, desc, logKey, fc, onStorm }) {
   const s = { ...ALERT_DEFAULTS, ...settings };
   const live = useRef({});
-  live.current = { s, data, history, connected, desc, logKey, fc };
+  live.current = { s, data, history, connected, desc, logKey, fc, onStorm };
   const win = useRef({ open: false, okSince: 0, badSince: 0, endSent: false, soonFor: 0 });
   const lastVoice = useRef(0);
   const lastTrend = useRef(0);
   const night = useRef({ gust: 0, max: 0, alarms: 0, on: false });
+  const rules = useRef({});
+  const lastStorm = useRef(0);
+  const stormNow = useRef(false);
 
   useEffect(() => {
     const id = setInterval(() => {
-      const { s, data, history, connected, desc, logKey, fc } = live.current;
+      const { s, data, history, connected, desc, logKey, fc, onStorm } = live.current;
       live0 = s;
       const now = Date.now();
       const quiet = quietNow(s);
@@ -151,6 +159,21 @@ export function useAlerts({ settings, data, history, connected, desc, logKey, fc
       if (!connected) { win.current.okSince = 0; win.current.badSince = 0; return; }
       // окно занятия — только с настоящей станции: у демо ветер выдуманный
       if (logKey) stepWindow(win.current, { s, data, history, fc, quiet, logKey }, now);
+      // свои правила
+      stepRules(rules.current, { s, data, history, logKey }, now, (r, v) => {
+        const text = ruleText(r);
+        logEvent(logKey, "alarm", `Своё правило: ${text} (сейчас ${say(v)})`);
+        if (quiet) n.alarms++;
+        else notify("Своя тревога", `${text}. Сейчас ${say(v)}.`, `wind-rule-${r.id}`, { every: 60 * 60000, urgent: true });
+      });
+      // режим «шторм»: сильный порыв или тревога «ветер растёт» открывают экран во весь размер
+      if (s.stormMode && onStorm && !quiet && now - lastStorm.current > 15 * 60000 &&
+          (stormNow.current || (data.gust || 0) >= (s.stormGust || 15))) {
+        lastStorm.current = now;
+        logEvent(logKey, "alarm", `Режим «шторм»: порыв ${say(data.gust)} м/с`);
+        onStorm();
+      }
+      stormNow.current = false;
       // голосовая сводка по расписанию
       if (s.voiceEvery > 0 && !quiet && now - lastVoice.current >= s.voiceEvery * 60000) {
         lastVoice.current = now;
@@ -162,6 +185,7 @@ export function useAlerts({ settings, data, history, connected, desc, logKey, fc
         const rise = mean(history.slice(-60)) - mean(history.slice(-600, -540));
         if (rise >= (s.trendRise || 5)) {
           lastTrend.current = now;
+          stormNow.current = true;
           logEvent(logKey, "alarm", `Ветер растёт: +${rise.toFixed(1)} м/с за 10 минут`);
           if (quiet) n.alarms++;
           else {

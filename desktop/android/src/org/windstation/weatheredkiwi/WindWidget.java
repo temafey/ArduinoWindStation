@@ -53,8 +53,8 @@ import java.util.Locale;
 public class WindWidget extends AppWidgetProvider {
     static final String ACT_REFRESH = "org.windstation.weatheredkiwi.WIDGET_REFRESH";
     private static final String PREFS = "wkw";
-    private static final int HIST_MAX = 72;               // ~12 минут при сэмпле раз в 10 с
-    private static final long HIST_STEP_MS = 10000;
+    private static final int HIST_MAX = 72;               // 3 часа при сэмпле раз в 150 с
+    private static final long HIST_STEP_MS = 150000;
     private static final long STALE_MS = 90000;
 
     // Второй виджет в списке — широкий по умолчанию. Рисует тот же код: размер

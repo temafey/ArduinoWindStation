@@ -18,6 +18,7 @@ import { requestNotify, notifyAllowed } from "./wind-notify.js";
 import { shareWeekReport } from "./wind-report.js";
 import { LiquidRange } from "./wind-liquid.jsx";
 import { Segments } from "./wind-switch.jsx";
+import { RosePanel, DiaryPanel, BackupPanel } from "./wind-extras.jsx";
 
 const V_COLOR = ["#4ade80", "#facc15", "#ef4444"];
 
@@ -196,7 +197,7 @@ export default function AnalysisTab({ ui, g, accent, logKey, history, data, coor
         </Panel>
       )}
       {view === "now" && <NowView {...{ ui, g, accent, logKey, history, data, fc, settings, setS, isStation, connected }} />}
-      {view === "stats" && <StatsView {...{ ui, g, accent, logKey, settings, setS }} />}
+      {view === "stats" && <StatsView {...{ ui, g, accent, logKey, settings, setS, fc }} />}
       {view === "fc" && <ForecastView {...{ ui, g, accent, logKey, fc, coords, settings, setS }} />}
     </div>
   );
@@ -340,7 +341,7 @@ const PERIODS = [
   { id: "all", label: "Всё время", days: 100000 },
 ];
 
-function StatsView({ ui, g, accent, logKey, settings, setS }) {
+function StatsView({ ui, g, accent, logKey, settings, setS, fc }) {
   const { Panel, Row, Btn } = ui;
   const [period, setPeriod] = useState("week");
   const [repBusy, setRepBusy] = useState(false);
@@ -427,6 +428,10 @@ function StatsView({ ui, g, accent, logKey, settings, setS }) {
         )}
       </Panel>
 
+      <DiaryPanel ui={ui} g={g} accent={accent} logKey={logKey} rotorD={rotorD} turbineW={turbineW} />
+
+      <RosePanel ui={ui} g={g} accent={accent} logKey={logKey} fc={fc} />
+
       <Panel title="Энергия ветряка" g={g} meta={`РОТОР ${rotorD} М`}>
         <label style={{ display: "flex", alignItems: "center", gap: 10, color: DIM, fontSize: 11, marginBottom: 10 }}>
           Диаметр ротора
@@ -468,6 +473,8 @@ function StatsView({ ui, g, accent, logKey, settings, setS }) {
           ветер по дням, роза и лучшие часы суток — одной картинкой. На телефоне откроется «Поделиться», на компьютере
           картинка сохранится в загрузки.</Note>
       </Panel>
+
+      <BackupPanel ui={ui} g={g} logKey={logKey} />
 
       <Panel title="Экспорт" g={g} meta="МИНУТНЫЕ АГРЕГАТЫ">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -525,6 +532,10 @@ function ForecastView({ ui, g, accent, logKey, fc, coords, settings, setS }) {
     refitCorrection({ coords, logKey, fc }).then(() => setCalRev((r) => r + 1));
   }, [fc, logKey, ckey]); // eslint-disable-line react-hooks/exhaustive-deps
   const mins = useMinutes(logKey, 2 * 86400000);
+  const mine = useMemo(() => {
+    const t = mins.filter((r) => r.t > Date.now() - 1800000);
+    return t.length >= 10 ? t.reduce((a, r) => a + r.avg, 0) / t.length : NaN;
+  }, [mins]);
   const mastH = settings.mastH || 3;
   // Станцию приводим к 10 м: прогноз дан на этой высоте, а мачта обычно ниже,
   // и без поправки «прогноз завышает» было бы просто разницей высот.
@@ -607,7 +618,7 @@ function ForecastView({ ui, g, accent, logKey, fc, coords, settings, setS }) {
             </>
           )}
       </Panel>
-      <Neighbors ui={ui} g={g} coords={coords} accent={accent} />
+      <Neighbors ui={ui} g={g} coords={coords} accent={accent} mine={mine} />
     </>
   );
 }
@@ -615,7 +626,7 @@ function ForecastView({ ui, g, accent, logKey, fc, coords, settings, setS }) {
 // METAR ближайших аэродромов. aviationweather.gov не отдаёт CORS, поэтому из
 // браузера запрос не пройдёт — работает в программе Weathered_Kiwi (оболочка
 // дописывает заголовок). Иначе — честная подпись и модельный ветер в точке.
-function Neighbors({ ui, g, coords }) {
+function Neighbors({ ui, g, coords, mine }) {
   const { Panel, Row } = ui;
   const [st, setSt] = useState(null);       // null — ещё не спрашивали
   useEffect(() => {
@@ -643,10 +654,21 @@ function Neighbors({ ui, g, coords }) {
         : !st.ok ? <div style={{ color: DIM, fontSize: 11, lineHeight: 1.6 }}>Служба METAR не пускает запросы из браузера.
             В программе Weathered_Kiwi этот блок работает; здесь для сравнения остаётся прогноз выше.</div>
         : !st.near.length ? <div style={{ color: DIM, fontSize: 11 }}>В радиусе ~130 км аэродромов с METAR нет.</div>
-        : st.near.map((m) => (
+        : <>
+        {(() => {
+          // Сравнение со ближайшими (до 60 км): METAR — это ветер за последние минуты,
+          // поэтому против него берём средний за последние 30 минут своей мачты.
+          const close = st.near.filter((m) => m.km <= 60 && m.wspd > 0);
+          if (!close.length || !Number.isFinite(mine) || mine <= 0) return null;
+          const theirs = close.reduce((a, m) => a + m.wspd * 0.5144, 0) / close.length;
+          const k = mine / theirs;
+          return <Row g={g} k="Ваша мачта к соседям" v={`${mine.toFixed(1)} против ${theirs.toFixed(1)} м/с · ×${k.toFixed(2)}`} />;
+        })()}
+        {st.near.map((m) => (
           <Row key={m.icaoId} g={g} k={`${m.icaoId} · ${Math.round(m.km)} км`}
                v={`${(m.wspd * 0.5144).toFixed(1)} м/с${m.wgst ? `, порыв ${(m.wgst * 0.5144).toFixed(0)}` : ""}${Number.isFinite(m.wdir) ? ` · ${m.wdir}°` : ""}`} />
         ))}
+        </>}
       <Note>Аэродром меряет на 10 м и на открытом поле. Сильно больше, чем у вас, — норма для низкой мачты;
         сильно меньше — повод проверить датчик.</Note>
     </Panel>

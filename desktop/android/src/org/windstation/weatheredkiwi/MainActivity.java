@@ -331,6 +331,38 @@ public class MainActivity extends Activity {
                 } catch (Exception e) { /* нет мотора или запрещено */ }
             } });
         }
+        // Нарастающая вибрация запуска: амплитуда плавно идёт от 6 до peak по кривой x^2.2.
+        @JavascriptInterface public void hapticRamp(final int ms, final int peak) {
+            runOnUiThread(new Runnable() { public void run() {
+                try {
+                    Vibrator v = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+                    if (v == null || !v.hasVibrator()) return;
+                    int n = Math.max(200, Math.min(30000, ms));
+                    int top = Math.max(20, Math.min(255, peak));
+                    if (Build.VERSION.SDK_INT >= 26 && v.hasAmplitudeControl()) {
+                        int k = Math.max(4, n / 60);
+                        long[] t = new long[k];
+                        int[] a = new int[k];
+                        for (int i = 0; i < k; i++) {
+                            double x = (i + 1.0) / k;
+                            t[i] = 60;
+                            a[i] = (int) Math.max(1, Math.min(255, 6 + (top - 6) * Math.pow(x, 2.2)));
+                        }
+                        v.vibrate(VibrationEffect.createWaveform(t, a, -1));
+                        return;
+                    }
+                    int k = Math.max(4, n / 90);
+                    long[] t = new long[k * 2];
+                    for (int i = 0; i < k; i++) {
+                        double x = (i + 1.0) / k;
+                        t[2 * i] = Math.round(80 - 50 * x);
+                        t[2 * i + 1] = Math.round(6 + 54 * x * x);
+                    }
+                    if (Build.VERSION.SDK_INT >= 26) v.vibrate(VibrationEffect.createWaveform(t, -1));
+                    else v.vibrate(t, -1);
+                } catch (Exception e) { /* нет мотора или запрещено */ }
+            } });
+        }
         @JavascriptInterface public void hapticStop() {
             runOnUiThread(new Runnable() { public void run() {
                 try { Vibrator v = (Vibrator) getSystemService(VIBRATOR_SERVICE); if (v != null) v.cancel(); }

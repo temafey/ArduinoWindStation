@@ -220,6 +220,36 @@ export function loadLastFrame(k) {
   } catch { return null; }
 }
 
+// ---------- резервная копия ----------
+// Весь журнал станции одним файлом. IndexedDB живёт в браузере и пропадает вместе
+// с «очисткой данных сайта» — а с ним и рекорды за год.
+export function exportAll(k) {
+  const all = (store) => range(store, k, store === "day" ? "" : 0, store === "day" ? "￿" : Date.now() + 1);
+  return Promise.all([all("min"), all("day"), all("ev")]).then(([min, day, ev]) => ({
+    wk: "wind-log", v: 1, at: Date.now(), station: k,
+    min: min.map(({ k: _k, ...r }) => r), day: day.map(({ k: _k, ...r }) => r), ev: ev.map(({ k: _k, ...r }) => r),
+  }));
+}
+// Возвращает число принятых записей. Станция берётся текущая, а не из файла:
+// копию с другой мачты человек вливает сознательно, а ключ у неё мог поменяться.
+export function importAll(k, j) {
+  if (!k || !j || j.wk !== "wind-log" || !Array.isArray(j.min)) return Promise.resolve(-1);
+  return db().then((d) => new Promise((resolve) => {
+    if (!d) { resolve(-1); return; }
+    let n = 0;
+    try {
+      const t = d.transaction(["min", "day", "ev"], "readwrite");
+      for (const r of j.min) if (Number.isFinite(r.t)) { t.objectStore("min").put({ ...r, k }); n++; }
+      for (const r of j.day || []) if (typeof r.d === "string") { t.objectStore("day").put({ ...r, k }); n++; }
+      let i = 0;
+      for (const r of j.ev || []) if (Number.isFinite(r.t)) { t.objectStore("ev").put({ ...r, k, n: r.n ?? i++ }); n++; }
+      t.oncomplete = () => { emit(); resolve(n); };
+      t.onerror = () => resolve(-1);
+      t.onabort = () => resolve(-1);
+    } catch { resolve(-1); }
+  }));
+}
+
 // ---------- экспорт ----------
 export function toCsv(rows) {
   const cols = ["time", "avg", "min", "max", "gust", "dir", "p", "bat", "rssi"];

@@ -47,6 +47,7 @@ import { MATERIAL_THEMES, MATERIAL_ICONS, materialCss } from "./wind-material.js
 import { mountTapHaptics, setHapticConfig, haptic, canVibrate } from "./wind-haptic.js";
 import { useDeviceBattery, deviceKind, DEVICE_NAME } from "./wind-device.js";
 import { logSample, watchFrame, prune, saveLastFrame, loadLastFrame } from "./wind-log.js";
+import { RulesPanel } from "./wind-extras.jsx";
 import { ConnectPanel, HealthPanel, EventsPanel, ZeroWizard, DesktopWidgets, RemotePanel, useEvents } from "./wind-station.jsx";
 import { useAlerts, quietNow, ALERT_DEFAULTS } from "./wind-alerts.js";
 import { pushNote, useNotifier, requestNotify, sentToday, DAY_LIMIT } from "./wind-notify.js";
@@ -2486,6 +2487,10 @@ export default function WindDashboard() {
     setHapticConfig({ level: settings.haptics || "normal", touch: settings.hapTouch !== false,
                       sliders: settings.hapSliders !== false, boot: settings.hapBoot !== false });
   }, [settings.haptics, settings.hapTouch, settings.hapSliders, settings.hapBoot]);
+  // Тихие часы: экран темнее, вибрации нет. Корень перерисовывается с потоком,
+  // так что граница часа ловится сама, отдельный таймер не нужен.
+  const night = !!settings.quiet && settings.quietDim !== false && quietNow(settings);
+  useEffect(() => { setHapticConfig({ quiet: night }); }, [night]);
 
   // Всплеск от каждого нажатия: волна расходится от точки касания. На стекле —
   // иначе: стекло загорается изнутри из точки касания и свет расходится по нему
@@ -3330,7 +3335,7 @@ export default function WindDashboard() {
     const now = Date.now();
     return fc.reduce((a, b) => (Math.abs(b.t - now) < Math.abs(a.t - now) ? b : a)).s;
   }, [fc]);
-  useAlerts({ settings, data, history, connected: connected && !demoMode, desc: bf.desc, logKey, fc });
+  useAlerts({ settings, data, history, connected: connected && !demoMode, desc: bf.desc, logKey, fc, onStorm: () => setKiosk(true) });
   useNotifier({ settings, data, connected: connected && !demoMode, desc: bf.desc, fc, isStation });
   // Полоса прокрутки — жидкое стекло и плавная прокрутка колесом (wind-scroll.js).
   useEffect(() => mountGlassScroll(), []);
@@ -5252,6 +5257,7 @@ export default function WindDashboard() {
 
             {isStation && <HealthPanel ui={UI} g={g} accent={accent} logKey={logKey} data={data} fcNow={fcNow} events={events} />}
             {isStation && <EventsPanel ui={UI} g={g} events={events} />}
+            {isStation && <RulesPanel ui={UI} g={g} accent={accent} settings={settings} setS={setS} />}
             {direct && <ZeroWizard ui={UI} g={g} host={esp32Host} logKey={logKey} />}
             {viaCloud && cloudAvail && (
               <RemotePanel ui={UI} g={g} sessionId={cloudSession} loadCloud={loadCloud}
@@ -5513,7 +5519,7 @@ export default function WindDashboard() {
                 value={settings.hapBoot !== false ? "on" : "off"}
                 off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
                 onChange={(v) => { setHapticConfig({ boot: v === "on" }); setS({ hapBoot: v === "on" }); haptic("boot"); }}
-                hint="Мягкий стук при входе в приложение и тихая дрожь, пока ставится обновление."
+                hint="Одна длинная вибрация при запуске приложения: начинается еле заметно и плавно нарастает к концу загрузки. При обновлении вибрации нет."
               />
           </Reveal>
 
@@ -5550,6 +5556,18 @@ export default function WindDashboard() {
             hint={`Когда за 10 минут ветер вырос на ${settings.trendRise || 5} м/с и больше — не по абсолютному порогу. Не чаще раза в 20 минут.`}
           />
           <Switch
+            label="Режим «шторм»" g={g} accent={accent}
+            value={settings.stormMode ? "on" : "off"}
+            off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+            onChange={(v) => setS({ stormMode: v === "on" })}
+            hint="Когда ветер резко растёт или порыв выше порога, дашборд сам открывает экран во весь размер: крупная скорость, порыв и кривая. Не чаще раза в 15 минут, ночью молчит."
+          />
+          <Reveal open={!!settings.stormMode}>
+            <Choice label="Порыв от" g={g} value={String(settings.stormGust ?? 15)}
+                    options={[10, 15, 20, 25].map((n) => ({ value: String(n), label: `${n} м/с` }))}
+                    onChange={(v) => setS({ stormGust: +v })} />
+          </Reveal>
+          <Switch
             label="Тихие часы" g={g} accent={accent}
             value={settings.quiet ? "on" : "off"}
             off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
@@ -5563,6 +5581,10 @@ export default function WindDashboard() {
               <Choice label="До" g={g} value={String(settings.quietTo ?? 7)}
                       options={[6, 7, 8, 9].map((h) => ({ value: String(h), label: `${h}:00` }))}
                       onChange={(v) => setS({ quietTo: +v })} />
+              <Switch label="Приглушить экран и вибрацию" g={g} accent={accent}
+                      value={settings.quietDim !== false ? "on" : "off"}
+                      off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+                      onChange={(v) => setS({ quietDim: v === "on" })} />
               <Switch label="Утренняя сводка" g={g} accent={accent}
                       value={settings.morning !== false ? "on" : "off"}
                       off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
@@ -5632,6 +5654,9 @@ export default function WindDashboard() {
           );
         })()}
       </div>
+
+      <div aria-hidden="true" style={{ position: "fixed", inset: 0, zIndex: 9000, pointerEvents: "none", background: "#000",
+                                       opacity: night ? 0.42 : 0, transition: "opacity 2.5s ease" }} />
 
       {kiosk && (
         <Kiosk speedText={convertSpeed(data.speed, settings.unit)} unit={unit.short}
