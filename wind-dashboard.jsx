@@ -1143,6 +1143,16 @@ function Tab({ id, active, onClick, children, g, short, fluid }) {
 // Подвкладка внутри «радара». Отличается от основной сознательно: та отбивается
 // линией снизу и капителью, эта — заливкой, иначе два ряда одинаковых вкладок
 // читаются как один сломанный.
+// Кадр «ничего не пришло»: с ним дашборд стартует и к нему же возвращается при
+// смене источника (см. эффект рядом с frameRef).
+const EMPTY_DATA = {
+  speed: 0, direction: null, gust: 0, dirPresent: false, speedMax: 30,
+  ledGreen: "off", ledYellow: "off", ledRed: "off", ledWifi: "off", ledAuto: true,
+  battery: null, batteryPercent: null, batteryPresent: false, chargeState: "absent",
+  powerSource: null, wifiRssi: 0, adcError: false, hostname: "", uptime: 0,
+  resetReason: "poweron",
+};
+
 function SubTab({ id, active, onClick, children, g }) {
   const on = id === active;
   return (
@@ -2078,13 +2088,7 @@ export default function WindDashboard() {
     try { return localStorage.getItem("esp32_host") || DEFAULT_HOST; } catch { return DEFAULT_HOST; }
   });
 
-  const [data, setData] = useState({
-    speed: 0, direction: null, gust: 0, dirPresent: false, speedMax: 30,
-    ledGreen: "off", ledYellow: "off", ledRed: "off", ledWifi: "off", ledAuto: true,
-    battery: null, batteryPercent: null, batteryPresent: false, chargeState: "absent",
-    powerSource: null, wifiRssi: 0, adcError: false, hostname: "", uptime: 0,
-    resetReason: "poweron",
-  });
+  const [data, setData] = useState(EMPTY_DATA);
   const [connected, setConnected] = useState(false);
   // История хранится парами: розе ветров и конвективному анализу нужно знать,
   // какому направлению соответствовала какая скорость. Раздельные массивы это
@@ -2259,6 +2263,24 @@ export default function WindDashboard() {
   const logKeyRef = useRef(null);
   const frameRef = useRef(null);
   const lastSaveRef = useRef(0);
+  // Смена источника (демо / станция / район), адреса или канала — показания
+  // прежнего источника выбрасываются. Без этого после выключения демо при
+  // молчащей станции «Станция» показывала батарею 92 %, сигнал −53 дБм и
+  // горящие светодиоды модели — выдуманные цифры под видом платы.
+  const srcKey = `${source}|${esp32Host}|${link}`;
+  const srcKeyRef = useRef(srcKey);
+  useEffect(() => {
+    if (srcKeyRef.current === srcKey) return;
+    srcKeyRef.current = srcKey;
+    setData(EMPTY_DATA);
+    setConnected(false);
+    setLastUpdate(null);
+    setHistory([]);
+    setGustAt(null);
+    gustRef.current = 0;
+    frameRef.current = null;
+    dirRef.current = null;
+  }, [srcKey]);
 
   const g = settings.glow;
   // Системная настройка «меньше движения» перекрывает выбор в дашборде: если
@@ -3253,6 +3275,11 @@ export default function WindDashboard() {
   const hasDir = data.dirPresent && data.direction != null;
   const hasBattery = data.batteryPresent && data.battery != null;
   const unit = UNITS[settings.unit] ?? UNITS.ms;
+  // Ни одного кадра от текущего источника (история сбрасывается при его смене):
+  // показываем прочерки, а не нули из EMPTY_DATA — «0.0 м/с» это штиль, а не
+  // «станция молчит». Когда станция пропала уже после данных, остаются её
+  // последние цифры, а о связи говорит шапка.
+  const noData = !connected && history.length === 0;
   const uptimeMin = Math.floor(data.uptime / 60);
   const uptimeH = Math.floor(uptimeMin / 60);
   // Приписка к аптайму: почему плата стартовала в прошлый раз. Обычное включение
@@ -3564,7 +3591,7 @@ export default function WindDashboard() {
       // подписи, карточки и полосы снизу. У района полосы — прогноз, у
       // станции — её собственный ветер за последние минуты. Данные — станции,
       // единицы — из настроек.
-      <AreaWind g={g} speed={data.speed} gust={data.gust}
+      <AreaWind g={g} speed={noData ? null : data.speed} gust={data.gust}
                 forecast={speedBars.bars} legend={speedBars.legend}
                 chip={`ПРЕДЕЛ ${convertSpeed(data.speedMax ?? 30, settings.unit, 0)} ${unit.short}`}
                 scaleMax={data.speedMax ?? 30} unit={unit.short}
@@ -3575,8 +3602,8 @@ export default function WindDashboard() {
       <div style={{ display: "flex", gap: 10 }}>
                       <Stat
                         label={gustAt ? `Порыв · ${gustAt.toLocaleTimeString("uk-UA")}` : "Порыв"}
-                        value={gustText} unit={unit.short} g={g}
-                        action={canResetGust && (
+                        value={noData ? "—" : gustText} unit={unit.short} g={g}
+                        action={canResetGust && !noData && (
                           <button onClick={resetGust} title="Сбросить порыв" style={{
                             position: "absolute", top: 7, right: 7, background: "transparent",
                             border: `1px solid ${LINE}`, color: DIM, padding: "1px 6px",
@@ -3586,7 +3613,7 @@ export default function WindDashboard() {
                       />
                       <Stat label={`Средняя · ${settings.histMinutes} мин`} value={meanText} unit={unit.short} g={g} />
                       <Stat label={resetWhy ? `Аптайм · ${resetWhy}` : "Аптайм"}
-                            value={uptimeH > 0 ? `${uptimeH}ч${uptimeMin % 60}м` : `${uptimeMin}м`}
+                            value={noData ? "—" : uptimeH > 0 ? `${uptimeH}ч${uptimeMin % 60}м` : `${uptimeMin}м`}
                             color={data.resetReason === "brownout" ? "#f97316" : undefined} g={g} />
                     </div>
     ) },

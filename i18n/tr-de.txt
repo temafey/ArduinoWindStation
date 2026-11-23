@@ -1041,3 +1041,98 @@
 1040	W
 1041	O
 1042	hPa
+1043	Eigene Alarme
+1044	# VON # AN
+1045	KEINE REGELN
+1046	Eine Regel lautet: „Wenn der Wind über # m/s liegt, länger als # Minuten — Bescheid geben.“ Fügen Sie eigene hinzu: Böe, mittlerer Wind, Druckabfall oder Akkustand.
+1047	Regel aktiv
+1048	Bedingung
+1049	über
+1050	unter
+1051	länger als
+1052	Minuten
+1053	Min.
+1054	Regel löschen
+1055	Löschen
+1056	Was überwachen
+1057	HINZUFÜGEN
+1058	Jede Regel löst einmal pro „Episode“ aus: Solange die Bedingung besteht, gibt es keine Wiederholung. Sie läuft über dieselbe Benachrichtigungssperre (höchstens # pro Tag) und wird nachts für die Morgenübersicht gesammelt. Regeln sehen nur eine echte Station, nicht die Demo.
+1059	Jetzt:
+1060	Aktuelle Böe
+1061	Druckabfall in # Stunden
+1062	Akkustand
+1063	Mittlerer Wind über # m/s länger als # Min.
+1064	Mittlerer Wind über # m/s
+1065	Aktuelle Böe über # m/s
+1066	Akkustand über # %
+1067	Mittlerer Wind unter # m/s länger als # Min.
+1068	Mittlerer Wind unter # m/s
+1069	Aktuelle Böe unter # m/s
+1070	Akkustand unter # %
+1071	Druckabfall in # Stunden um # hPa oder mehr
+1072	Gespeichert: # Minuten, # Tage, # Ereignisse.
+1073	Sicherung konnte nicht erstellt werden.
+1074	Das ist keine Weathered_Kiwi-Journalsicherung.
+1075	Wiederhergestellte Einträge: #.
+1076	Datei nicht lesbar.
+1077	Sicherung
+1078	STATIONSJOURNAL
+1079	SICHERUNG SPEICHERN
+1080	WIEDERHERSTELLEN
+1081	Das Journal liegt im Browser dieses Geräts und verschwindet beim Löschen der Websitedaten. Eine Sicherung ist eine Datei mit allen Minuten, Tagen und Ereignissen. Speichern Sie sie in einem Google-Drive-Ordner, dann liegt sie in der Cloud; die Wiederherstellung ergänzt Einträge, statt vorhandene zu löschen.
+1082	NNO
+1083	NO
+1084	ONO
+1085	OSO
+1086	SO
+1087	SSO
+1088	SSW
+1089	SW
+1090	WSW
+1091	WNW
+1092	NW
+1093	NNW
+1094	OPEN-METEO-MODELL
+1095	VON IHREM SENSOR
+1096	KEINE DATEN
+1097	Die Richtung wird nicht gemessen (kein Sensor), und die Vorhersage ist noch nicht da. Die Rose erscheint, sobald Stationskoordinaten und Netz vorhanden sind.
+1098	Weht meist aus
+1099	Dort im Mittel
+1100	Erfasst
+1101	# Std. Modell
+1102	# Std. Aufzeichnung
+1103	Die Blattlänge zeigt, wie oft der Wind aus dieser Richtung kam, die Farbtiefe, wie stark er dort war. Ohne Richtungssensor wird das Open-Meteo-Modell am Standort der Station verwendet: keine Messung, sondern woher der Wind in der Umgebung wehte.
+1104	Zeichnen fehlgeschlagen.
+1105	Tagebuch
+1106	ZU WENIG DATEN
+1107	Für
+1108	enthält das Journal weniger als eine halbe Stunde — für ein Tagebuch reicht es noch nicht.
+1109	lag der mittlere Wind bei
+1110	m/s. Am stärksten blies es um
+1111	— Böe
+1112	m/s.
+1113	Am ruhigsten war es gegen
+1114	m/s).
+1115	# Std.
+1116	Aufgezeichnet
+1117	Ein # m-Windrad lieferte
+1118	# Wh
+1119	KARTE TEILEN
+1120	Ihr Mast zu den Nachbarn
+1121	# gegen # m/s · ×#
+1122	# m/s, Böe #
+1123	# m/s, Böe # · #°
+1124	Sturmmodus
+1125	Wenn der Wind stark zunimmt oder eine Böe die Schwelle überschreitet, öffnet das Dashboard selbst die Vollbildansicht: große Geschwindigkeit, Böe und Kurve. Höchstens alle # Minuten, nachts still.
+1126	Böe ab
+1127	Bildschirm und Vibration dämpfen
+1128	Eine lange Vibration beim Start der App: anfangs kaum spürbar, steigt sie bis zum Ende des Ladens sanft an. Bei Updates keine Vibration.
+1129	Sturmmodus: Böe # m/s
+1130	NACHT · LICHT NUR VON BLITZEN
+1131	DÄMMERUNG · SONNE #°
+1132	DÄMMERUNG · SONNE -#°
+1133	Stationskamera
+1134	BFT
+1135	Vorlesen
+1136	Teilen
+1137	Modus

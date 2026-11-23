@@ -303,7 +303,9 @@ export function SourceSwitch({ on, setOn, coords, place, status, g }) {
 // столбика, legend — подпись под ними.
 export function AreaWind({ speed, gust, forecast = [], g, chip = "РАЙОН · МОДЕЛЬ", scaleMax = 25, shown, gustShown, unit = "м/с", kmh = true,
                            legend = "ветер на ближайшие 12 часов (яркий — скорость, бледный — порывы)", style }) {
-  const v = Number.isFinite(speed) ? speed : 0;
+  // Нет показания — прочерк, а не «0.0 · штиль»: ноль ветра это тоже показание.
+  const has = Number.isFinite(speed);
+  const v = has ? speed : 0;
   const col = windColor(v);
   const bf = beaufort(v);
   const C = 2 * Math.PI * 54;
@@ -339,14 +341,14 @@ export function AreaWind({ speed, gust, forecast = [], g, chip = "РАЙОН · 
           </g>
         </svg>
         <div className="ar-gauge-in">
-          <b style={{ color: col }}>{shown ?? v.toFixed(1)}</b>
+          <b style={{ color: col }}>{has ? (shown ?? v.toFixed(1)) : "—"}</b>
           <span>{unit}</span>
         </div>
       </div>
-      <div className="ar-bft"><b>{bf.n}</b> балл · {bf.word}</div>
+      <div className="ar-bft">{has ? <><b>{bf.n}</b> балл · {bf.word}</> : "нет данных"}</div>
       <div className="ar-facts" style={{ marginTop: 12 }}>
-        <div><span>Порывы</span><b>{gustShown ?? (Number.isFinite(gust) ? gust.toFixed(1) : "—")} {unit}</b></div>
-        {kmh && <div><span>Скорость</span><b>{(v * 3.6).toFixed(0)} км/ч</b></div>}
+        <div><span>Порывы</span><b>{has ? (gustShown ?? (Number.isFinite(gust) ? gust.toFixed(1) : "—")) : "—"} {unit}</b></div>
+        {kmh && <div><span>Скорость</span><b>{has ? (v * 3.6).toFixed(0) : "—"} км/ч</b></div>}
       </div>
       {forecast.length > 0 && (
         <>

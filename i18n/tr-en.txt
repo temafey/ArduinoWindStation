@@ -1041,3 +1041,98 @@
 1040	W
 1041	E
 1042	hPa
+1043	Custom alerts
+1044	# OF # ON
+1045	NO RULES
+1046	A rule reads: “if the wind is above # m/s for more than # minutes — tell me”. Add your own: gust, mean wind, pressure drop or battery.
+1047	Rule enabled
+1048	Condition
+1049	above
+1050	below
+1051	for over
+1052	Minutes
+1053	min
+1054	Delete rule
+1055	Delete
+1056	What to watch
+1057	ADD
+1058	Each rule fires once per “episode”: while the condition holds, there are no repeats. It goes through the same notification gate (no more than # a day) and at night is held for the morning summary. Rules only see a real station, not the demo.
+1059	Now:
+1060	Current gust
+1061	Pressure drop over # hours
+1062	Battery charge
+1063	Mean wind above # m/s for over # min
+1064	Mean wind above # m/s
+1065	Current gust above # m/s
+1066	Battery charge above # %
+1067	Mean wind below # m/s for over # min
+1068	Mean wind below # m/s
+1069	Current gust below # m/s
+1070	Battery charge below # %
+1071	Pressure drop over # hours of # hPa or more
+1072	Saved: # minutes, # days, # events.
+1073	Couldn't create the backup.
+1074	This isn't a Weathered_Kiwi log backup.
+1075	Records restored: #.
+1076	Can't read the file.
+1077	Backup
+1078	STATION LOG
+1079	SAVE BACKUP
+1080	RESTORE
+1081	The log lives in this device's browser and disappears when site data is cleared. A backup is one file with all minutes, days and events. Save it to a Google Drive folder and it will be in the cloud; restoring adds records rather than erasing existing ones.
+1082	NNE
+1083	NE
+1084	ENE
+1085	ESE
+1086	SE
+1087	SSE
+1088	SSW
+1089	SW
+1090	WSW
+1091	WNW
+1092	NW
+1093	NNW
+1094	OPEN-METEO MODEL
+1095	FROM YOUR SENSOR
+1096	NO DATA
+1097	Direction isn't measured (no sensor), and the forecast hasn't arrived yet. The rose will appear once the station has coordinates and a network.
+1098	Most often blows from
+1099	Average there
+1100	Counted
+1101	# h of model
+1102	# h recorded
+1103	Petal length shows how often the wind blew from that side; colour depth shows how strong it was there. Without a direction sensor, the Open-Meteo model at the station's location is used: it's not a measurement, but where the wind blew from in the surrounding area.
+1104	Couldn't draw it.
+1105	Day diary
+1106	NOT ENOUGH DATA
+1107	For
+1108	the log has less than half an hour of records — nothing to write the diary from yet.
+1109	the mean wind was
+1110	m/s. The strongest blast came at
+1111	— gust
+1112	m/s.
+1113	It was calmest around
+1114	m/s).
+1115	# h
+1116	Recorded
+1117	A # m turbine would give
+1118	# Wh
+1119	SHARE CARD
+1120	Your mast vs neighbours
+1121	# vs # m/s · ×#
+1122	# m/s, gust #
+1123	# m/s, gust # · #°
+1124	Storm mode
+1125	When the wind rises sharply or a gust exceeds the threshold, the dashboard opens the full-screen view by itself: large speed, gust and curve. No more than once every # minutes, silent at night.
+1126	Gust from
+1127	Dim screen and vibration
+1128	One long vibration when the app starts: it begins barely noticeable and smoothly builds up towards the end of loading. No vibration during updates.
+1129	Storm mode: gust # m/s
+1130	NIGHT · LIGHT ONLY FROM LIGHTNING
+1131	TWILIGHT · SUN #°
+1132	TWILIGHT · SUN -#°
+1133	Station camera
+1134	BFT
+1135	Speak
+1136	Share
+1137	Mode

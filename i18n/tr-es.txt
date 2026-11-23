@@ -1041,3 +1041,98 @@
 1040	O
 1041	E
 1042	hPa
+1043	Alertas propias
+1044	# DE # ACTIVAS
+1045	SIN REGLAS
+1046	Una regla: «si el viento supera # m/s durante más de # minutos, avísame». Añade la tuya: racha, viento medio, caída de presión o batería.
+1047	Regla activada
+1048	Condición
+1049	por encima de
+1050	por debajo de
+1051	durante más de
+1052	Minutos
+1053	min
+1054	Eliminar regla
+1055	Eliminar
+1056	Qué vigilar
+1057	AÑADIR
+1058	Cada regla se activa una vez por «episodio»: mientras la condición se mantiene, no hay repeticiones. Pasa por el mismo filtro de notificaciones (no más de # al día) y de noche se guarda para el resumen matutino. Las reglas solo ven una estación real, no la demo.
+1059	Ahora:
+1060	Racha actual
+1061	Caída de presión en # horas
+1062	Carga de batería
+1063	Viento medio por encima de # m/s durante más de # min
+1064	Viento medio por encima de # m/s
+1065	Racha actual por encima de # m/s
+1066	Carga de batería por encima de # %
+1067	Viento medio por debajo de # m/s durante más de # min
+1068	Viento medio por debajo de # m/s
+1069	Racha actual por debajo de # m/s
+1070	Carga de batería por debajo de # %
+1071	Caída de presión en # horas de # hPa o más
+1072	Guardado: # minutos, # días, # eventos.
+1073	No se pudo crear la copia.
+1074	Esto no es una copia del registro de Weathered_Kiwi.
+1075	Registros restaurados: #.
+1076	No se puede leer el archivo.
+1077	Copia de seguridad
+1078	REGISTRO DE LA ESTACIÓN
+1079	GUARDAR COPIA
+1080	RESTAURAR
+1081	El registro se guarda en el navegador de este dispositivo y desaparece al borrar los datos del sitio. La copia es un único archivo con todos los minutos, días y eventos. Guárdala en una carpeta de Google Drive y estará en la nube; la restauración añade registros sin borrar los existentes.
+1082	NNE
+1083	NE
+1084	ENE
+1085	ESE
+1086	SE
+1087	SSE
+1088	SSO
+1089	SO
+1090	OSO
+1091	ONO
+1092	NO
+1093	NNO
+1094	MODELO OPEN-METEO
+1095	SEGÚN TU SENSOR
+1096	SIN DATOS
+1097	La dirección no se mide (no hay sensor) y la previsión aún no ha llegado. La rosa aparecerá cuando haya coordenadas de la estación y red.
+1098	Sopla sobre todo del
+1099	Media en esa dirección
+1100	Contabilizado
+1101	# h de modelo
+1102	# h registradas
+1103	La longitud del pétalo indica con qué frecuencia sopló el viento desde ese lado; la intensidad, lo fuerte que fue. Sin sensor de dirección se usa el modelo Open-Meteo en el punto de la estación: no es una medición, sino de dónde sopló el viento en la zona.
+1104	No se pudo dibujar.
+1105	Diario del día
+1106	POCOS DATOS
+1107	Para
+1108	el registro tiene menos de media hora — aún no hay de qué escribir el diario.
+1109	el viento medio fue de
+1110	m/s. El golpe más fuerte llegó a las
+1111	— racha
+1112	m/s.
+1113	Lo más tranquilo fue hacia las
+1114	m/s).
+1115	# h
+1116	Registrado
+1117	Un aerogenerador de # m daría
+1118	# Wh
+1119	COMPARTIR TARJETA
+1120	Tu mástil frente a los vecinos
+1121	# frente a # m/s · ×#
+1122	# m/s, racha #
+1123	# m/s, racha # · #°
+1124	Modo tormenta
+1125	Cuando el viento sube de golpe o una racha supera el umbral, el panel abre solo la pantalla completa: velocidad grande, racha y curva. Como mucho una vez cada # minutos; de noche, en silencio.
+1126	Racha desde
+1127	Atenuar pantalla y vibración
+1128	Una vibración larga al abrir la app: empieza casi imperceptible y crece suavemente hasta el final de la carga. Durante las actualizaciones no vibra.
+1129	Modo tormenta: racha # m/s
+1130	NOCHE · SOLO LUZ DE RAYOS
+1131	CREPÚSCULO · SOL #°
+1132	CREPÚSCULO · SOL -#°
+1133	Cámara de la estación
+1134	BFT
+1135	Decir
+1136	Compartir
+1137	Modo

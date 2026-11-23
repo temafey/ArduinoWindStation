@@ -49,6 +49,13 @@ export function canVibrate() {
   return native() || (touchScreen() && typeof navigator.vibrate === "function");
 }
 
+// До первого касания Chrome вибрацию не исполняет, а пишет в консоль ошибку
+// (заставка звала её сразу при загрузке). Где userActivation нет — пробуем как раньше.
+const vib = (pat) => {
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
+  navigator.vibrate(pat);
+};
+
 export function haptic(kind = "tap") {
   if (typeof window === "undefined") return;
   if (cfg.quiet || cfg.level === "off" || cfg[GROUP[kind] || "touch"] === false) return;
@@ -64,7 +71,7 @@ export function haptic(kind = "tap") {
       return;
     }
     if (!touchScreen() || typeof navigator.vibrate !== "function") return;
-    try { navigator.vibrate(VIB[k] ?? 7); } catch { /* запрещено до первого касания */ }
+    try { vib(VIB[k] ?? 7); } catch { /* запрещено до первого касания */ }
   };
   fire();
   if (cfg.level === "strong" && kind === "edge") setTimeout(fire, 70);   // упор — двойной
@@ -85,7 +92,7 @@ export function hapticLong(ms) {
   if (!touchScreen() || typeof navigator.vibrate !== "function") return;
   const pat = [];
   for (let t = 0; t < n; t += 140) pat.push(12, 128);
-  try { navigator.vibrate(pat); } catch { /* до первого касания нельзя */ }
+  try { vib(pat); } catch { /* до первого касания нельзя */ }
 }
 
 // Нарастающая вибрация на запуск: от почти неощутимой до заметной, плавно (по
@@ -103,7 +110,7 @@ export function hapticRamp(ms) {
   // Без управления амплитудой — «мурлыканье»: импульсы всё длиннее, паузы всё короче.
   const pat = [], k = Math.max(4, Math.round(n / 90));
   for (let i = 0; i < k; i++) { const x = (i + 1) / k; pat.push(Math.round(6 + 54 * x * x), Math.round(80 - 50 * x)); }
-  try { navigator.vibrate(pat); } catch { /* до первого касания нельзя */ }
+  try { vib(pat); } catch { /* до первого касания нельзя */ }
 }
 
 export function hapticStop() {
@@ -111,7 +118,7 @@ export function hapticStop() {
   try {
     if (window.WKNative && typeof window.WKNative.hapticStop === "function") { window.WKNative.hapticStop(); return; }
   } catch { /* старая оболочка */ }
-  try { if (typeof navigator.vibrate === "function") navigator.vibrate(0); } catch { /* нечего глушить */ }
+  try { if (typeof navigator.vibrate === "function") vib(0); } catch { /* нечего глушить */ }
 }
 
 // Касание окна: отклик на отпускание без сдвига, а не на нажатие — иначе

@@ -1041,3 +1041,98 @@
 1040	B
 1041	D
 1042	hPa
+1043	Özel alarmlar
+1044	# / # AÇIK
+1045	KURAL YOK
+1046	Bir kural: “rüzgâr # m/s üstünde # dakikadan uzun kalırsa haber ver”. Kendinizinkini ekleyin: hamle, ortalama rüzgâr, basınç düşüşü veya pil.
+1047	Kural açık
+1048	Koşul
+1049	üstünde
+1050	altında
+1051	süreden uzun
+1052	Dakika
+1053	dk
+1054	Kuralı sil
+1055	Sil
+1056	Neyi izle
+1057	EKLE
+1058	Her kural bir “olay” başına bir kez tetiklenir: koşul sürdükçe tekrar yoktur. Aynı bildirim kapısından geçer (günde en fazla #) ve gece sabah özetine eklenir. Kurallar demoyu değil, yalnızca gerçek istasyonu görür.
+1059	Şu an:
+1060	Anlık hamle
+1061	# saatte basınç düşüşü
+1062	Pil şarjı
+1063	Ortalama rüzgâr # m/s üstünde, # dk'dan uzun
+1064	Ortalama rüzgâr # m/s üstünde
+1065	Anlık hamle # m/s üstünde
+1066	Pil şarjı # % üstünde
+1067	Ortalama rüzgâr # m/s altında, # dk'dan uzun
+1068	Ortalama rüzgâr # m/s altında
+1069	Anlık hamle # m/s altında
+1070	Pil şarjı # % altında
+1071	# saatte # hPa veya daha fazla basınç düşüşü
+1072	Kaydedildi: # dakika, # gün, # olay.
+1073	Yedek oluşturulamadı.
+1074	Bu bir Weathered_Kiwi günlük yedeği değil.
+1075	Geri yüklenen kayıt: #.
+1076	Dosya okunamıyor.
+1077	Yedek
+1078	İSTASYON GÜNLÜĞÜ
+1079	YEDEĞİ KAYDET
+1080	GERİ YÜKLE
+1081	Günlük bu cihazın tarayıcısında durur ve site verileri temizlenince kaybolur. Yedek; tüm dakikaları, günleri ve olayları içeren tek bir dosyadır. Google Drive klasörüne kaydederseniz bulutta olur; geri yükleme mevcut kayıtları silmez, üzerine ekler.
+1082	KKD
+1083	KD
+1084	DKD
+1085	DGD
+1086	GD
+1087	GGD
+1088	GGB
+1089	GB
+1090	BGB
+1091	BKB
+1092	KB
+1093	KKB
+1094	OPEN-METEO MODELİ
+1095	SENSÖRÜNÜZDEN
+1096	VERİ YOK
+1097	Yön ölçülmüyor (sensör yok) ve tahmin henüz gelmedi. İstasyon koordinatları ve ağ olduğunda gül görünecek.
+1098	En sık estiği yön
+1099	O yönde ortalama
+1100	Hesaba katılan
+1101	# sa model
+1102	# sa kayıt
+1103	Yaprak uzunluğu rüzgârın o yönden ne sıklıkla estiğini, renk doygunluğu ne kadar güçlü olduğunu gösterir. Yön sensörü yoksa istasyon noktasındaki Open-Meteo modeli kullanılır: bu bir ölçüm değil, rüzgârın çevrede nereden estiğidir.
+1104	Çizilemedi.
+1105	Günün günlüğü
+1106	AZ VERİ
+1107	Dönem:
+1108	günlükte yarım saatten az kayıt var — günlüğü yazacak veri henüz yok.
+1109	ortalama rüzgâr
+1110	m/s. En sert esinti saati
+1111	— hamle
+1112	m/s.
+1113	En sakin saat yaklaşık
+1114	m/s).
+1115	# sa
+1116	Kaydedilen
+1117	# m türbin üretirdi
+1118	# Wh
+1119	KARTI PAYLAŞ
+1120	Direğiniz ve komşular
+1121	# / # m/s · ×#
+1122	# m/s, hamle #
+1123	# m/s, hamle # · #°
+1124	Fırtına modu
+1125	Rüzgâr aniden arttığında veya hamle eşiği aştığında pano tam ekran görünümünü kendisi açar: büyük hız, hamle ve eğri. En fazla # dakikada bir, gece sessiz.
+1126	Hamle eşiği
+1127	Ekranı ve titreşimi kıs
+1128	Uygulama açılırken tek uzun titreşim: zar zor hissedilir başlar ve yükleme sonuna doğru yumuşakça artar. Güncellemede titreşim yok.
+1129	Fırtına modu: hamle # m/s
+1130	GECE · IŞIK YALNIZCA ŞİMŞEKTEN
+1131	ALACAKARANLIK · GÜNEŞ #°
+1132	ALACAKARANLIK · GÜNEŞ -#°
+1133	İstasyon kamerası
+1134	BFT
+1135	Seslendir
+1136	Paylaş
+1137	Mod

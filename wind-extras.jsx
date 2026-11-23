@@ -1,6 +1,6 @@
 // Добавки 0.5.8: свои тревоги, резервная копия журнала, роза ветров за период,
 // дневник дня. Оформление — пропсом ui (Panel, Row, Btn), как в остальных модулях.
-import { useState, useEffect, useMemo, useRef } from "react";
+import { Fragment, useState, useEffect, useMemo, useRef } from "react";
 import { TEXT, DIM, FAINT, LINE, NUM } from "./ui-kit.js";
 import { readMinutes, onLog, exportAll, importAll, download, dayKey } from "./wind-log.js";
 import { METRICS, metricOf, newRule, ruleText } from "./wind-rules.js";
@@ -74,7 +74,10 @@ export function RulesPanel({ ui, g, accent, settings, setS }) {
       </div>
       <Note>Каждое правило срабатывает один раз за «эпизод»: пока условие держится, повторов нет. Идёт через те же
         ворота уведомлений (не больше 33 в сутки), ночью копится в утреннюю сводку. Правила видят только настоящую станцию, не демо.
-        {rules.some((r) => r.on) && <> Сейчас: {rules.filter((r) => r.on).map(ruleText).join("; ")}.</>}</Note>
+        {/* Каждое правило — свой текстовый узел: словарь переводов (wind-i18n.js)
+            знает строку одного правила, а склейку через «; » не узнал бы. */}
+        {rules.some((r) => r.on) && <> Сейчас: {rules.filter((r) => r.on).map((r, i) => (
+          <Fragment key={r.id}>{i ? "; " : ""}{ruleText(r)}</Fragment>))}.</>}</Note>
     </Panel>
   );
 }
@@ -177,7 +180,7 @@ export function RosePanel({ ui, g, accent, logKey, fc }) {
             ))}
           </svg>
           <div style={{ flex: "1 1 160px" }}>
-            <Row g={g} k="Чаще всего дует с" v={`${NAMES[best]} · ${Math.round((rose.sec[best].n / rose.total) * 100)} %`} />
+            <Row g={g} k="Чаще всего дует с" v={<>{NAMES[best]}{` · ${Math.round((rose.sec[best].n / rose.total) * 100)} %`}</>} />
             <Row g={g} k="Там в среднем" v={`${(rose.sec[best].sum / rose.sec[best].n).toFixed(1)} м/с`} />
             <Row g={g} k="Учтено" v={`${Math.round(rose.total / (rose.src === "model" ? 1 : 60))} ${rose.src === "model" ? "ч модели" : "ч записи"}`} />
           </div>

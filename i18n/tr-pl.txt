@@ -1041,3 +1041,98 @@
 1040	W
 1041	E
 1042	hPa
+1043	Własne alarmy
+1044	# Z # WŁ.
+1045	BRAK REGUŁ
+1046	Reguła: „jeśli wiatr przekracza # m/s dłużej niż # minut — powiadom”. Dodaj własną: poryw, średni wiatr, spadek ciśnienia lub bateria.
+1047	Reguła włączona
+1048	Warunek
+1049	powyżej
+1050	poniżej
+1051	dłużej niż
+1052	Minuty
+1053	min
+1054	Usuń regułę
+1055	Usuń
+1056	Co obserwować
+1057	DODAJ
+1058	Każda reguła uruchamia się raz na „epizod”: dopóki warunek trwa, nie ma powtórek. Przechodzi przez tę samą bramkę powiadomień (nie więcej niż # na dobę), a w nocy trafia do porannego podsumowania. Reguły widzą tylko prawdziwą stację, nie demo.
+1059	Teraz:
+1060	Bieżący poryw
+1061	Spadek ciśnienia w # godziny
+1062	Naładowanie baterii
+1063	Średni wiatr powyżej # m/s dłużej niż # min
+1064	Średni wiatr powyżej # m/s
+1065	Bieżący poryw powyżej # m/s
+1066	Naładowanie baterii powyżej # %
+1067	Średni wiatr poniżej # m/s dłużej niż # min
+1068	Średni wiatr poniżej # m/s
+1069	Bieżący poryw poniżej # m/s
+1070	Naładowanie baterii poniżej # %
+1071	Spadek ciśnienia w # godziny o # hPa lub więcej
+1072	Zapisano: # minut, # dób, # zdarzeń.
+1073	Nie udało się utworzyć kopii.
+1074	To nie jest kopia dziennika Weathered_Kiwi.
+1075	Przywrócone wpisy: #.
+1076	Nie można odczytać pliku.
+1077	Kopia zapasowa
+1078	DZIENNIK STACJI
+1079	ZAPISZ KOPIĘ
+1080	PRZYWRÓĆ
+1081	Dziennik jest przechowywany w przeglądarce tego urządzenia i znika po wyczyszczeniu danych witryny. Kopia to jeden plik ze wszystkimi minutami, dobami i zdarzeniami. Zapisz go w folderze Dysku Google, a będzie w chmurze; przywracanie dokłada wpisy, nie usuwając istniejących.
+1082	NNE
+1083	NE
+1084	ENE
+1085	ESE
+1086	SE
+1087	SSE
+1088	SSW
+1089	SW
+1090	WSW
+1091	WNW
+1092	NW
+1093	NNW
+1094	MODEL OPEN-METEO
+1095	Z TWOJEGO CZUJNIKA
+1096	BRAK DANYCH
+1097	Kierunek nie jest mierzony (brak czujnika), a prognoza jeszcze nie dotarła. Róża pojawi się, gdy będą współrzędne stacji i sieć.
+1098	Najczęściej wieje z
+1099	Średnio stamtąd
+1100	Uwzględniono
+1101	# h modelu
+1102	# h zapisu
+1103	Długość płatka pokazuje, jak często wiatr wiał z tej strony, nasycenie — jak był tam silny. Bez czujnika kierunku używany jest model Open-Meteo w miejscu stacji: to nie pomiar, lecz to, skąd wiał wiatr w okolicy.
+1104	Nie udało się narysować.
+1105	Dziennik dnia
+1106	ZA MAŁO DANYCH
+1107	Na
+1108	w dzienniku jest mniej niż pół godziny zapisu — na razie nie ma z czego pisać.
+1109	średni wiatr wyniósł
+1110	m/s. Najmocniej powiało o
+1111	— poryw
+1112	m/s.
+1113	Najspokojniej było około
+1114	m/s).
+1115	# h
+1116	Zapisano
+1117	Wiatrak # m dałby
+1118	# Wh
+1119	UDOSTĘPNIJ KARTĘ
+1120	Twój maszt a sąsiedzi
+1121	# wobec # m/s · ×#
+1122	# m/s, poryw #
+1123	# m/s, poryw # · #°
+1124	Tryb burzowy
+1125	Gdy wiatr gwałtownie rośnie albo poryw przekracza próg, pulpit sam otwiera widok pełnoekranowy: duża prędkość, poryw i wykres. Nie częściej niż raz na # minut, w nocy milczy.
+1126	Poryw od
+1127	Przyciemnij ekran i wycisz wibracje
+1128	Jedna długa wibracja przy uruchomieniu aplikacji: zaczyna się ledwo wyczuwalnie i płynnie narasta do końca ładowania. Przy aktualizacji wibracji nie ma.
+1129	Tryb burzowy: poryw # m/s
+1130	NOC · ŚWIATŁO TYLKO Z BŁYSKAWIC
+1131	ZMIERZCH · SŁOŃCE #°
+1132	ZMIERZCH · SŁOŃCE -#°
+1133	Kamera stacji
+1134	BFT
+1135	Powiedz
+1136	Udostępnij
+1137	Tryb

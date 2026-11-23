@@ -1041,3 +1041,98 @@
 1040	O
 1041	E
 1042	hPa
+1043	Alertes personnalisées
+1044	# SUR # ACTIVES
+1045	AUCUNE RÈGLE
+1046	Une règle : « si le vent dépasse # m/s pendant plus de # minutes — préviens-moi ». Ajoutez la vôtre : rafale, vent moyen, chute de pression ou batterie.
+1047	Règle activée
+1048	Condition
+1049	au-dessus de
+1050	en dessous de
+1051	pendant plus de
+1052	Minutes
+1053	min
+1054	Supprimer la règle
+1055	Supprimer
+1056	Quoi surveiller
+1057	AJOUTER
+1058	Chaque règle se déclenche une fois par « épisode » : tant que la condition dure, pas de répétition. Elle passe par le même filtre de notifications (# par jour au maximum) et, la nuit, attend le résumé du matin. Les règles ne voient qu’une vraie station, pas la démo.
+1059	Actuellement :
+1060	Rafale actuelle
+1061	Baisse de pression sur # heures
+1062	Charge de la batterie
+1063	Vent moyen au-dessus de # m/s pendant plus de # min
+1064	Vent moyen au-dessus de # m/s
+1065	Rafale actuelle au-dessus de # m/s
+1066	Charge de la batterie au-dessus de # %
+1067	Vent moyen en dessous de # m/s pendant plus de # min
+1068	Vent moyen en dessous de # m/s
+1069	Rafale actuelle en dessous de # m/s
+1070	Charge de la batterie en dessous de # %
+1071	Baisse de pression sur # heures de # hPa ou plus
+1072	Enregistré : # minutes, # jours, # événements.
+1073	Impossible de créer la copie.
+1074	Ce n’est pas une copie du journal Weathered_Kiwi.
+1075	Entrées restaurées : #.
+1076	Fichier illisible.
+1077	Sauvegarde
+1078	JOURNAL DE LA STATION
+1079	ENREGISTRER LA COPIE
+1080	RESTAURER
+1081	Le journal est stocké dans le navigateur de cet appareil et disparaît si l’on efface les données du site. La copie est un seul fichier avec toutes les minutes, journées et événements. Enregistrez-la dans un dossier Google Drive pour l’avoir dans le cloud ; la restauration ajoute des entrées sans effacer celles qui existent.
+1082	NNE
+1083	NE
+1084	ENE
+1085	ESE
+1086	SE
+1087	SSE
+1088	SSO
+1089	SO
+1090	OSO
+1091	ONO
+1092	NO
+1093	NNO
+1094	MODÈLE OPEN-METEO
+1095	D’APRÈS VOTRE CAPTEUR
+1096	AUCUNE DONNÉE
+1097	La direction n’est pas mesurée (pas de capteur) et la prévision n’est pas encore arrivée. La rose apparaîtra quand la station aura des coordonnées et du réseau.
+1098	Souffle le plus souvent du
+1099	Moyenne de ce côté
+1100	Pris en compte
+1101	# h de modèle
+1102	# h enregistrées
+1103	La longueur du pétale indique la fréquence du vent de ce côté, l’intensité de la couleur sa force. Sans capteur de direction, on utilise le modèle Open-Meteo au point de la station : ce n’est pas une mesure, mais la provenance du vent alentour.
+1104	Impossible de dessiner.
+1105	Journal du jour
+1106	PEU DE DONNÉES
+1107	Pour
+1108	le journal contient moins d’une demi-heure d’enregistrement — pas encore de quoi écrire.
+1109	le vent moyen était de
+1110	m/s. Le plus fort coup de vent est venu à
+1111	— rafale
+1112	m/s.
+1113	Le plus calme vers
+1114	m/s).
+1115	# h
+1116	Enregistré
+1117	Une éolienne de # m donnerait
+1118	# Wh
+1119	PARTAGER LA CARTE
+1120	Votre mât face aux voisins
+1121	# contre # m/s · ×#
+1122	# m/s, rafale #
+1123	# m/s, rafale # · #°
+1124	Mode tempête
+1125	Quand le vent forcit brusquement ou qu’une rafale dépasse le seuil, le tableau de bord ouvre de lui-même le plein écran : grande vitesse, rafale et courbe. Pas plus d’une fois toutes les # minutes, silencieux la nuit.
+1126	Rafale dès
+1127	Atténuer l’écran et les vibrations
+1128	Une longue vibration au lancement de l’application : à peine perceptible au début, elle monte en douceur jusqu’à la fin du chargement. Pas de vibration pendant les mises à jour.
+1129	Mode tempête : rafale # m/s
+1130	NUIT · LUMIÈRE DES ÉCLAIRS SEULEMENT
+1131	CRÉPUSCULE · SOLEIL #°
+1132	CRÉPUSCULE · SOLEIL -#°
+1133	Caméra de la station
+1134	BFT
+1135	Lire
+1136	Partager
+1137	Mode

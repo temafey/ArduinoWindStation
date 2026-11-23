@@ -1041,3 +1041,98 @@
 1040	O
 1041	E
 1042	hPa
+1043	Allarmi personalizzati
+1044	# DI # ATTIVI
+1045	NESSUNA REGOLA
+1046	Una regola: «se il vento supera # m/s per più di # minuti, avvisami». Aggiungi la tua: raffica, vento medio, calo di pressione o batteria.
+1047	Regola attiva
+1048	Condizione
+1049	sopra
+1050	sotto
+1051	per più di
+1052	Minuti
+1053	min
+1054	Elimina regola
+1055	Elimina
+1056	Cosa monitorare
+1057	AGGIUNGI
+1058	Ogni regola scatta una volta per «episodio»: finché la condizione dura, niente ripetizioni. Passa dallo stesso filtro delle notifiche (non più di # al giorno) e di notte si accumula nel riepilogo del mattino. Le regole vedono solo una stazione reale, non la demo.
+1059	Ora:
+1060	Raffica attuale
+1061	Calo di pressione in # ore
+1062	Carica batteria
+1063	Vento medio sopra # m/s per più di # min
+1064	Vento medio sopra # m/s
+1065	Raffica attuale sopra # m/s
+1066	Carica batteria sopra # %
+1067	Vento medio sotto # m/s per più di # min
+1068	Vento medio sotto # m/s
+1069	Raffica attuale sotto # m/s
+1070	Carica batteria sotto # %
+1071	Calo di pressione in # ore di # hPa o più
+1072	Salvato: # minuti, # giorni, # eventi.
+1073	Impossibile creare la copia.
+1074	Questa non è una copia del registro di Weathered_Kiwi.
+1075	Voci ripristinate: #.
+1076	Impossibile leggere il file.
+1077	Backup
+1078	REGISTRO STAZIONE
+1079	SALVA COPIA
+1080	RIPRISTINA
+1081	Il registro sta nel browser di questo dispositivo e sparisce cancellando i dati del sito. La copia è un unico file con tutti i minuti, i giorni e gli eventi. Salvala in una cartella di Google Drive e sarà nel cloud; il ripristino aggiunge voci senza cancellare quelle esistenti.
+1082	NNE
+1083	NE
+1084	ENE
+1085	ESE
+1086	SE
+1087	SSE
+1088	SSO
+1089	SO
+1090	OSO
+1091	ONO
+1092	NO
+1093	NNO
+1094	MODELLO OPEN-METEO
+1095	DAL TUO SENSORE
+1096	NESSUN DATO
+1097	La direzione non viene misurata (manca il sensore) e la previsione non è ancora arrivata. La rosa apparirà quando ci saranno le coordinate della stazione e la rete.
+1098	Soffia più spesso da
+1099	Media da lì
+1100	Conteggiato
+1101	# h di modello
+1102	# h registrate
+1103	La lunghezza del petalo indica quanto spesso il vento è arrivato da quel lato, l’intensità del colore quanto era forte. Senza sensore di direzione si usa il modello Open-Meteo nel punto della stazione: non è una misura, ma da dove soffiava il vento nei dintorni.
+1104	Impossibile disegnare.
+1105	Diario del giorno
+1106	POCHI DATI
+1107	Per
+1108	il registro ha meno di mezz’ora di dati — non c’è ancora abbastanza per il diario.
+1109	il vento medio è stato di
+1110	m/s. Il colpo più forte è arrivato alle
+1111	— raffica
+1112	m/s.
+1113	Il momento più calmo verso le
+1114	m/s).
+1115	# h
+1116	Registrato
+1117	Una turbina da # m darebbe
+1118	# Wh
+1119	CONDIVIDI SCHEDA
+1120	Il tuo palo rispetto ai vicini
+1121	# contro # m/s · ×#
+1122	# m/s, raffica #
+1123	# m/s, raffica # · #°
+1124	Modalità tempesta
+1125	Quando il vento cresce di colpo o una raffica supera la soglia, la dashboard apre da sola la vista a schermo intero: velocità grande, raffica e curva. Non più di una volta ogni # minuti, di notte tace.
+1126	Raffica da
+1127	Attenua schermo e vibrazione
+1128	Una lunga vibrazione all’avvio dell’app: comincia appena percettibile e cresce dolcemente fino alla fine del caricamento. Durante gli aggiornamenti nessuna vibrazione.
+1129	Modalità tempesta: raffica # m/s
+1130	NOTTE · LUCE SOLO DAI FULMINI
+1131	CREPUSCOLO · SOLE #°
+1132	CREPUSCOLO · SOLE -#°
+1133	Telecamera della stazione
+1134	BFT
+1135	Leggi
+1136	Condividi
+1137	Modalità
