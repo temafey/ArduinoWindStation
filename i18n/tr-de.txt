@@ -1136,3 +1136,27 @@
 1135	Vorlesen
 1136	Teilen
 1137	Modus
+1138	Erscheinungsbild
+1139	Station & Daten
+1140	Navigation & Layout
+1141	Hell
+1142	Dunkel
+1143	Stil
+1144	Hintergrundbild
+1145	Lebendig
+1146	Gedämpft
+1147	Ohne Hintergrundbild
+1148	Nur hell oder dunkel. Wie die Panels aussehen, wählst du unten unter „Stil“, das Bild dahinter unter „Hintergrundbild“.
+1149	„Standard“ – strenge Panels mit dünnem Rand. Liquid Glass – Glas, Glanzlichter und Linsen wie in iOS 26. „Tonal“ – weiche farbige Flächen mit Verläufen und großen Rundungen wie in Android-Apps. Die Animationen sind überall gleich.
+1150	Farbflecken und Blasen, die langsam unter dem Glas treiben: So hat das Glas etwas zu brechen. „Gedämpft“ ist dasselbe, aber dunkler (nur im dunklen Design). Im Eco-Modus steht das Hintergrundbild still.
+1151	KEINE KAMERA · DEMO-BILD
+1152	TAG
+1153	# mm
+1154	Wissen
+1155	Karte
+1156	Messgeräte der Station in Echtzeit
+1157	Leitfaden: wie Gewitter und Tornados entstehen
+1158	Weltkarte: Radar, Warnungen, Tornados
+1159	Wind und Wetter in der Umgebung
+1160	Protokoll, Statistik und Vorhersage
+1161	Verbindung, Zustand und Ereignisse

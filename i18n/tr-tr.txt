@@ -1136,3 +1136,27 @@
 1135	Seslendir
 1136	Paylaş
 1137	Mod
+1138	Görünüm
+1139	İstasyon ve veriler
+1140	Gezinme ve yerleşim
+1141	Açık
+1142	Koyu
+1143	Stil
+1144	Duvar kâğıdı
+1145	Canlı
+1146	Soluk
+1147	Duvar kâğıdı yok
+1148	Yalnızca açık ya da koyu. Panellerin görünümü aşağıda “Stil”den, arkalarındaki resim ise “Duvar kâğıdı”ndan seçilir.
+1149	“Varsayılan” — ince kenarlı sade paneller. Liquid Glass — iOS 26’daki gibi cam, parlamalar ve mercekler. “Tonal” — Android uygulamalarındaki gibi renk geçişli, büyük yuvarlak köşeli yumuşak renkli yüzeyler. Animasyonlar hepsinde aynıdır.
+1150	Camın altında yavaşça süzülen renk lekeleri ve kabarcıklar: cam böylece kırabileceği bir şey bulur. “Soluk” aynısı, ama daha koyu (yalnızca koyu temada). Eko modunda duvar kâğıdı durur.
+1151	KAMERA YOK · DEMO KARESİ
+1152	GÜNDÜZ
+1153	# mm
+1154	Bilgi
+1155	Harita
+1156	istasyon göstergeleri, canlı
+1157	rehber: fırtınalar ve hortumlar nasıl oluşur
+1158	dünya haritası: radar, uyarılar, hortumlar
+1159	çevrenizdeki rüzgâr ve hava
+1160	kayıt, istatistik ve tahmin
+1161	bağlantı, sağlık ve olaylar

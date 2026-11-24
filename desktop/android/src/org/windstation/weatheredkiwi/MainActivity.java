@@ -133,6 +133,12 @@ public class MainActivity extends Activity {
         s.setMediaPlaybackRequiresUserGesture(false);
 
         keepWifiReachable();
+        // Разрешение на уведомления просим один раз, при первом запуске: иначе о новой версии сказать нечем.
+        if (Build.VERSION.SDK_INT >= 33 && !prefs.getBoolean("askedNotify", false)
+                && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+            prefs.edit().putBoolean("askedNotify", true).apply();
+            requestPermissions(new String[] { "android.permission.POST_NOTIFICATIONS" }, 7);
+        }
         web.addJavascriptInterface(new Bridge(), "WKNative");
         web.setWebViewClient(new WebViewClient());
         web.setWebChromeClient(new WebChromeClient() {
@@ -377,6 +383,22 @@ public class MainActivity extends Activity {
         }
     }
 
+    // Системное уведомление о новой версии: одно на версию, не в дашборде, а в шторке телефона.
+    private void notifyUpdate() {
+        try {
+            if (!"available".equals(status) || info == null) return;
+            String v = info.optString("version", "");
+            if (v.isEmpty() || v.equals(prefs.getString("notifiedUpdate", ""))) return;
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm == null || (Build.VERSION.SDK_INT >= 24 && !nm.areNotificationsEnabled())) return;   // не говорим «сказано», если сказать нечем
+            JSONArray n = info.optJSONArray("notes");
+            String body = n != null && n.length() > 0 ? n.optString(0, "") : "";
+            if (body.isEmpty()) body = "Откройте приложение — установка в одно касание.";
+            prefs.edit().putString("notifiedUpdate", v).apply();
+            postNote("Доступно обновление " + v, body, "update");
+        } catch (Exception e) { /* молча */ }
+    }
+
     private void postNote(String title, String body, String tag) {
         try {
             NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -614,6 +636,7 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) { }
         }
         reached = reached || shellOk;
+        notifyUpdate();
         push();
     }
 

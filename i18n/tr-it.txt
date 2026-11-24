@@ -1136,3 +1136,27 @@
 1135	Leggi
 1136	Condividi
 1137	Modalità
+1138	Aspetto
+1139	Stazione e dati
+1140	Navigazione e disposizione
+1141	Chiaro
+1142	Scuro
+1143	Stile
+1144	Sfondo
+1145	Animato
+1146	Attenuato
+1147	Senza sfondo
+1148	Solo chiaro o scuro. L’aspetto dei pannelli si sceglie più sotto in «Stile», l’immagine dietro di essi in «Sfondo».
+1149	«Predefinito»: pannelli sobri con un bordo sottile. Liquid Glass: vetro, riflessi e lenti, come in iOS 26. «Tonale»: superfici colorate morbide con sfumature e angoli molto arrotondati, come nelle app Android. Le animazioni sono le stesse in tutti.
+1150	Macchie di colore e bolle che scivolano lente sotto il vetro: così il vetro ha qualcosa da rifrangere. «Attenuato» è lo stesso ma più scuro (solo nel tema scuro). In modalità eco lo sfondo resta fermo.
+1151	NESSUNA CAMERA · IMMAGINE DEMO
+1152	GIORNO
+1153	# mm
+1154	Sapere
+1155	Mappa
+1156	strumenti della stazione in tempo reale
+1157	guida: come nascono temporali e tornado
+1158	mappa del mondo: radar, allerte, tornado
+1159	vento e meteo intorno a te
+1160	registro, statistiche e previsioni
+1161	connessione, stato ed eventi

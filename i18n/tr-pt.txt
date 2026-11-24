@@ -1136,3 +1136,27 @@
 1135	Falar
 1136	Compartilhar
 1137	Modo
+1138	Aparência
+1139	Estação e dados
+1140	Navegação e disposição
+1141	Claro
+1142	Escuro
+1143	Estilo
+1144	Papel de parede
+1145	Animado
+1146	Suavizado
+1147	Sem papel de parede
+1148	Apenas claro ou escuro. A aparência dos painéis é escolhida abaixo em «Estilo», e a imagem por trás deles em «Papel de parede».
+1149	«Padrão»: painéis sóbrios com borda fina. Liquid Glass: vidro, reflexos e lentes, como no iOS 26. «Tonal»: superfícies coloridas e suaves, com gradientes e cantos bem arredondados, como nos apps Android. As animações são as mesmas em todos.
+1150	Manchas de cor e bolhas que flutuam devagar sob o vidro: assim o vidro tem o que refratar. «Suavizado» é o mesmo, porém mais escuro (só no tema escuro). No modo econômico o papel de parede fica parado.
+1151	SEM CÂMERA · QUADRO DE DEMONSTRAÇÃO
+1152	DIA
+1153	# mm
+1154	Saber
+1155	Mapa
+1156	instrumentos da estação em tempo real
+1157	guia: como nascem tempestades e tornados
+1158	mapa-múndi: radar, alertas, tornados
+1159	vento e tempo ao seu redor
+1160	registro, estatísticas e previsão
+1161	conexão, saúde e eventos

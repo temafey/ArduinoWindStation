@@ -39,7 +39,7 @@ import { useAppUpdate, useUpdateCheck, VerFacts } from "./wind-update.jsx";
 import { Switch, Segments, Reveal, SWITCH_CSS } from "./wind-switch.jsx";
 import { SystemHero, LedDeck, SYSTEM_CSS } from "./wind-system.jsx";
 import { AreaTab, AreaMode, AreaWind, WindCompass, SourceSwitch, AREA_CSS } from "./wind-area.jsx";
-import { ECO_AUTO, ecoOn, ECO_CSS, OFFSCREEN_CSS, watchOffscreen } from "./wind-perf.js";
+import { ECO_AUTO, ecoOn, ECO_CSS, OFFSCREEN_CSS, watchOffscreen, watchSlow, slowRemembered, SLOW_KEY } from "./wind-perf.js";
 import { useMorph, MORPH_CSS } from "./wind-morph.js";
 import { Liquid, LiquidRange, LIQUID_CSS, MOTION_CSS } from "./wind-liquid.jsx";
 import { LIGHT_CSS } from "./wind-light.js";
@@ -1089,7 +1089,7 @@ function GlassLevel({ value, onCommit, g, eco }) {
 // без единой перерисовки.
 let tabMarkFrom = null;
 
-function Tab({ id, active, onClick, children, g, short, fluid }) {
+function Tab({ id, active, onClick, children, g, short, fluid, hint }) {
   const on = id === active;
   const markRef = useRef(null);
   useLayoutEffect(() => {
@@ -1137,7 +1137,7 @@ function Tab({ id, active, onClick, children, g, short, fluid }) {
       data-tab={id}
       className={on ? "tab-on" : undefined}
       onClick={() => onClick(id)}
-      aria-label={children} title={children}
+      aria-label={children} title={hint ? `${children}: ${hint}` : children}
       style={{
         position: "relative", background: "transparent", border: "none",
         borderBottom: "2px solid transparent",
@@ -2339,7 +2339,13 @@ export default function WindDashboard() {
     try { window.wkWindow?.setIcon?.(kind); } catch { /* старая оболочка */ }
     try { if (window.WKNative && typeof window.WKNative.setIcon === "function") window.WKNative.setIcon(kind); } catch { /* старая оболочка */ }
   }, [tonalIcon]);
-  const eco = ecoOn(settings);
+  // Эко включается и само, если устройство не тянет: см. watchSlow() в wind-perf.js.
+  const [slowDev, setSlowDev] = useState(slowRemembered);
+  const eco = ecoOn(settings, slowDev);
+  useEffect(() => {
+    if (settings.eco != null || ECO_AUTO || slowDev) return undefined;
+    return watchSlow(() => setSlowDev(true));
+  }, [settings.eco, slowDev]);
   const ecoRef = useRef(eco);
   ecoRef.current = eco;
   SMOOTH_MIN_MS = eco ? 33 : 0;
@@ -2686,7 +2692,7 @@ export default function WindDashboard() {
     // 800×1280): перерисовка — две трети оставшейся работы главного потока.
     if (ecoRef.current && live) {
       const now = performance.now();
-      if (now - lastApplyAt.current < 195) return;
+      if (now - lastApplyAt.current < 250) return;
       lastApplyAt.current = now;
     }
     // Older firmware has no *Present flags — infer from the value being there.
@@ -3608,12 +3614,12 @@ export default function WindDashboard() {
   const toggleDemo = () => { setShowSettings(false); setShowDemo((v) => !v); };
 
   const TABS = [
-    { id: "wind", label: "Метео данные" },
-    { id: "meteo", label: "Метеорология", short: "Метео" },
-    { id: "radar", label: "Радар" },
-    { id: "area", label: "Район" },
-    { id: "analysis", label: "Анализ" },
-    { id: "system", label: "Станция" },
+    { id: "wind", label: "Ветер", hint: "приборы станции в реальном времени" },
+    { id: "meteo", label: "Знания", hint: "справочник: как рождаются штормы и смерчи" },
+    { id: "radar", label: "Карта", hint: "карта мира: радар, предупреждения, смерчи" },
+    { id: "area", label: "Район", hint: "ветер и погода вокруг" },
+    { id: "analysis", label: "Анализ", hint: "журнал, статистика и прогноз" },
+    { id: "system", label: "Станция", hint: "подключение, здоровье и события" },
   ];
 
   // Стрелки влево/вправо переключают вкладки; на краю останавливаются.
@@ -3727,7 +3733,7 @@ export default function WindDashboard() {
                              meta={data.cameraPresent && data.cameraUrl ? "ПОТОК" : "НЕ ПОДКЛЮЧЕНА"}>
                         <CameraWindow url={data.cameraPresent ? data.cameraUrl : null}
                                       accent={accent} g={g} motion={eco ? "off" : motion} speedMs={data.speed}
-                                      site={siteInfo} now={time} /></Panel>
+                                      site={siteInfo} now={time} day={settings.mode === "light"} lite={eco} /></Panel>
     ) },
     (settings.widgets || []).length > 0 && { id: "widgets", h: 22, title: "Свои виджеты", node: (
       <CustomWidgets widgets={settings.widgets} g={g} accent={accent} Panel={Panel} />
@@ -5159,7 +5165,7 @@ export default function WindDashboard() {
               <Panel title="Карта мира" g={g} delay={0}
                      meta={ONLINE ? "ЖИВЫЕ СЛОИ · NWS / NOAA" : "БЕЗ СЕТИ · ТОЛЬКО АРХИВ"}>
                 <WorldMap g={g} motion={motion} online={ONLINE} site={siteInfo}
-                          showGrid={settings.showGrid} quality={settings.mapQuality}
+                          showGrid={settings.showGrid} quality={eco ? "eco" : settings.mapQuality}
                           pixelRadar={settings.pixelRadar !== false}
                           pixelCells={settings.pixelCells !== false} />
               </Panel>
@@ -5520,7 +5526,7 @@ export default function WindDashboard() {
           />
           <div style={{ margin: "-12px 0 18px", fontFamily: SANS, fontSize: 10.5, color: DIM, lineHeight: 1.5 }}>
             {settings.eco == null
-              ? <>Сейчас решает устройство: {ECO_AUTO ? "похоже на телефон — включён" : "компьютер — выключен"}.</>
+              ? <>Сейчас решает устройство: {ECO_AUTO ? "похоже на телефон или слабое железо — включён" : slowDev ? "оно не тянуло полную графику, и эко включился сам" : "оно справляется — выключен"}.{slowDev && !ECO_AUTO && <> · <button type="button" className="eco-auto" onClick={() => { try { localStorage.removeItem(SLOW_KEY); } catch { /* приватный режим */ } setSlowDev(false); }}>проверить заново</button></>}</>
               : <button type="button" className="eco-auto" onClick={() => setS({ eco: null })}>
                   вернуть автовыбор ({ECO_AUTO ? "здесь — вкл" : "здесь — выкл"})
                 </button>}
@@ -5715,7 +5721,7 @@ export default function WindDashboard() {
           <nav className="dock-bar">
             <div className="dock-tabs">
             {TABS.map((t) => (
-              <Tab key={t.id} id={t.id} active={tab} onClick={setTab} g={g} short={t.short} fluid={fluid}>{t.label}</Tab>
+              <Tab key={t.id} id={t.id} active={tab} onClick={setTab} g={g} short={t.short} hint={t.hint} fluid={fluid}>{t.label}</Tab>
             ))}
             </div>
             <button className="gear-btn dock-gear" onClick={toggleSettings}

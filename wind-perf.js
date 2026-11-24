@@ -29,14 +29,57 @@ function detect() {
     if (f === "1") return true;
     if (f === "0") return false;
     if (/Android/i.test(navigator.userAgent) || window.WKNative) return true;
+    // Слабое железо видно и без телефона: мало памяти или ядер, «экономия трафика»
+    // в системе (её включают как раз на слабых устройствах).
+    if (navigator.deviceMemory && navigator.deviceMemory <= 4) return true;
+    if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) return true;
+    if (navigator.connection && navigator.connection.saveData) return true;
     return window.matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 820;
   } catch { return false; }
 }
 export const ECO_AUTO = typeof window !== "undefined" && detect();
 
 // null — «как решит устройство», true/false — выбор человека в настройках.
-export function ecoOn(settings) {
-  return settings.eco == null ? ECO_AUTO : !!settings.eco;
+export function ecoOn(settings, slow = false) {
+  return settings.eco == null ? ECO_AUTO || slow : !!settings.eco;
+}
+
+// Устройство само себя не знает: «современный» ноутбук с зажатой видеокартой или
+// планшет в режиме экономии тянут дашборд хуже телефона. Поэтому, пока эко-режим
+// на автомате и ещё не включён, следим за настоящей частотой кадров: после
+// прогрева — окна по три секунды; если больше трети кадров дольше 50 мс два окна
+// подряд, устройство слабое, и эко включается (и запоминается на следующий запуск).
+export const SLOW_KEY = "wind_ui_perf_slow";
+export function slowRemembered() {
+  try { return localStorage.getItem(SLOW_KEY) === "1"; } catch { return false; }
+}
+export function watchSlow(onSlow) {
+  if (typeof requestAnimationFrame === "undefined") return () => {};
+  let raf = 0, last = 0, n = 0, bad = 0, winStart = 0, strikes = 0, dead = false;
+  const born = performance.now();
+  const tick = (ts) => {
+    if (dead) return;
+    raf = requestAnimationFrame(tick);
+    if (document.hidden) { last = 0; return; }
+    if (last) {
+      const d = ts - last;
+      if (d < 1000) { n++; if (d > 50) bad++; }      // длинные паузы — вкладка спала, не лаг
+    }
+    last = ts;
+    if (ts - born < 4000) { winStart = ts; n = bad = 0; return; }   // прогрев: первая отрисовка всегда тяжёлая
+    if (!winStart) winStart = ts;
+    if (ts - winStart >= 3000) {
+      if (n >= 12 && bad / n > 0.34) strikes++; else strikes = 0;
+      n = bad = 0; winStart = ts;
+      if (strikes >= 2) {
+        dead = true;
+        try { localStorage.setItem(SLOW_KEY, "1"); } catch { /* приватный режим */ }
+        onSlow();
+      }
+    }
+  };
+  raf = requestAnimationFrame(tick);
+  return () => { dead = true; cancelAnimationFrame(raf); };
 }
 
 export const ECO_CSS = `
@@ -95,6 +138,26 @@ export const ECO_CSS = `
    пересчётов стилей в секунду вместо десяти. В эко кольцо встаёт на место
    сразу, без свечения. */
 .app.eco .ar-ring { transition: none !important; filter: none !important }
+
+/* ---------- ещё легче (0.5.54) ---------- */
+/* Свечение текста и графики — самое дорогое, что есть на слабом экране: размытие
+   считается на каждый кадр каждого узла. В эко его нет вовсе, кроме тёмных островков
+   (карта, камера), где оно и без того снято. */
+.app.eco *, .app.eco *::before, .app.eco *::after { text-shadow: none !important }
+.app.eco svg:not(.no-glow):not(.no-glow *) { filter: none !important }
+.app.eco .pnl, .app.eco .stat { box-shadow: 0 0 0 1px var(--pnl-line, rgba(255,255,255,.10)) !important }
+/* Панели за краем экрана браузер вообще не раскладывает и не рисует: на длинной вкладке
+   это половина работы. Высота запоминается («auto»), прокрутка не прыгает. */
+.app.eco .pnl { content-visibility: auto; contain-intrinsic-size: auto 240px }
+/* Жидкие заливки: волна и блик — анимация на каждую заливку, а их на экране десятки. */
+.app.eco .liq::before, .app.eco .liq::after, .app.eco .liq-f::before, .app.eco .liq-f::after,
+.app.eco .liq-wave, .app.eco .liq-shine { animation: none !important }
+/* Подсветка касанием и «желе» — красиво, но на слабом экране задерживает отклик. */
+.app.eco .lg-touch { display: none !important }
+.app.eco .tabfade { animation-duration: .38s !important }
+/* Фон-холст и параллакс не нужны: он и так стоит. */
+.app.eco .lg-wall { transform: none !important; will-change: auto !important }
+
 `;
 
 // Для любого режима: всё, что вышло за край экрана, на паузе. Анимации за кадром

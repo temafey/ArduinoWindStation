@@ -29,7 +29,7 @@
 // подписи сетевая лента считается молчащей. Локальная папка подписи не требует: кто
 // пишет на этот диск, тот и так владеет программой. http пускается только из своей
 // сети (127.*, 10.*, 192.168.*, 172.16–31.*), https — откуда угодно.
-const { app, ipcMain, net } = require("electron");
+const { app, ipcMain, net, Notification } = require("electron");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -272,6 +272,23 @@ async function tryFeeds() {
   return false;
 }
 
+// Системное уведомление Windows о новой версии — не в дашборде, а тостом, чтобы его
+// увидели, даже когда окно свёрнуто. Одно на версию: запоминаем, о какой уже сказали.
+function notifyUpdate() {
+  try {
+    if (state.status !== "available" || !state.info || !Notification.isSupported()) return;
+    const v = String(state.info.version || "");
+    const f = path.join(app.getPath("userData"), "notified-update.txt");
+    let last = ""; try { last = fs.readFileSync(f, "utf8").trim(); } catch { /* ещё не говорили */ }
+    if (!v || v === last) return;
+    fs.writeFileSync(f, v);
+    const note = Array.isArray(state.info.notes) && state.info.notes.length ? String(state.info.notes[0]) : "";
+    const n = new Notification({ title: `Доступно обновление ${v}`, body: note || "Откройте программу — установка в одно касание.", silent: false });
+    n.on("click", () => { if (win && !win.isDestroyed()) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); } });
+    n.show();
+  } catch { /* уведомления недоступны — не страшно */ }
+}
+
 async function check() {
   if (state.status === "downloading" || state.status === "installing") return pub();
   state.current = currentVersion();
@@ -300,6 +317,7 @@ async function check() {
   state.reached = ok || shellOk;
   state.checkedAt = Date.now();
   if (!ok && state.status !== "error") { state.status = "idle"; state.info = null; }
+  notifyUpdate();
   return push();
 }
 

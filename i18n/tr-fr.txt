@@ -1136,3 +1136,27 @@
 1135	Lire
 1136	Partager
 1137	Mode
+1138	Apparence
+1139	Station et données
+1140	Navigation et disposition
+1141	Clair
+1142	Sombre
+1143	Style
+1144	Fond d’écran
+1145	Animé
+1146	Atténué
+1147	Sans fond d’écran
+1148	Simplement clair ou sombre. L’aspect des panneaux se choisit plus bas dans « Style », et l’image derrière eux dans « Fond d’écran ».
+1149	« Par défaut » : panneaux sobres à fin liseré. Liquid Glass : verre, reflets et lentilles, comme sur iOS 26. « Tonal » : surfaces colorées et douces, avec dégradés et grands arrondis, comme dans les applis Android. Les animations sont les mêmes partout.
+1150	Taches de couleur et bulles qui dérivent lentement sous le verre : il a ainsi de quoi réfracter. « Atténué » est la même chose, en plus sombre (thème sombre uniquement). En mode éco, le fond d’écran reste immobile.
+1151	PAS DE CAMÉRA · IMAGE DE DÉMO
+1152	JOUR
+1153	# mm
+1154	Savoir
+1155	Carte
+1156	instruments de la station en temps réel
+1157	guide : comment naissent orages et tornades
+1158	carte du monde : radar, alertes, tornades
+1159	vent et météo autour de vous
+1160	journal, statistiques et prévisions
+1161	connexion, santé et événements

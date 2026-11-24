@@ -1136,3 +1136,27 @@
 1135	Speak
 1136	Share
 1137	Mode
+1138	Appearance
+1139	Station & data
+1140	Navigation & layout
+1141	Light
+1142	Dark
+1143	Style
+1144	Wallpaper
+1145	Live
+1146	Muted
+1147	No wallpaper
+1148	Just light or dark. How the panels look is chosen below in “Style”, and the picture behind them in “Wallpaper”.
+1149	“Default” — strict panels with a thin edge. Liquid Glass — glass, highlights and lenses, like iOS 26. “Tonal” — soft coloured surfaces with gradients and large rounded corners, like Android apps. The animations are the same in all of them.
+1150	Coloured blobs and bubbles that drift slowly under the glass: it gives the glass something to refract. “Muted” is the same but darker (dark theme only). In eco mode the wallpaper stands still.
+1151	NO CAMERA · DEMO FRAME
+1152	DAY
+1153	# mm
+1154	Learn
+1155	Map
+1156	station instruments in real time
+1157	guide: how storms and tornadoes form
+1158	world map: radar, warnings, tornadoes
+1159	wind and weather around you
+1160	log, statistics and forecast
+1161	connection, health and events

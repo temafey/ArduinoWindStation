@@ -1136,3 +1136,27 @@
 1135	Decir
 1136	Compartir
 1137	Modo
+1138	Apariencia
+1139	Estación y datos
+1140	Navegación y disposición
+1141	Claro
+1142	Oscuro
+1143	Estilo
+1144	Fondo de pantalla
+1145	Animado
+1146	Atenuado
+1147	Sin fondo de pantalla
+1148	Solo claro u oscuro. Cómo se ven los paneles se elige abajo en «Estilo», y la imagen de detrás, en «Fondo de pantalla».
+1149	«Predeterminado»: paneles sobrios con un borde fino. Liquid Glass: cristal, destellos y lentes, como en iOS 26. «Tonal»: superficies de color suaves con degradados y esquinas muy redondeadas, como en las apps de Android. Las animaciones son las mismas en todos.
+1150	Manchas de color y burbujas que flotan despacio bajo el cristal: así el cristal tiene algo que refractar. «Atenuado» es lo mismo, pero más oscuro (solo en el tema oscuro). En el modo eco el fondo se queda quieto.
+1151	SIN CÁMARA · IMAGEN DE DEMOSTRACIÓN
+1152	DÍA
+1153	# mm
+1154	Saber
+1155	Mapa
+1156	instrumentos de la estación en tiempo real
+1157	guía: cómo nacen las tormentas y los tornados
+1158	mapa del mundo: radar, avisos, tornados
+1159	viento y tiempo a tu alrededor
+1160	registro, estadísticas y pronóstico
+1161	conexión, estado y eventos

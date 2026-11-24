@@ -1136,3 +1136,27 @@
 1135	Powiedz
 1136	Udostępnij
 1137	Tryb
+1138	Wygląd
+1139	Stacja i dane
+1140	Nawigacja i układ
+1141	Jasny
+1142	Ciemny
+1143	Styl
+1144	Tapeta
+1145	Żywa
+1146	Przygaszona
+1147	Bez tapety
+1148	Tylko jasny albo ciemny. Wygląd paneli wybiera się niżej w „Stylu”, a obraz za nimi — w „Tapecie”.
+1149	„Domyślny” — surowe panele z cienką krawędzią. Liquid Glass — szkło, odblaski i soczewki, jak w iOS 26. „Tonalny” — miękkie, kolorowe powierzchnie z gradientami i dużymi zaokrągleniami, jak w aplikacjach na Androida. Animacje są wszędzie takie same.
+1150	Kolorowe plamy i bąble, które powoli płyną pod szkłem — szkło ma wtedy co załamywać. „Przygaszona” to to samo, ale ciemniejsze (tylko w ciemnym motywie). W trybie eko tapeta stoi w miejscu.
+1151	BRAK KAMERY · KADR DEMO
+1152	DZIEŃ
+1153	# mm
+1154	Wiedza
+1155	Mapa
+1156	przyrządy stacji na żywo
+1157	przewodnik: jak powstają burze i tornada
+1158	mapa świata: radar, ostrzeżenia, tornada
+1159	wiatr i pogoda w okolicy
+1160	dziennik, statystyki i prognoza
+1161	połączenie, stan i zdarzenia

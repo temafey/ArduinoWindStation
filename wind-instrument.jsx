@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
+import { createRenderer, rig, project } from "./wind-tornado-gl.js";
 import { LINE, FAINT, NUM, clamp01, INSTR_H } from "./ui-kit.js";
 
 // ============================================================
@@ -64,7 +65,7 @@ function mixHex(h1, h2, t) {
 //     проиграет — ни один не умеет RTSP. Нужен промежуточный сервер,
 //     перепаковывающий поток в HLS, а ESP32 такой сервер не потянет;
 //   * USB-камеру ESP32 не возьмёт: у него нет USB-хоста.
-export function CameraWindow({ url, accent, g, motion, speedMs, site, now }) {
+export function CameraWindow({ url, accent, g, motion, speedMs, site, now, day, lite }) {
   if (url) {
     return (
       <div className="ink-dark" style={{ ...INSTR_FRAME, background: "#020407" }}>
@@ -73,7 +74,8 @@ export function CameraWindow({ url, accent, g, motion, speedMs, site, now }) {
       </div>
     );
   }
-  return <TornadoScene accent={accent} g={g} motion={motion} speedMs={speedMs} site={site} now={now} />;
+  const fb = <TornadoScene accent={accent} g={g} motion={motion} speedMs={speedMs} site={site} now={now} day={day} />;
+  return <TornadoCam motion={motion} speedMs={speedMs} site={site} now={now} day={day} lite={lite} fallback={fb} />;
 }
 
 // Камера — единственный прибор, который не вписывается, а заполняет: у неё
@@ -108,7 +110,7 @@ const INSTR_FRAME = {
 // выхватывают только вспышки, и именно так снимают ночные смерчи: серией
 // кадров, в каждом из которых воронка проступает на долю секунды. Поэтому
 // ночью молнии здесь заметно чаще, а подсветка воронки синхронна с ними.
-function TornadoScene({ accent, g, motion, speedMs, site, now }) {
+function TornadoScene({ accent, g, motion, speedMs, site, now, day }) {
   const still = motion === "off";
   const bucket = Math.round(clamp01((speedMs || 0) / 30) * 6);
 
@@ -117,7 +119,7 @@ function TornadoScene({ accent, g, motion, speedMs, site, now }) {
   const lat = site && (site.lat || site.lon) ? site.lat : 50;
   const lon = site && (site.lat || site.lon) ? site.lon : 30;
   const elev = sunElevation(now || new Date(), lat, lon);
-  const lightRaw = daylight(elev);
+  const lightRaw = day ? 1 : daylight(elev);
   // Ступенями, чтобы сцена не пересобиралась каждую секунду: свет меняется
   // за минуты, а перерисовка сотни узлов стоит куда дороже.
   const lightStep = Math.round(lightRaw * 16);
@@ -431,3 +433,162 @@ function TornadoScene({ accent, g, motion, speedMs, site, now }) {
     );
   }, [accent, g, still, bucket, lightStep, elev]);
 }
+
+// ============================================================
+// КАМЕРА НА СМЕРЧЕ (WebGL)
+// ============================================================
+// Настоящая трёхмерная сцена — см. wind-tornado-gl.js. Здесь: цикл кадров,
+// молнии, подстройка разрешения под видеокарту и рамка видоискателя поверх.
+// Рамка автофокуса стоит по настоящей проекции смерча на кадр, а не «примерно».
+// Без WebGL (или если шейдер не собрался) показывается прежняя рисованная сцена.
+const HUD_FONT = { fontFamily: "ui-monospace, 'Cascadia Mono', Consolas, monospace", letterSpacing: 1.2 };
+const chip = {
+  ...HUD_FONT, fontSize: 8.5, color: "rgba(235,242,250,0.92)", padding: "2px 6px",
+  background: "rgba(0,0,0,0.42)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 3,
+  textShadow: "0 1px 2px rgba(0,0,0,0.6)",
+};
+
+function TornadoCam({ motion, speedMs, site, now, day, lite, fallback }) {
+  const wrap = useRef(null), cv = useRef(null);
+  const af = useRef(null), tc = useRef(null), zm = useRef(null);
+  const [ok, setOk] = useState(true);
+  // Лёгкий режим: шейдер большой, и на слабом устройстве его сборка может подвесить
+  // страницу. Сначала — дешёвая рисованная сцена, настоящий кадр — после того,
+  // как дашборд отрисовался и затих.
+  const [armed, setArmed] = useState(!lite);
+  useEffect(() => {
+    if (!lite) { setArmed(true); return undefined; }
+    const t = setTimeout(() => setArmed(true), 2500);
+    return () => clearTimeout(t);
+  }, [lite]);
+  const lat = site && (site.lat || site.lon) ? site.lat : 50;
+  const lon = site && (site.lat || site.lon) ? site.lon : 30;
+  const elev = sunElevation(now || new Date(), lat, lon);
+  const light = day ? 1 : daylight(elev);
+  const live = useRef({ light, wind: 0 });
+  live.current.light = light;
+  live.current.wind = clamp01((speedMs || 0) / 30);
+  const still = motion === "off";
+  const calm = motion === "calm";
+
+  useEffect(() => {
+    const c = cv.current, box = wrap.current;
+    if (!armed || !c || !box) return undefined;
+    const r = createRenderer(c);
+    if (!r) { setOk(false); return undefined; }
+    let raf = 0, dead = false, visible = true, last = 0, k = lite ? 0.5 : 1, slow = 0, frames = 0;
+    const T0 = 14 + Math.random() * 400;                 // каждый раз — другой момент съёмки
+    const born = performance.now();
+    let nextBolt = 5, boltAt = -99, boltX = 0, boltSeed = 1, lastSec = -1;
+
+    const fit = () => {
+      const w = box.clientWidth || 640, h = box.clientHeight || 360;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const px = Math.min(w * h * dpr * dpr * 0.8, 600000) * k * k;
+      const sc = Math.sqrt(px / (w * h));
+      c.width = Math.max(160, Math.round(w * sc)); c.height = Math.max(90, Math.round(h * sc));
+      return { w, h, q: c.width * c.height < 330000 ? 1 : 0 };
+    };
+    let dim = fit();
+
+    const state = (tt) => {
+      const wind = live.current.wind, lt = live.current.light;
+      const g = rig(tt, wind);
+      // молнии: днём редко и слабо, ночью чаще и ярко
+      if (tt > nextBolt) {
+        boltAt = tt; boltX = (Math.random() - 0.5) * 0.9; boltSeed = Math.random() * 50 + 1;
+        nextBolt = tt + (lt > 0.5 ? 9 + Math.random() * 14 : 3.5 + Math.random() * 6);
+      }
+      const dt = tt - boltAt;
+      const amp = lt > 0.5 ? 0.5 : 1;
+      let flash = 0;
+      if (dt >= 0 && dt < 1.2) flash = Math.max(Math.exp(-dt * 8), dt > 0.16 ? 0.75 * Math.exp(-(dt - 0.16) * 7) : 0) * amp;
+      return {
+        t: tt % 5000, cam: g.cam, yaw: g.yaw, pitch: g.pitch, roll: g.roll, tanHalf: g.tanHalf, tx: g.tx,
+        light: lt, flash, bolt: [boltX, boltSeed, dt >= 0 && dt < 0.24 ? 1 : 0],
+        spin: 0.55 + 0.9 * wind, wind, q: dim.q, g,
+      };
+    };
+
+    const hud = (tt, s) => {
+      const g = s.g;
+      const a = dim.w / dim.h;
+      const pr = project(g, a, [g.tx + 0.5, 2.0, 16.5]);
+      if (af.current && pr) {
+        // раз в ~19 секунд автофокус «ищет» и снова ловит цель
+        const ph = tt % 19;
+        const hunting = ph > 17.2 && ph < 18.4;
+        const sz = hunting ? 64 : 46;
+        af.current.style.transform = `translate(${(pr.x * dim.w - sz / 2).toFixed(1)}px, ${(pr.y * dim.h - sz / 2).toFixed(1)}px)`;
+        af.current.style.width = af.current.style.height = `${sz}px`;
+        af.current.style.setProperty("--afc", hunting ? "rgba(255,255,255,.9)" : "rgba(120,255,160,.95)");
+        af.current.style.opacity = pr.x > 0.03 && pr.x < 0.97 ? "1" : "0";
+      }
+      const sec = Math.floor(tt);
+      if (tc.current && sec !== lastSec) {
+        lastSec = sec;
+        const m = Math.floor(sec / 60) % 60, ss = sec % 60;
+        tc.current.textContent = `REC ${String(Math.floor(sec / 3600) % 24).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+      }
+      if (zm.current) zm.current.textContent = `${(12 / g.tanHalf).toFixed(0)} мм`;
+    };
+
+    const frame = (nowMs) => {
+      raf = 0;
+      if (dead) return;
+      raf = requestAnimationFrame(frame);
+      if (document.hidden || !visible) return;
+      const want = calm ? 22 : 32;
+      if (nowMs - last < 1000 / want - 2) return;
+      const dtm = nowMs - last; last = nowMs;
+      const tt = T0 + (nowMs - born) / 1000;
+      const s = state(tt);
+      r.draw(s);
+      hud(tt, s);
+      // видеокарта не тянет — снижаем разрешение, пока кадр не уложится
+      frames++;
+      if (frames > 12) {
+        slow = slow * 0.9 + dtm * 0.1;
+        if (slow > 62 && k > 0.4) { k *= 0.85; dim = fit(); slow = 40; }
+      }
+    };
+
+    const still1 = () => { const tt = T0 + 25; const s = state(tt); r.draw(s); hud(tt, s); };
+    const ro = new ResizeObserver(() => { dim = fit(); if (still) still1(); });
+    ro.observe(box);
+    const io = new IntersectionObserver((es) => { visible = es[0].isIntersecting; });
+    io.observe(box);
+    if (still) still1();
+    else raf = requestAnimationFrame(frame);
+    return () => { dead = true; if (raf) cancelAnimationFrame(raf); ro.disconnect(); io.disconnect(); r.dispose(); };
+  }, [still, calm, armed, lite]);
+
+  if (!ok || !armed) return fallback;
+  const sunTxt = light < 0.14 ? "НОЧЬ · СВЕТ ТОЛЬКО ОТ МОЛНИЙ" : day || light >= 0.55 ? "ДЕНЬ" : `СУМЕРКИ · СОЛНЦЕ ${elev.toFixed(0)}°`;
+  const corner = { position: "absolute", width: 10, height: 10, borderColor: "var(--afc, rgba(120,255,160,.95))", borderStyle: "solid", borderWidth: 0 };
+  return (
+    <div ref={wrap} className="ink-dark no-glow" style={{ ...INSTR_FRAME, background: "#05080c" }}>
+      <canvas ref={cv} style={{ width: "100%", height: "100%", display: "block" }} />
+      <div ref={af} aria-hidden="true" style={{ position: "absolute", left: 0, top: 0, width: 46, height: 46, pointerEvents: "none", transition: "width .25s ease, height .25s ease, opacity .3s ease", willChange: "transform" }}>
+        <i style={{ ...corner, left: 0, top: 0, borderLeftWidth: 1.5, borderTopWidth: 1.5 }} />
+        <i style={{ ...corner, right: 0, top: 0, borderRightWidth: 1.5, borderTopWidth: 1.5 }} />
+        <i style={{ ...corner, left: 0, bottom: 0, borderLeftWidth: 1.5, borderBottomWidth: 1.5 }} />
+        <i style={{ ...corner, right: 0, bottom: 0, borderRightWidth: 1.5, borderBottomWidth: 1.5 }} />
+      </div>
+      <div style={{ position: "absolute", left: 9, top: 8, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        <span style={{ ...chip, display: "inline-flex", alignItems: "center", gap: 5 }}>
+          <i className={still ? undefined : "rec-blink"} style={{ width: 6, height: 6, borderRadius: 9, background: "#ef4444", display: "inline-block" }} />
+          <span ref={tc}>REC 00:00:00</span>
+        </span>
+        <span style={chip}>НЕТ КАМЕРЫ · ДЕМО-КАДР</span>
+        <span style={chip}>{sunTxt}</span>
+      </div>
+      <div style={{ position: "absolute", left: 9, bottom: 8, display: "flex", gap: 6 }}>
+        <span style={chip}>1/1000 · f/5.6 · ISO 400</span>
+        <span style={chip}>AF-C</span>
+        <span style={chip} ref={zm}>38 мм</span>
+      </div>
+    </div>
+  );
+}
+
