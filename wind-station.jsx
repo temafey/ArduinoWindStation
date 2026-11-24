@@ -8,6 +8,7 @@
 // Оформление — из дашборда пропсом ui, как во вкладке «Анализ».
 import { useState, useEffect, useMemo, useRef } from "react";
 import { TEXT, DIM, FAINT, LINE, NUM, SANS } from "./ui-kit.js";
+import { CANDIDATES, probe, discover } from "./wind-discover.js";
 import { readMinutes, readEvents, onLog, logEvent } from "./wind-log.js";
 
 const Note = ({ children }) => (
@@ -32,18 +33,7 @@ function Field({ label, value, onChange, placeholder, type = "text", mono = true
 // ============================================================
 // Адреса, по которым станция отвечает без всякой настройки: имя от её
 // собственного DNS, адрес точки доступа и mDNS-метка (в домашней сети).
-const CANDIDATES = ["MyWindProbeBETA.org", "192.168.4.1", "mywindprobebeta.local"];
-
-async function probe(host, ms = 3500) {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), ms);
-  try {
-    const r = await fetch(`http://${host}/api/data`, { signal: ctl.signal, cache: "no-store" });
-    if (!r.ok) return null;
-    const j = await r.json();
-    return Number.isFinite(j.speed) ? j : null;
-  } catch { return null; } finally { clearTimeout(t); }
-}
+// Адреса и сам поиск — в wind-discover.js: тот же код сам подключает станцию при запуске.
 
 export function ConnectPanel({ ui, g, accent, stations, activeId, connected, publicCopy, cloudAvail,
   onSelect, onRemove, onSave, onTestCloud, servedFromStation }) {
@@ -64,7 +54,10 @@ export function ConnectPanel({ ui, g, accent, stations, activeId, connected, pub
     const ok = res.filter((r) => r.j);
     // Одна плата отвечает и по имени, и по IP — показываем её один раз.
     const seen = new Set();
-    setFound(ok.filter((r) => { const id = r.j.hostname || r.host; if (seen.has(id)) return false; seen.add(id); return true; }));
+    let list = ok.filter((r) => { const id = r.j.hostname || r.host; if (seen.has(id)) return false; seen.add(id); return true; });
+    // Обычные имена молчат (дом, другая подсеть) — перебираем свою сеть.
+    if (!list.length) { const d = await discover(known); if (d) list = [d]; }
+    setFound(list);
     setBusy("");
   };
 

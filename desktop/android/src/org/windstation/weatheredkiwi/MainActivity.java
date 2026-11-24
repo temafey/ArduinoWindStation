@@ -10,6 +10,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInstaller;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.net.Uri;
 import android.provider.Settings;
 import android.content.ComponentName;
@@ -128,6 +132,7 @@ public class MainActivity extends Activity {
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         s.setMediaPlaybackRequiresUserGesture(false);
 
+        keepWifiReachable();
         web.addJavascriptInterface(new Bridge(), "WKNative");
         web.setWebViewClient(new WebViewClient());
         web.setWebChromeClient(new WebChromeClient() {
@@ -247,6 +252,7 @@ public class MainActivity extends Activity {
     }
 
     class Bridge {
+        @JavascriptInterface public String lanPrefixes() { return MainActivity.this.lanPrefixes(); }
         @JavascriptInterface public void check() { io.execute(new Runnable() { public void run() { doCheck(); } }); }
         @JavascriptInterface public void install() { io.execute(new Runnable() { public void run() { doInstall(); } }); }
         @JavascriptInterface public void setFeed(String url) { prefs.edit().putString("feed", url).apply(); }
@@ -476,6 +482,46 @@ public class MainActivity extends Activity {
             JSONObject j = new JSONObject(new String(http(feedUrl(base, "latest.json"), GDRIVE.equals(base) ? 15000 : 4000), StandardCharsets.UTF_8));
             return j.has("version") && feedSigned(j) ? j : null;
         } catch (Exception e) { return null; }
+    }
+
+    // Сеть самой станции (WindStation) без интернета: Android её «не одобряет» и гонит весь
+    // трафик через мобильную сеть, поэтому до 192.168.4.1 запрос просто не доходит.
+    // Пока Wi-Fi без интернета — привязываем процесс к нему; появился интернет — отпускаем.
+    private void keepWifiReachable() {
+        try {
+            final ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm == null || Build.VERSION.SDK_INT < 23) return;
+            NetworkRequest rq = new NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build();
+            cm.registerNetworkCallback(rq, new ConnectivityManager.NetworkCallback() {
+                public void onCapabilitiesChanged(Network n, NetworkCapabilities c) {
+                    try {
+                        boolean net = c.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+                        cm.bindProcessToNetwork(net ? null : n);
+                    } catch (Exception e) { /* нет права — остаётся как было */ }
+                }
+                public void onLost(Network n) { try { cm.bindProcessToNetwork(null); } catch (Exception e) { } }
+            });
+        } catch (Exception e) { /* старая система */ }
+    }
+
+    // Подсети (первые три числа) всех поднятых интерфейсов: "192.168.1.,192.168.4." — дашборд ищет в них плату.
+    private String lanPrefixes() {
+        StringBuilder sb = new StringBuilder();
+        try {
+            Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces();
+            while (en.hasMoreElements()) {
+                NetworkInterface ni = en.nextElement();
+                if (!ni.isUp() || ni.isLoopback()) continue;
+                for (InetAddress a : Collections.list(ni.getInetAddresses())) {
+                    if (a instanceof Inet4Address) {
+                        String h = a.getHostAddress();
+                        if (sb.length() > 0) sb.append(',');
+                        sb.append(h.substring(0, h.lastIndexOf('.') + 1));
+                    }
+                }
+            }
+        } catch (Exception e) { }
+        return sb.toString();
     }
 
     // Соседи по сети: перебор /24 каждого своего IPv4-адреса, порт раздачи открыт — это он.

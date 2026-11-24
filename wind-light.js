@@ -53,6 +53,19 @@ export const LIGHT_CSS = `
   /* Свечение текста на белом — мутное гало. Вне тёмных островков его нет. */
   /* Тройной класс — чтобы перебить свечение темы (.th-liquid:not(.eco) …
      [style*="text-shadow: none"] с !important). */
+  /* Светлый Liquid Glass: те же чернила, но панели — молочное стекло без чёрной грани, поверх пастельных обоев. */
+  .app.sc-light.sc-liquidLight {
+    --pnl-line: rgba(255,255,255,0.85);
+    --pnl-head-line: rgba(30,40,70,0.08);
+    --pnl-bg: linear-gradient(155deg, rgba(255,255,255,0.74), rgba(255,255,255,0.46) 55%, rgba(236,242,255,0.58));
+    --pnl-shadow: 0 1px 1px rgba(255,255,255,0.9) inset, 0 -1px 1px rgba(120,140,200,0.12) inset,
+                  0 18px 40px -22px rgba(40,60,130,0.38), 0 2px 8px -2px rgba(40,60,130,0.10);
+    --stat-bg: linear-gradient(155deg, rgba(255,255,255,0.70), rgba(255,255,255,0.40));
+    --stat-shadow: 0 1px 1px rgba(255,255,255,0.9) inset, 0 14px 30px -20px rgba(40,60,130,0.34);
+    --fl-bg: linear-gradient(155deg, rgba(255,255,255,0.78), rgba(255,255,255,0.50));
+    --fl-shadow: 0 0 0 0.75px rgba(255,255,255,0.9), 0 2px 8px -2px rgba(40,60,130,0.16),
+                 0 18px 40px -16px rgba(40,60,130,0.34), inset 0 1px 0 #fff;
+  }
   .app.sc-light.sc-light.sc-light *:not(:where(.ink-dark, .ink-dark *)) { text-shadow: none !important }
   .app.sc-light.sc-light.sc-light :is(.pnl, .stat, .tutor-box) svg:not(.no-glow):not(.no-glow *) { filter: none }
   /* Цифра в кольце — цветом скорости, но на белом светлые тона (штиль —

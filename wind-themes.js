@@ -296,9 +296,18 @@ const WALL = [
   // Пятое — холодный свет посередине: без него середина экрана, где и стоят
   // панели, оставалась самой тёмной, и стеклу там нечего было подсвечивать.
   { x: 0.55, y: 0.48, r: 30, tx: -10, ty: 12, ts: 0.18, dur: 57, c: [90, 150, 255, 0.16], d: [40, 60, 120, 0.22] },
+  // «Бульбашки»: небольшие яркие пятна поверх большого фона — стеклу есть что преломлять.
+  { x: 0.30, y: 0.38, r: 15, tx: 14, ty: -10, ts: 0.25, dur: 29, c: [120, 210, 255, 0.30], d: [60, 120, 190, 0.30] },
+  { x: 0.78, y: 0.62, r: 17, tx: -12, ty: 14, ts: 0.22, dur: 33, c: [200, 140, 255, 0.28], d: [110, 70, 170, 0.28] },
+  { x: 0.62, y: 0.12, r: 12, tx: -8, ty: 18, ts: 0.30, dur: 26, c: [255, 170, 130, 0.22], d: [150, 90, 80, 0.22] },
+];
+// Светлая сцена: пастельные пятна на белом листе (r, g, b, альфа) — по номеру пятна WALL.
+const WALL_LIGHT = [
+  [120, 165, 255, 0.55], [190, 150, 255, 0.45], [110, 215, 205, 0.40], [255, 185, 150, 0.42],
+  [150, 195, 255, 0.28], [130, 220, 255, 0.42], [215, 170, 255, 0.38], [255, 200, 160, 0.36],
 ];
 
-export function mountWall(canvas, { dark = false, fps = 8 } = {}) {
+export function mountWall(canvas, { dark = false, light = false, fps = 8 } = {}) {
   if (!canvas) return () => {};
   const ctx = canvas.getContext("2d", { alpha: true });
   if (!ctx) return () => {};
@@ -314,13 +323,14 @@ export function mountWall(canvas, { dark = false, fps = 8 } = {}) {
     const vmax = Math.max(w, h) / 100;
     ctx.clearRect(0, 0, w, h);
     const sec = (now - t0) / 1000;
+    let bi = 0;
     for (const b of WALL) {
       // Туда-обратно по косинусу: у краёв пути пятно замедляется, как жидкость,
       // а не разворачивается рывком, как у прежнего linear alternate.
       const p = (1 - Math.cos((Math.PI * sec) / b.dur)) / 2;
       const cx = b.x * w + b.tx * vmax * p, cy = b.y * h + b.ty * vmax * p;
       const r = b.r * vmax * (1 + b.ts * p);
-      const [R, G, B, A] = dark ? b.d : b.c;
+      const [R, G, B, A] = light ? WALL_LIGHT[bi++] : dark ? b.d : b.c;
       const gr = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
       gr.addColorStop(0, `rgba(${R},${G},${B},${A})`);
       gr.addColorStop(0.55, `rgba(${R},${G},${B},${(A * 0.42).toFixed(3)})`);
@@ -395,7 +405,7 @@ export const THEMES = {
       // Свою картинку не затираем: под стеклом она лучше любой сцены.
       // Тёмный вариант той же сцены и чёрный фон «По умолчанию» — тоже выбор
       // человека, их не сбрасываем.
-      ...(["custom", "liquidDark", "plain", "light"].includes(s.scene)
+      ...(["custom", "liquidDark", "liquidLight", "plain", "light"].includes(s.scene)
         ? {} : { scene: "liquid", bgTint: 8 }),
     }),
     css: `
@@ -460,6 +470,7 @@ export const THEMES = {
       .th-liquid.sc-custom { --pnl-blur: blur(var(--lg-blur-r)) saturate(var(--lg-sat)) }
       .th-liquid.sc-plain  { --pnl-blur: none }
       .th-liquid.sc-light  { --pnl-blur: none }
+      .th-liquid.sc-liquidLight { --pnl-blur: blur(20px) saturate(1.7) }
 
       .th-liquid ${GLASS} { position: relative; overflow: hidden; isolation: isolate; --lg-a: 135deg }
       .th-liquid ${GLASS} > * { position: relative; z-index: 1 }

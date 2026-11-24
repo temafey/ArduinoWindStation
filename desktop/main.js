@@ -112,6 +112,15 @@ if (!app.requestSingleInstanceLock()) {
       if (mainWin && !mainWin.isDestroyed()) mainWin.setIcon(nativeImage.createFromPath(iconPath(k)));
       return k;
     });
+    // Подсети компьютера ("192.168.1."): по ним дашборд ищет плату, когда имя .local не резолвится.
+    ipcMain.handle("wk:lan-prefixes", () => {
+      const out = [];
+      const ifs = require("os").networkInterfaces();
+      for (const k of Object.keys(ifs)) for (const a of ifs[k]) {
+        if (a.family === "IPv4" && !a.internal) out.push(a.address.slice(0, a.address.lastIndexOf(".") + 1));
+      }
+      return [...new Set(out)];
+    });
     ipcMain.handle("wk:fullscreen-state", () => !!(mainWin && !mainWin.isDestroyed() && mainWin.isFullScreen()));
     widgets.init({ showMain });
     createWindow();

@@ -171,7 +171,7 @@ export function backdropCss(settings, bgImage, pageMax = 0) {
   // слой просто не строится.
   // На светлой сцене тёмные поля и затемнение читались бы серой грязью:
   // поля там — едва заметная холодная тень, а затемнения нет вовсе.
-  const light = settings.scene === "light";
+  const light = settings.scene === "light" || settings.scene === "liquidLight";
   const side = light ? "rgba(40,60,110,0.045)" : "rgba(0,0,0,0.34)";
   if (pageMax > 0) {
     const half = `${Math.round(pageMax / 2)}px`;
@@ -207,7 +207,7 @@ export function backdropCss(settings, bgImage, pageMax = 0) {
     images.push(`url("${bgImage}")`);
     sizes.push("cover"); blends.push("normal"); repeats.push("no-repeat");
   } else {
-    const sc = SCENES[settings.scene];
+    const sc = SCENES[settings.scene === "liquidLight" ? "light" : settings.scene];
     if (sc?.css) {
       images.push(sc.css);
       sizes.push("cover"); blends.push("normal"); repeats.push("no-repeat");

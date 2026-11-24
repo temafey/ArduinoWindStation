@@ -54,6 +54,7 @@ import { pushNote, useNotifier, requestNotify, sentToday, DAY_LIMIT } from "./wi
 import { mountGlassScroll, GLASS_SCROLL_CSS } from "./wind-scroll.js";
 import Kiosk from "./wind-kiosk.jsx";
 import { useForecast } from "./wind-forecast.js";
+import { discover } from "./wind-discover.js";
 
 // Прошивка раздаёт этот дашборд сама (gzip из PROGMEM на порту 80). Если страница
 // открыта со станции — API живёт на том же хосте, настройка не нужна и localStorage
@@ -472,7 +473,9 @@ const DEFAULT_SETTINGS = {
   // силы стекла как в iOS 27. Прежний glassFx (max/blur/off) переведён в них
   // один раз в loadSettings().
   eco: null,
-  skin: "glass",         // материал: glass (Liquid Glass) или material («Тональная»)
+  mode: "dark",          // тема: light | dark — только светлая или тёмная
+  skin: "glass",         // стиль: plain («По умолчанию»), glass (Liquid Glass) или material («Тональная»)
+  wall: "live",          // обои под Liquid Glass: live | dim | none (scene выводится из mode+skin+wall, см. sceneOf)
   lang: null,            // язык интерфейса: null = как в системе, иначе код из LANGS (wind-i18n.js)
   glassIcon: true,       // значок: true — стеклянная долька (Liquid Glass), false — тональная
   mdIcons: "blue",       // «Тональная»: цвет значков — blue (синие) или bg (в цвет фона)
@@ -502,6 +505,17 @@ const DEFAULT_SETTINGS = {
   notify: false,         // уведомления Windows / Android (wind-notify.js)
   digestHours: 3,        // сводка ветра и прогноза раз в N часов; 0 — без сводок
 };
+
+// Тема (светлая/тёмная), стиль и обои — три независимых выбора; внутри дашборда
+// их по-прежнему несёт одно поле scene (ключ SCENES / класс sc-*), и оно
+// выводится здесь. Своя картинка (wall: "custom") — сцена custom поверх всего.
+function sceneOf(s) {
+  if (s.wall === "custom") return "custom";
+  const light = s.mode === "light";
+  if (s.skin !== "glass" || s.wall === "none") return light ? "light" : "plain";
+  if (light) return "liquidLight";
+  return s.wall === "dim" ? "liquidDark" : "liquid";
+}
 
 function loadSettings() {
   try {
@@ -536,7 +550,17 @@ function loadSettings() {
     if (s.lang != null && !LANGS.some((l) => l.code === s.lang)) s.lang = null;
     if (typeof s.glassIcon !== "boolean") s.glassIcon = true;
     if (!MATERIAL_ICONS[s.mdIcons]) s.mdIcons = "blue";
-    if (!["liquidDark", "plain", "light"].includes(s.scene)) s.scene = "liquid";
+    if (!["liquidDark", "liquidLight", "plain", "light", "custom"].includes(s.scene)) s.scene = "liquid";
+    // 0.5.50: «Тема» — светлая/тёмная, «Фон» стал обоями. Прежнюю сцену разбираем один раз.
+    if (!saved.mode) {
+      const sc = saved.scene;
+      s.mode = sc === "light" ? "light" : "dark";
+      s.wall = sc === "custom" ? "custom" : sc === "liquidDark" ? "dim" : sc === "liquid" || sc == null ? "live" : "none";
+      if (s.skin !== "material") s.skin = sc === "light" || sc === "plain" ? "plain" : "glass";
+    }
+    if (s.mode !== "light") s.mode = "dark";
+    if (!["live", "dim", "none", "custom"].includes(s.wall)) s.wall = "live";
+    s.scene = sceneOf(s);
     if (!FONT_SETS[s.font]) s.font = "cascadia";
     return s;
   } catch {
@@ -987,9 +1011,9 @@ const TAB_ICONS = {
 
 // Живой фон под стеклом — холст, который рисует mountWall() (wind-themes.js).
 // fps 0 — один кадр и тишина: эко-режим и «без движения».
-function LiquidWall({ dark, fps }) {
+function LiquidWall({ dark, light, fps }) {
   const ref = useRef(null);
-  useEffect(() => mountWall(ref.current, { dark, fps }), [dark, fps]);
+  useEffect(() => mountWall(ref.current, { dark, light, fps }), [dark, light, fps]);
   // Параллакс: фон чуть крупнее экрана и при прокрутке уходит вверх медленнее
   // страницы — стекло кажется висящим над ним. Только при прокрутке: панели
   // и так перерисовывают иней на каждом её кадре, а сдвиг фона от мыши
@@ -2297,6 +2321,7 @@ export default function WindDashboard() {
   // «Тональная» — та же раскладка и движение, но без стекла: линза, свет
   // курсора и живой фон в ней не нужны и не считаются.
   const material = settings.skin === "material";
+  const lightScene = settings.scene === "light" || settings.scene === "liquidLight";
 
   // Язык. Перевод делается на странице (wind-i18n.js), поэтому дашборду
   // достаточно сказать, какой язык включить: всё остальное — переводчик.
@@ -2601,6 +2626,7 @@ export default function WindDashboard() {
   const setS = (patch) => {
     setSettings((prev) => {
       const next = { ...prev, ...patch };
+      if ("mode" in patch || "skin" in patch || "wall" in patch) next.scene = sceneOf(next);
       try { localStorage.setItem("wind_ui_settings", JSON.stringify(next)); } catch { /* приватный режим */ }
       return next;
     });
@@ -3236,6 +3262,62 @@ export default function WindDashboard() {
     setStations(next);
     persistStations(next);
   };
+
+  // ---------- автоподключение своей станции ----------
+  // Установленная программа живёт отдельно от платы, и адрес по умолчанию
+  // (имя от DNS самой платы) работает только внутри её точки доступа. Поэтому,
+  // пока связи нет, дашборд сам ищет плату — известные адреса, обычные имена,
+  // потом свою подсеть — и подключается, ничего не спрашивая. Станция, найденная
+  // впервые, сохраняется как «Моя станция» (флаг auto: её адрес потом обновляется).
+  const stationsRef = useRef(stations);
+  stationsRef.current = stations;
+  const autoBusy = useRef(false);
+  useEffect(() => {
+    if (SERVED_FROM_STATION || PUBLIC_COPY || demoMode || source !== "station" || link !== "direct" || connected) return undefined;
+    let dead = false, timer = 0;
+    const ctl = new AbortController();
+    const run = async () => {
+      if (dead || autoBusy.current) return;
+      autoBusy.current = true;
+      let res = null;
+      try {
+        const list = stationsRef.current;
+        res = await discover([esp32Host, ...list.map((x) => x.ip), ...list.map((x) => x.host)], ctl.signal);
+      } catch { /* сеть недоступна */ }
+      autoBusy.current = false;
+      if (dead) return;
+      if (!res) { timer = setTimeout(run, 20000); return; }
+      const ip = res.j.staIp && res.j.staConnected ? res.j.staIp : null;
+      const list = stationsRef.current;
+      const hit = list.find((x) => x.host === res.host) || list.find((x) => x.auto);
+      if (hit) {
+        const upd = { ...hit, host: res.host, ...(ip ? { ip } : {}) };
+        const next = list.map((x) => (x.id === hit.id ? upd : x));
+        setStations(next); persistStations(next);
+        selectStation(upd);
+      } else {
+        const st = { id: newStationId(), name: "Моя станция", host: res.host, via: "lan", auto: true, lat: null, lon: null, ...(ip ? { ip } : {}) };
+        const next = [...list, st];
+        setStations(next); persistStations(next);
+        selectStation(st);
+      }
+      setShowWelcome(false);
+    };
+    timer = setTimeout(run, 4000);
+    return () => { dead = true; clearTimeout(timer); ctl.abort(); autoBusy.current = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected, demoMode, source, link, esp32Host]);
+
+  // Пока связь есть — запоминаем домашний адрес платы: имя .local на части
+  // устройств не резолвится, а IP остаётся запасным ходом для следующего запуска.
+  useEffect(() => {
+    if (!connected || SERVED_FROM_STATION || PUBLIC_COPY || !data || !data.staConnected || !data.staIp) return;
+    const cur = stationsRef.current.find((x) => x.id === activeStationId);
+    if (!cur || cur.ip === data.staIp) return;
+    const next = stationsRef.current.map((x) => (x.id === cur.id ? { ...x, ip: data.staIp } : x));
+    setStations(next); persistStations(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected, data && data.staIp]);
 
   const resetGust = async () => {
     if (demoMode) {
@@ -4727,13 +4809,13 @@ export default function WindDashboard() {
         ${ECO_CSS}
         ${MORPH_CSS}
         ${LANG_CSS}
-        ${settings.skin === "material" ? materialCss(settings.scene === "light", settings.mdIcons) : settings.scene === "light" ? LIGHT_CSS : ""}
+        ${settings.skin === "material" ? materialCss(settings.mode === "light", settings.mdIcons) : lightScene ? LIGHT_CSS : ""}
       `,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settings.theme, settings.font, settings.ground, settings.corners, settings.panelFill, backdrop, settings.scene, settings.skin, settings.mdIcons]);
+    [settings.theme, settings.font, settings.ground, settings.corners, settings.panelFill, backdrop, settings.scene, settings.skin, settings.mode, settings.mdIcons]);
   return (
     <div
-      className={`app mo-${motion} dens-${settings.density} th-${settings.theme} sc-${settings.scene || "none"}${material ? " sk-material" : ""}`
+      className={`app mo-${motion} dens-${settings.density} th-${settings.theme} sc-${settings.scene || "none"}${settings.scene === "liquidLight" ? " sc-light" : ""}${material ? " sk-material" : ""}`
         + `${settings.borders ? "" : " noborders"}` + ` dockpos-${dockPos}`
         // Что из стекла реально действует: эко, тонировка, линза (только
         // в Chromium) — решение целиком в glassClasses().
@@ -5379,7 +5461,80 @@ export default function WindDashboard() {
             <button className="set-x" onClick={() => setShowSettings(false)} aria-label="Закрыть">✕</button>
           </div>
 
-          <SetSection title="Система" first />
+          <SetSection title="Внешний вид" first />
+          <Choice
+            label="Тема" g={g} value={settings.mode === "light" ? "light" : "dark"}
+            options={[{ value: "light", label: "Светлая" }, { value: "dark", label: "Тёмная" }]}
+            onChange={(v) => setS({ mode: v })}
+            hint="Только светлая или тёмная. Как выглядят панели — выбирается ниже в «Стиле», а картинка за ними — в «Обоях»."
+          />
+          <Choice
+            label="Стиль" g={g} value={MATERIAL_THEMES[settings.skin] ? settings.skin : "glass"}
+            options={Object.entries(MATERIAL_THEMES).map(([value, t]) => ({ value, label: t.label }))}
+            onChange={(v) => setS({ skin: v })}
+            hint="«По умолчанию» — строгие панели с тонкой гранью. Liquid Glass — стекло, блики и линзы, как в iOS 26. «Тональная» — мягкие цветные поверхности с градиентами и крупными скруглениями, как в приложениях на Android. Анимации у всех одни и те же."
+          />
+          <Reveal open={settings.skin === "material"}>
+            <Choice
+              label="Цвет значков" g={g} value={settings.mdIcons === "bg" ? "bg" : "blue"}
+              options={Object.entries(MATERIAL_ICONS).map(([value, t]) => ({ value, label: t.label }))}
+              onChange={(v) => setS({ mdIcons: v })}
+              hint="Шестерёнка, кнопки справа от пульта и выбранная вкладка. «Синие» — тон primary; «в цвет фона» — нейтральные, тем же тоном, что поверхности вокруг."
+            />
+          </Reveal>
+          <Reveal open={settings.skin === "glass"}>
+            <Choice
+              label="Обои" g={g} value={["live", "dim", "none"].includes(settings.wall) ? settings.wall : "live"}
+              options={[{ value: "live", label: "Живые" }, { value: "dim", label: "Приглушённые" }, { value: "none", label: "Без обоев" }]}
+              onChange={(v) => setS({ wall: v })}
+              hint="Цветные пятна и пузыри, которые медленно плывут под стеклом: им есть что преломлять. «Приглушённые» — то же, но темнее (только в тёмной теме). В эко-режиме обои стоят."
+            />
+          </Reveal>
+          <Switch
+            label="Liquid Glass иконка" g={g} accent={accent}
+            value={tonalIcon ? "off" : "on"}
+            off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+            onChange={(v) => setS({ glassIcon: v === "on" })}
+            hint="Значок в шапке и значок самого приложения. Включено — стеклянная долька киви, выключено — плоская тональная."
+          />
+          <div style={{ marginBottom: 18 }}>
+            <Label g={g}>Язык</Label>
+            <Segments
+              ariaLabel="Язык" value={settings.lang ? "pick" : "auto"}
+              options={[{ value: "auto", label: "По умолчанию" },
+                        { value: "pick", label: settings.lang ? langInfo(settings.lang).name : "Выбрать другой" }]}
+              onChange={(v) => (v === "auto" ? setS({ lang: null }) : setLangOpen(true))}
+            />
+            <div className="lang-cur">
+              {settings.lang
+                ? <>Выбранный язык: <span translate="no">{langInfo(settings.lang).name}</span> · <button type="button" className="eco-auto" onClick={() => setLangOpen(true)}>Выбрать другой</button></>
+                : <>Как в системе: <span translate="no">{langInfo(systemLang()).name}</span></>}
+            </div>
+          </div>
+          <Switch
+            label="Эко-режим" g={g} accent={accent}
+            value={eco ? "on" : "off"}
+            off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
+            onChange={(v) => setS({ eco: v === "on" })}
+            hint="Для телефонов. Стекло остаётся стеклом — тонировка, фаска, блик, подсветка от касания, — но без инея под панелями, без линзы, без бегущего блика и света от курсора; фон стоит, сцена камеры замирает, поток рисуется 5 раз в секунду вместо 20. Показания от этого не меняются."
+          />
+          <div style={{ margin: "-12px 0 18px", fontFamily: SANS, fontSize: 10.5, color: DIM, lineHeight: 1.5 }}>
+            {settings.eco == null
+              ? <>Сейчас решает устройство: {ECO_AUTO ? "похоже на телефон — включён" : "компьютер — выключен"}.</>
+              : <button type="button" className="eco-auto" onClick={() => setS({ eco: null })}>
+                  вернуть автовыбор ({ECO_AUTO ? "здесь — вкл" : "здесь — выкл"})
+                </button>}
+          </div>
+          {!material && <><Choice
+            label="Стекло" g={g} value={settings.glassTint === "tinted" ? "tinted" : "clear"}
+            options={Object.entries(GLASS_TINTS).map(([value, t]) => ({ value, label: t.label }))}
+            onChange={(v) => setS({ glassTint: v })}
+            hint="Clear — прозрачное стекло, как в iOS 26. Tinted — плотнее и контрастнее, текст читается на любом фоне (iOS 26.1)."
+          />
+          <GlassLevel g={g} value={glassLevel(settings)} eco={eco}
+                      onCommit={(v) => setS({ glassLevel: v })} /></>}
+
+          <SetSection title="Станция и данные" />
           {/* Станции переехали во вкладку «Станция» — там подключение целиком.
               Здесь осталась только строка: какая выбрана и куда идти. */}
           <div style={{ marginBottom: 18 }}>
@@ -5414,77 +5569,7 @@ export default function WindDashboard() {
               onChange={(v) => setLink(v)}
             />
           )}
-          <div style={{ marginBottom: 18 }}>
-            <Label g={g}>Язык</Label>
-            <Segments
-              ariaLabel="Язык" value={settings.lang ? "pick" : "auto"}
-              options={[{ value: "auto", label: "По умолчанию" },
-                        { value: "pick", label: settings.lang ? langInfo(settings.lang).name : "Выбрать другой" }]}
-              onChange={(v) => (v === "auto" ? setS({ lang: null }) : setLangOpen(true))}
-            />
-            <div className="lang-cur">
-              {settings.lang
-                ? <>Выбранный язык: <span translate="no">{langInfo(settings.lang).name}</span> · <button type="button" className="eco-auto" onClick={() => setLangOpen(true)}>Выбрать другой</button></>
-                : <>Как в системе: <span translate="no">{langInfo(systemLang()).name}</span></>}
-            </div>
-          </div>
-          <SetSection title="Тема" />
-          <Choice
-            label="Тема" g={g} value={settings.skin === "material" ? "material" : "glass"}
-            options={Object.entries(MATERIAL_THEMES).map(([value, t]) => ({ value, label: t.label }))}
-            onChange={(v) => setS({ skin: v })}
-            hint="Liquid Glass — стекло, блики и линзы, как в iOS 26. «Тональная» — плоские цветные поверхности, крупные скругления и пилюли, как в приложениях на Android. Анимации у обеих одни и те же. Светлая или тёмная — по «Фону»."
-          />
-          <Reveal open={settings.skin === "material"}>
-            <Choice
-              label="Цвет значков" g={g} value={settings.mdIcons === "bg" ? "bg" : "blue"}
-              options={Object.entries(MATERIAL_ICONS).map(([value, t]) => ({ value, label: t.label }))}
-              onChange={(v) => setS({ mdIcons: v })}
-              hint="Шестерёнка, кнопки справа от пульта и выбранная вкладка. «Синие» — тон primary; «в цвет фона» — нейтральные, тем же тоном, что поверхности вокруг."
-            />
-          </Reveal>
-          <Switch
-            label="Liquid Glass иконка" g={g} accent={accent}
-            value={tonalIcon ? "off" : "on"}
-            off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
-            onChange={(v) => setS({ glassIcon: v === "on" })}
-            hint="Значок в шапке и значок самого приложения. Включено — стеклянная долька киви, выключено — плоская тональная."
-          />
-          <Choice
-            label="Фон" g={g}
-            value={["liquidDark", "plain", "light"].includes(settings.scene) ? settings.scene : "liquid"}
-            options={[
-              { value: "light", label: "По умолчанию" },
-              { value: "plain", label: "Тёмная по умолчанию" },
-              { value: "liquid", label: "Liquid Glass" },
-              { value: "liquidDark", label: "Тёмный Liquid Glass" },
-            ]}
-            onChange={(v) => setS({ scene: v })}
-          />
-          <Switch
-            label="Эко-режим" g={g} accent={accent}
-            value={eco ? "on" : "off"}
-            off={{ value: "off", label: "выкл" }} on={{ value: "on", label: "вкл" }}
-            onChange={(v) => setS({ eco: v === "on" })}
-            hint="Для телефонов. Стекло остаётся стеклом — тонировка, фаска, блик, подсветка от касания, — но без инея под панелями, без линзы, без бегущего блика и света от курсора; фон стоит, сцена камеры замирает, поток рисуется 5 раз в секунду вместо 20. Показания от этого не меняются."
-          />
-          <div style={{ margin: "-12px 0 18px", fontFamily: SANS, fontSize: 10.5, color: DIM, lineHeight: 1.5 }}>
-            {settings.eco == null
-              ? <>Сейчас решает устройство: {ECO_AUTO ? "похоже на телефон — включён" : "компьютер — выключен"}.</>
-              : <button type="button" className="eco-auto" onClick={() => setS({ eco: null })}>
-                  вернуть автовыбор ({ECO_AUTO ? "здесь — вкл" : "здесь — выкл"})
-                </button>}
-          </div>
-          {!material && <><Choice
-            label="Стекло" g={g} value={settings.glassTint === "tinted" ? "tinted" : "clear"}
-            options={Object.entries(GLASS_TINTS).map(([value, t]) => ({ value, label: t.label }))}
-            onChange={(v) => setS({ glassTint: v })}
-            hint="Clear — прозрачное стекло, как в iOS 26. Tinted — плотнее и контрастнее, текст читается на любом фоне (iOS 26.1)."
-          />
-          <GlassLevel g={g} value={glassLevel(settings)} eco={eco}
-                      onCommit={(v) => setS({ glassLevel: v })} /></>}
-
-          <SetSection title="Пульт и раскладка" />
+          <SetSection title="Навигация и раскладка" />
           <Choice
             label="Пульт управления" g={g} value={dockPos}
             options={[{ value: "bottom", label: "Снизу" }, { value: "top", label: "Сверху" },
@@ -5699,8 +5784,8 @@ export default function WindDashboard() {
       {/* Живой фон под стеклом: без него стеклу нечего преломлять. Только на
           своей сцене — свою картинку пятна не закрашивают. Фильтры линзы
           вставляет startLens() — у каждого плавающего элемента свой. */}
-      {liquid && !material && (settings.scene === "liquid" || settings.scene === "liquidDark") && (
-        <LiquidWall dark={settings.scene === "liquidDark"} fps={eco || motion === "off" ? 0 : motion === "calm" ? 5 : 8} />
+      {liquid && !material && (settings.scene === "liquid" || settings.scene === "liquidDark" || settings.scene === "liquidLight") && (
+        <LiquidWall dark={settings.scene === "liquidDark"} light={settings.scene === "liquidLight"} fps={eco || motion === "off" ? 0 : motion === "calm" ? 5 : 8} />
       )}
       {/* Край прокрутки: содержимое уходит под шапку и под док, растворяясь. */}
       {liquid && <div className="lg-edge lg-edge-top" aria-hidden="true" />}

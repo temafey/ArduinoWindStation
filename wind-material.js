@@ -33,6 +33,7 @@ const DARK = `
     --md-primary: #a8c7fa; --md-on-primary: #062e6f; --md-pc: #0842a0; --md-on-pc: #d3e3fd;
     --md-sc: #004a77; --md-on-sc: #c2e7ff;
     --md-elev: 0 1px 3px rgba(0,0,0,0.3), 0 4px 8px 3px rgba(0,0,0,0.15);
+    --md-ter: #d0bcff; --md-tc: #4a3d7a; --md-on-tc: #e9ddff; --md-mint: #7fd9c4;
     --ink: 227,227,227; --rule: 196,199,197;`;
 const LIGHT = `
     --md-surface: #f0f4f9; --md-card: #ffffff; --md-c-high: #e9eef6; --md-c-highest: #dde3ea;
@@ -41,13 +42,14 @@ const LIGHT = `
     --md-primary: #0b57d0; --md-on-primary: #ffffff; --md-pc: #d3e3fd; --md-on-pc: #041e49;
     --md-sc: #c2e7ff; --md-on-sc: #001d35;
     --md-elev: 0 1px 2px rgba(0,0,0,0.3), 0 2px 6px 2px rgba(0,0,0,0.15);
+    --md-ter: #6b4fc9; --md-tc: #e6deff; --md-on-tc: #21005d; --md-mint: #1b9b84;
     --ink: 31,31,31; --rule: 68,71,70;`;
 
 // Галочка для выбранного сегмента и тумблера — маской, цветом текущего текста.
 const CHECK = `url("data:image/svg+xml,${encodeURIComponent(
   "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M9.55 18 3.85 12.3l1.43-1.42 4.27 4.27 9.17-9.18 1.43 1.43z'/></svg>")}")`;
 
-export const MATERIAL_THEMES = { glass: { label: "Liquid Glass" }, material: { label: "Тональная" } };
+export const MATERIAL_THEMES = { plain: { label: "По умолчанию" }, glass: { label: "Liquid Glass" }, material: { label: "Тональная" } };
 
 // Цвет значков (шестерёнка, кнопки справа от дока, индикатор вкладки): синие —
 // тоны primary/secondary-container, «в цвет фона» — нейтральные тона самой
@@ -69,13 +71,20 @@ export function materialCss(light, icons = "blue") {
   .ink-dark, .no-glow { --ink: 231,238,246; --rule: 160,180,200; color-scheme: dark }
   html, body, #root { background: var(--md-surface) !important }
   ${M} {
-    background: var(--md-surface) !important; color: var(--md-on);
+    background-color: var(--md-surface) !important; color: var(--md-on);
+    background-image:
+      radial-gradient(60% 46% at 100% 0%, color-mix(in srgb, var(--md-primary) ${light ? 20 : 22}%, transparent), transparent 70%),
+      radial-gradient(52% 44% at 0% 100%, color-mix(in srgb, var(--md-ter) ${light ? 18 : 20}%, transparent), transparent 70%),
+      radial-gradient(40% 34% at 8% 4%, color-mix(in srgb, var(--md-mint) ${light ? 12 : 10}%, transparent), transparent 70%) !important;
+    background-attachment: fixed !important;
     --ui-sans: 'Google Sans Text', 'Google Sans', 'Product Sans', Roboto, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
     --ui-mono: 'Google Sans Text', 'Google Sans', Roboto, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
     --pnl-line: transparent; --pnl-head-line: transparent;
-    --pnl-bg: var(--md-card); --pnl-shadow: none; --pnl-blur: none; --pnl-corner: 24px;
-    --stat-bg: var(--md-card); --stat-shadow: none;
+    --md-grad: linear-gradient(155deg, color-mix(in srgb, var(--md-primary) ${light ? 9 : 10}%, var(--md-card)), var(--md-card) 58%, color-mix(in srgb, var(--md-ter) ${light ? 8 : 9}%, var(--md-card)));
+    --md-lift: 0 1px 2px rgba(0,0,0,${light ? 0.06 : 0.35}), 0 14px 30px -18px color-mix(in srgb, var(--md-primary) ${light ? 55 : 40}%, transparent), inset 0 1px 0 rgba(255,255,255,${light ? 0.9 : 0.05});
+    --pnl-bg: var(--md-grad); --pnl-shadow: var(--md-lift); --pnl-blur: none; --pnl-corner: 24px;
+    --stat-bg: var(--md-grad); --stat-shadow: var(--md-lift);
     --fl-bg: var(--md-fl); --fl-shadow: var(--md-elev);
     --md-gap: var(--md-card);
     ${ICONS[icons] || ICONS.blue}
@@ -104,7 +113,6 @@ export function materialCss(light, icons = "blue") {
   ${M} :is(button.btn, button.btn-pri) { padding: 10px 20px !important; font-size: 13px !important; font-weight: 500 !important }
   ${M} .pnl > header { border-bottom-color: transparent !important }
   ${M} .pnl > header > :first-child { font-size: 14px !important; font-weight: 500 !important; color: var(--md-on) !important }
-  ${M} .pnl > header > :first-child::before { display: none !important }
   ${M} .ar-gauge-in b { ${light ? "filter: brightness(.68) saturate(1.5)" : ""} }
 
   /* ---- кнопки: пилюли, состояние наведения — слой текущего цвета ---- */
@@ -115,6 +123,30 @@ export function materialCss(light, icons = "blue") {
   ${M} .rip { border-color: rgba(var(--ink),0.3) !important }
   ${M} :is(.ar-btn, .gpill) { box-shadow: none !important }
   ${M} .ar-btn { background: var(--md-sc) !important; color: var(--md-on-sc) !important; border-color: transparent !important }
+  /* ---- градиенты и пузыри: мягкие цветные пятна дрейфуют под карточками ---- */
+  ${M}::before, ${M}::after { content: ""; position: fixed; z-index: 0; pointer-events: none; border-radius: 50%;
+    filter: blur(46px); opacity: ${light ? 0.5 : 0.42} }
+  ${M}::before { width: 34vmax; height: 34vmax; right: -9vmax; top: 18vh;
+    background: radial-gradient(circle at 35% 35%, color-mix(in srgb, var(--md-primary) 70%, #fff 0%), transparent 68%);
+    animation: mdDriftA 38s ease-in-out infinite alternate }
+  ${M}::after { width: 28vmax; height: 28vmax; left: -8vmax; bottom: 6vh;
+    background: radial-gradient(circle at 60% 40%, color-mix(in srgb, var(--md-ter) 75%, transparent), transparent 68%);
+    animation: mdDriftB 46s ease-in-out infinite alternate }
+  @keyframes mdDriftA { from { transform: translate(0,0) scale(1) } to { transform: translate(-9vmax, 10vh) scale(1.18) } }
+  @keyframes mdDriftB { from { transform: translate(0,0) scale(1) } to { transform: translate(10vmax, -12vh) scale(0.9) } }
+  .app.sk-material.eco::before, .app.sk-material.eco::after { animation: none }
+  /* Заголовок панели получает цветную чёрточку-«бульбашку» вместо пустоты. */
+  ${M} .pnl > header > :first-child { display: inline-flex; align-items: center; gap: 9px }
+  ${M} .pnl > header > :first-child::before { display: inline-block !important; content: ""; width: 6px; height: 16px; border-radius: 99px; margin: 0;
+    background: linear-gradient(180deg, var(--md-primary), var(--md-ter)) }
+  ${M} button.btn-pri:not(:disabled) { background: linear-gradient(135deg, var(--md-primary), color-mix(in srgb, var(--md-primary) 55%, var(--md-ter))) !important;
+    box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--md-primary) 80%, transparent) !important }
+  ${M} .ar-btn.big { background: linear-gradient(135deg, var(--md-primary), color-mix(in srgb, var(--md-primary) 55%, var(--md-ter))) !important }
+  ${M} .dock, ${M} nav:not(.dock *) { background: linear-gradient(160deg, color-mix(in srgb, var(--md-primary) 10%, var(--md-fl)), var(--md-fl) 60%, color-mix(in srgb, var(--md-ter) 9%, var(--md-fl))) !important }
+  ${M} .modal-card { background: linear-gradient(160deg, color-mix(in srgb, var(--md-primary) 9%, var(--md-c-high)), var(--md-c-high) 55%, color-mix(in srgb, var(--md-ter) 8%, var(--md-c-high))) !important }
+  ${M} .seg-drop i, ${M} .seg-big .seg-drop i { background: linear-gradient(135deg, var(--md-sc), color-mix(in srgb, var(--md-sc) 60%, var(--md-tc))) !important }
+  ${M} .liq-range .liq-f { --lc: var(--md-primary) !important; --le: var(--md-ter) !important }
+  ${M} .led-card { background: linear-gradient(160deg, color-mix(in srgb, var(--md-primary) 8%, var(--md-c-high)), var(--md-c-high)) !important }
   ${M} .ar-btn.big { background: var(--md-primary) !important; color: var(--md-on-primary) !important; font-weight: 500 !important }
   ${M} .ar-steps b { background: var(--md-pc) !important; color: var(--md-on-pc) !important; border-color: transparent !important }
   ${M} :is(.ar-p, .ar-sens span, .eco-auto) { color: var(--md-primary) !important }
